@@ -19,6 +19,7 @@
       "name": "@agds-hr/web",
       "version": "0.0.0",
       "dependencies": {
+        "@agds-hr/audit": "workspace:*",
         "@agds-hr/auth": "workspace:*",
         "@agds-hr/db": "workspace:*",
         "@agds-hr/env": "workspace:*",

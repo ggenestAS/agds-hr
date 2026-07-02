@@ -75,3 +75,69 @@ export async function listAdminDirectory(
     active: raw.active ?? true,
   }));
 }
+
+// A flat org-tree node — the client builds the hierarchy by joining on manager
+// user ids. GET /officer/org-tree accepts the service API key (active staff with
+// an officer record).
+export type OrgNode = {
+  readonly userId: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly title: string | undefined;
+  readonly functionalManagerUserId: string | undefined;
+};
+
+type RawOrgNode = {
+  readonly user_id: string;
+  readonly first_name: string;
+  readonly last_name: string;
+  readonly title?: string | null;
+  readonly functional_manager_user_id?: string | null;
+};
+
+export async function listOrgTree(
+  options: Omit<ListAdminDirectoryOptions, "limit"> = {},
+): Promise<readonly OrgNode[]> {
+  const env = options.env ?? process.env;
+  const apiKey = readOptional("INSIDE_API_KEY", env);
+  if (apiKey === undefined) {
+    throw new Error("inside_not_configured: INSIDE_API_KEY is unset (see .env.example)");
+  }
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const baseUrl = options.baseUrl ?? INSIDE_BASE_URL;
+
+  const response = await fetchImpl(`${baseUrl}/officer/org-tree`, {
+    headers: { "X-API-Key": apiKey },
+  });
+  if (!response.ok) {
+    throw new Error(`inside_request_failed: org-tree returned ${response.status}`);
+  }
+  const rows = (await response.json()) as readonly RawOrgNode[];
+  return rows.map((raw) => ({
+    userId: raw.user_id,
+    firstName: raw.first_name,
+    lastName: raw.last_name,
+    title: raw.title ?? undefined,
+    functionalManagerUserId: raw.functional_manager_user_id ?? undefined,
+  }));
+}
+
+// Pure: the ordered functional management chain for a user (immediate manager
+// first, up to the top). Cycle-guarded and depth-capped, matching the server's
+// max_depth = 10.
+export function managementChain(nodes: readonly OrgNode[], userId: string): readonly OrgNode[] {
+  const byId = new Map(nodes.map((node) => [node.userId, node]));
+  const chain: OrgNode[] = [];
+  const seen = new Set<string>([userId]);
+  let next = byId.get(userId)?.functionalManagerUserId;
+  while (next !== undefined && !seen.has(next) && chain.length < 10) {
+    const node = byId.get(next);
+    if (node === undefined) {
+      break;
+    }
+    chain.push(node);
+    seen.add(next);
+    next = node.functionalManagerUserId;
+  }
+  return chain;
+}

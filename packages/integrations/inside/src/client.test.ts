@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { isInsideConfigured, listAdminDirectory } from "./client.ts";
+import { isInsideConfigured, listAdminDirectory, managementChain, type OrgNode } from "./client.ts";
 
 const RESPONSE = {
   total: 2,
@@ -82,5 +82,26 @@ describe("inside client", () => {
     expect(
       listAdminDirectory({ env: { INSIDE_API_KEY: "secret" }, fetchImpl: failing }),
     ).rejects.toThrow("inside_request_failed");
+  });
+});
+
+describe("managementChain", () => {
+  const node = (userId: string, mgr: string | undefined): OrgNode => ({
+    userId,
+    firstName: userId,
+    lastName: "x",
+    title: undefined,
+    functionalManagerUserId: mgr,
+  });
+  const nodes = [node("a", "b"), node("b", "c"), node("c", undefined)];
+
+  test("walks the functional chain from immediate manager to the top", () => {
+    expect(managementChain(nodes, "a").map((n) => n.userId)).toEqual(["b", "c"]);
+    expect(managementChain(nodes, "c")).toHaveLength(0);
+  });
+
+  test("is cycle-guarded", () => {
+    const cyclic = [node("a", "b"), node("b", "a")];
+    expect(managementChain(cyclic, "a").map((n) => n.userId)).toEqual(["b"]);
   });
 });

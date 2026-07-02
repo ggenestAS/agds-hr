@@ -1,5 +1,6 @@
+import type { AuditContext } from "@agds-hr/audit";
 import { assertCan, type Session } from "@agds-hr/auth";
-import { ForbiddenError } from "@agds-hr/shared";
+import { ForbiddenError, type UserId } from "@agds-hr/shared";
 
 import { getSessionHandler } from "./session.impl.server.ts";
 
@@ -15,4 +16,16 @@ export async function requireSession(action: string, resource?: unknown): Promis
   }
   assertCan(session.subject, action, resource);
   return session;
+}
+
+// Build the audit context from a session (§9.3). subjectUserId defaults to the
+// session subject; pass an explicit one for cross-user actions. People edits
+// target a person by email (who may have no auth.user id), so they fall back to
+// the actor as subject — the resource id on the audit row carries the email.
+export function auditContext(session: Session, subjectUserId?: UserId): AuditContext {
+  return {
+    actorUserId: session.actor.id,
+    subjectUserId: subjectUserId ?? session.subject.id,
+    requestId: session.requestId,
+  };
 }
