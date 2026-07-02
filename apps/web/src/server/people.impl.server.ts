@@ -107,16 +107,20 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   }));
 
   const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
-  const appeal =
+
+  // The appeal (statement/category/resolution) is visible to HR Admins and the
+  // appellant only (design) — never to an arbitrary directory viewer. The
+  // canAppeal affordance is likewise for the subject alone, within the window.
+  const isSubject = session.actor.email.toLowerCase() === admin.email.toLowerCase();
+  const canManageAppeals = can(session.subject, "people.appeal.manage").allow;
+  const filedAppeal =
     reviewCase === undefined ? undefined : await getAppealForCase(adminDb, reviewCase.id);
+  const appeal = canManageAppeals || isSubject ? filedAppeal : undefined;
   const appealOpen =
     reviewCase?.decidedAt !== undefined &&
     reviewCase.appealUntil !== undefined &&
     reviewCase.appealUntil.getTime() >= Date.now();
-  const canAppeal =
-    appealOpen &&
-    appeal === undefined &&
-    session.actor.email.toLowerCase() === admin.email.toLowerCase();
+  const canAppeal = appealOpen && filedAppeal === undefined && isSubject;
 
   return {
     userId: admin.userId,
