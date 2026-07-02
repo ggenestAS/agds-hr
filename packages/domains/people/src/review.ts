@@ -52,6 +52,14 @@ const SELECT = {
   p6Triggered: reviewCase.p6Triggered,
 };
 
+export async function getCaseById(
+  db: DrizzleExecutor,
+  caseId: string,
+): Promise<ReviewCase | undefined> {
+  const [row] = await db.select(SELECT).from(reviewCase).where(eq(reviewCase.id, caseId)).limit(1);
+  return row === undefined ? undefined : rowToCase(row);
+}
+
 export async function getCaseBySubject(
   db: DrizzleExecutor,
   subjectEmail: string,

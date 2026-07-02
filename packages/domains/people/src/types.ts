@@ -113,3 +113,55 @@ export const APPEAL_WINDOW_DAYS = 30;
 export function isP6Triggered(rating: ReviewRating | undefined): boolean {
   return rating !== undefined && rating <= 2;
 }
+
+// --- Compensation ----------------------------------------------------------
+// Band position: where a base sits within its role×level band, 0–100%. Clamped;
+// a degenerate band (max <= min) reads as mid.
+export function bandPositionPct(baseEur: number, minEur: number, maxEur: number): number {
+  if (maxEur <= minEur) {
+    return 50;
+  }
+  const pct = ((baseEur - minEur) / (maxEur - minEur)) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+// Merit matrix — suggested increase by rating × position in band (design:
+// "Guide, not a formula"). Low-in-band + high rating earns the most; high-in-band
+// earns less; rating 1 gets nothing (a P6 plan, not a raise). Values are basis
+// points (900 = 9.00%) and are placeholder config pending Albert's real matrix.
+export type BandThird = "low" | "mid" | "high";
+export const MERIT_MATRIX_BP: Record<ReviewRating, Record<BandThird, number>> = {
+  4: { low: 1200, mid: 800, high: 400 },
+  3: { low: 800, mid: 500, high: 200 },
+  2: { low: 300, mid: 100, high: 0 },
+  1: { low: 0, mid: 0, high: 0 },
+};
+
+export function bandThird(positionPct: number): BandThird {
+  if (positionPct < 34) {
+    return "low";
+  }
+  return positionPct < 67 ? "mid" : "high";
+}
+
+// Suggested merit increase (basis points) for a rating at a band position.
+export function meritIncreaseBp(rating: ReviewRating, positionPct: number): number {
+  return MERIT_MATRIX_BP[rating][bandThird(positionPct)];
+}
+
+export type Band = {
+  readonly roleFamily: string;
+  readonly level: CareerLevel;
+  readonly minEur: number;
+  readonly midEur: number;
+  readonly maxEur: number;
+};
+
+export type CompRecommendation = {
+  readonly currentBaseEur: number;
+  readonly increaseEur: number;
+  readonly bonusEur: number;
+  readonly newBaseEur: number;
+  readonly effectiveDate: string | undefined;
+  readonly rationale: string | undefined;
+};

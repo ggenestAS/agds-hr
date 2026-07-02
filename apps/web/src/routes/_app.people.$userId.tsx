@@ -5,9 +5,10 @@ import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { Button } from "../components/ui/button.tsx";
-import type { PersonDetail } from "../server/people.shared.ts";
+import type { CompView, PersonDetail } from "../server/people.shared.ts";
 import {
   advanceReviewFn,
+  compFn,
   openReviewFn,
   personDetailFn,
   setEmployeeAttrsFn,
@@ -37,6 +38,7 @@ function PersonDetailPage() {
   const [level, setLevel] = useState<CareerLevel>(person.level ?? "L1");
   const [path, setPath] = useState<CareerPath>(person.path ?? "ic");
   const [busy, setBusy] = useState(false);
+  const [comp, setComp] = useState<CompView | null>(null);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -288,6 +290,69 @@ function PersonDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {person.reviewCase !== undefined && person.canViewComp && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Compensation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {comp === null ? (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  Compensation is confidential — opening it is recorded in the audit trail.
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    const caseId = person.reviewCase?.id;
+                    if (caseId !== undefined) {
+                      setBusy(true);
+                      void compFn({ data: { caseId } })
+                        .then((view) => setComp(view))
+                        .finally(() => setBusy(false));
+                    }
+                  }}
+                >
+                  View compensation
+                </Button>
+              </div>
+            ) : comp.recommendation === undefined ? (
+              <span className="text-muted-foreground">No compensation recommendation yet.</span>
+            ) : (
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums sm:grid-cols-4">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Current base</dt>
+                  <dd className="font-semibold">
+                    €{comp.recommendation.currentBaseEur.toLocaleString()}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Increase</dt>
+                  <dd className="font-semibold">
+                    €{comp.recommendation.increaseEur.toLocaleString()}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Bonus</dt>
+                  <dd className="font-semibold">
+                    €{comp.recommendation.bonusEur.toLocaleString()}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">New base</dt>
+                  <dd className="font-semibold">
+                    €{comp.recommendation.newBaseEur.toLocaleString()}
+                  </dd>
+                </div>
+              </dl>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

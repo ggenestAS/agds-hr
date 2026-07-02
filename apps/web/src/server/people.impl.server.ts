@@ -10,6 +10,7 @@ import {
 import {
   advanceCase,
   getCaseBySubject,
+  getCompRecommendation,
   getEmployeeByEmail,
   getSignoffs,
   listCasesForCycle,
@@ -20,6 +21,7 @@ import {
   REVIEW_TRANSITIONS,
   setCaseRating,
   signDecision,
+  upsertCompRecommendation,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
 import type { ReviewRating } from "@agds-hr/people/types";
@@ -27,8 +29,10 @@ import { NotFoundError } from "@agds-hr/shared";
 
 import type {
   CalibrationSummary,
+  CompView,
   DirectoryEntry,
   PersonDetail,
+  SetCompInput,
   SetEmployeeAttrsInput,
 } from "./people.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
@@ -125,6 +129,8 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     canEditAttrs: can(session.subject, "people.employee.manage").allow,
     canReview: can(session.subject, "people.review.open").allow,
     canSign: can(session.subject, "people.decision.sign").allow,
+    canViewComp: can(session.subject, "people.comp.read").allow,
+    canManageComp: can(session.subject, "people.comp.manage").allow,
   };
 }
 
@@ -177,6 +183,40 @@ export async function signDecisionHandler(input: {
 }): Promise<{ readonly signoffs: number; readonly delivered: boolean }> {
   const session = await requireSession("people.decision.sign");
   return signDecision(getDbAs("admin"), input.caseId, session.actor.id, auditContext(session));
+}
+
+// Reading compensation is itself an audited event (fail-closed in the DAL) — the
+// audit trail is the product. Band position / merit suggestion light up once the
+// person's role family and bands are configured (both unseeded today).
+export async function compHandler(input: { readonly caseId: string }): Promise<CompView> {
+  const session = await requireSession("people.comp.read");
+  const recommendation = await getCompRecommendation(
+    getDbAs("admin"),
+    input.caseId,
+    auditContext(session),
+  );
+  return {
+    recommendation: recommendation ?? undefined,
+    bandPositionPct: undefined,
+    meritSuggestionBp: undefined,
+  };
+}
+
+export async function setCompHandler(input: SetCompInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.comp.manage");
+  await upsertCompRecommendation(
+    getDbAs("admin"),
+    input.caseId,
+    {
+      currentBaseEur: input.currentBaseEur,
+      increaseEur: input.increaseEur,
+      bonusEur: input.bonusEur,
+      ...(input.effectiveDate !== undefined ? { effectiveDate: input.effectiveDate } : {}),
+      ...(input.rationale !== undefined ? { rationale: input.rationale } : {}),
+    },
+    auditContext(session),
+  );
+  return { ok: true };
 }
 
 export async function calibrationHandler(): Promise<CalibrationSummary> {

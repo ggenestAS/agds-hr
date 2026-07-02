@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  bandPositionPct,
+  bandThird,
   CAREER_LEVELS,
   CAREER_PATHS,
   canTransition,
@@ -10,6 +12,7 @@ import {
   isP6Triggered,
   isReviewRating,
   isReviewState,
+  meritIncreaseBp,
 } from "./types.ts";
 
 describe("job architecture tuples", () => {
@@ -61,5 +64,26 @@ describe("review state machine", () => {
     expect(isP6Triggered(3)).toBe(false);
     expect(isP6Triggered(4)).toBe(false);
     expect(isP6Triggered(undefined)).toBe(false);
+  });
+});
+
+describe("compensation", () => {
+  test("band position clamps to 0–100 and handles a degenerate band", () => {
+    expect(bandPositionPct(50_000, 40_000, 60_000)).toBe(50);
+    expect(bandPositionPct(30_000, 40_000, 60_000)).toBe(0);
+    expect(bandPositionPct(70_000, 40_000, 60_000)).toBe(100);
+    expect(bandPositionPct(50_000, 60_000, 60_000)).toBe(50);
+  });
+
+  test("band thirds split at 34 and 67", () => {
+    expect(bandThird(10)).toBe("low");
+    expect(bandThird(50)).toBe("mid");
+    expect(bandThird(90)).toBe("high");
+  });
+
+  test("merit is guide-not-formula: low-in-band + top rating earns most; rating 1 nothing", () => {
+    expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(4, 90));
+    expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(3, 10));
+    expect(meritIncreaseBp(1, 10)).toBe(0);
   });
 });

@@ -2,7 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 
 import {
   advanceReviewSchema,
+  compReadSchema,
   openReviewSchema,
+  setCompSchema,
   setEmployeeAttrsSchema,
   setRatingSchema,
   signDecisionSchema,
@@ -60,3 +62,17 @@ export const calibrationFn = createServerFn({ method: "GET" }).handler(async () 
   const { calibrationHandler } = await import("./people.impl.server.ts");
   return calibrationHandler();
 });
+
+export const compFn = createServerFn({ method: "GET" })
+  .validator(compReadSchema)
+  .handler(async ({ data }) => {
+    const { compHandler } = await import("./people.impl.server.ts");
+    return compHandler(data);
+  });
+
+export const setCompFn = createServerFn({ method: "POST" })
+  .validator(setCompSchema)
+  .handler(async ({ data }) => {
+    const { setCompHandler } = await import("./people.impl.server.ts");
+    return setCompHandler(data);
+  });

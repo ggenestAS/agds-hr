@@ -10,8 +10,10 @@ import {
   canManageEmployee,
   canOpenReview,
   canRateReview,
+  canManageComp,
   canReadDirectory,
   canSignDecision,
+  canViewComp,
 } from "@agds-hr/people";
 import type { ReviewState } from "@agds-hr/people/types";
 import { ALLOW, type UserId } from "@agds-hr/shared";
@@ -45,4 +47,6 @@ export function registerPolicies(): void {
   );
   registerPolicy("people.review.rate", (user) => canRateReview(user));
   registerPolicy("people.decision.sign", (user) => canSignDecision(user));
+  registerPolicy("people.comp.read", (user) => canViewComp(user));
+  registerPolicy("people.comp.manage", (user) => canManageComp(user));
 }

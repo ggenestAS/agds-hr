@@ -38,6 +38,33 @@ export const setRatingSchema = z.object({
 
 export const openReviewSchema = z.object({ email: z.string().email() });
 export const signDecisionSchema = z.object({ caseId: z.string().min(1) });
+export const compReadSchema = z.object({ caseId: z.string().min(1) });
+export const setCompSchema = z.object({
+  caseId: z.string().min(1),
+  currentBaseEur: z.number().int().min(0),
+  increaseEur: z.number().int().min(0),
+  bonusEur: z.number().int().min(0),
+  effectiveDate: z.string().optional(),
+  rationale: z.string().optional(),
+});
+export type SetCompInput = z.infer<typeof setCompSchema>;
+
+// The compensation view — the recommendation (an audited read) plus, when the
+// person has a band, their band position and the merit-matrix suggestion.
+export type CompView = {
+  readonly recommendation:
+    | {
+        readonly currentBaseEur: number;
+        readonly increaseEur: number;
+        readonly bonusEur: number;
+        readonly newBaseEur: number;
+        readonly effectiveDate: string | undefined;
+        readonly rationale: string | undefined;
+      }
+    | undefined;
+  readonly bandPositionPct: number | undefined;
+  readonly meritSuggestionBp: number | undefined;
+};
 
 export type ReviewCaseView = {
   readonly id: string;
@@ -71,6 +98,8 @@ export type PersonDetail = {
   readonly canEditAttrs: boolean;
   readonly canReview: boolean;
   readonly canSign: boolean;
+  readonly canViewComp: boolean;
+  readonly canManageComp: boolean;
 };
 
 export type CalibrationSummary = {

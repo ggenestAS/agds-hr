@@ -48,3 +48,13 @@ export function canRateReview(user: User): PolicyDecision {
 export function canSignDecision(user: User): PolicyDecision {
   return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
 }
+
+// Compensation is leadership-only. Reading it is itself audited (the DAL records
+// the read); admins set the amounts at sign-off (design).
+export function canViewComp(user: User): PolicyDecision {
+  return hasAny(user, ["admin", "founder", "developer"]) ? ALLOW : DENY("comp_view_required");
+}
+
+export function canManageComp(user: User): PolicyDecision {
+  return hasAny(user, ["admin", "developer"]) ? ALLOW : DENY("comp_admin_required");
+}

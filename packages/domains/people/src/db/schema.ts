@@ -110,6 +110,31 @@ export const reviewCase = peopleSchema.table(
   (table) => [unique("review_case_subject_cycle").on(table.subjectEmail, table.cyclePeriod)],
 );
 
+// Compensation recommendation for a case (one per case). Amounts are whole EUR
+// (France reference; country coefficient applied with judgment). Every READ of
+// this data is recorded as an audit event — the audit trail is the product.
+export const compRecommendation = peopleSchema.table(
+  "comp_recommendation",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    currentBaseEur: integer("current_base_eur").notNull(),
+    increaseEur: integer("increase_eur").notNull().default(0),
+    bonusEur: integer("bonus_eur").notNull().default(0),
+    newBaseEur: integer("new_base_eur").notNull(),
+    effectiveDate: text("effective_date"),
+    rationale: text("rationale"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("comp_recommendation_case").on(table.caseId)],
+);
+
 // Founder sign-offs on a decision. Unique on [case, founder] so the two required
 // confirmations must come from distinct founders (design: two distinct,
 // authenticated confirmations).
