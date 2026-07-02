@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
+import { authClient } from "../lib/auth-client.ts";
 import { cn } from "../lib/cn.ts";
 import { useTheme } from "../lib/use-theme.ts";
 import type { ThemePreference } from "../lib/theme.ts";
+import { devLogoutFn } from "../server/dev-login.functions.ts";
 
 // The authenticated frame (docs/new-project-directives.md §9.4): collapsible nav
 // rail + compact page-header bar wrapping exactly one content shape. Navigation
@@ -27,6 +29,14 @@ export function Frame({ header, children }: { header?: ReactNode; children: Reac
 
   const nextTheme = () =>
     setPreference(THEME_CYCLE[(THEME_CYCLE.indexOf(preference) + 1) % THEME_CYCLE.length]!);
+
+  // Sign out clears both a real BetterAuth session and any dev cookie, then
+  // returns to sign-in.
+  const signOut = async () => {
+    await authClient.signOut();
+    await devLogoutFn();
+    window.location.href = "/sign-in";
+  };
 
   return (
     <div className="flex h-dvh overflow-hidden">
@@ -70,6 +80,15 @@ export function Frame({ header, children }: { header?: ReactNode; children: Reac
             className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
           >
             {collapsed ? "»" : "« Collapse"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void signOut();
+            }}
+            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+          >
+            {collapsed ? "⎋" : "Sign out"}
           </button>
         </div>
       </aside>

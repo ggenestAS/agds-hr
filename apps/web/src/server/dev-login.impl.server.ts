@@ -33,3 +33,9 @@ export async function devLoginHandler(): Promise<{ readonly ok: boolean }> {
   setCookie(DEV_LOGIN_COOKIE, id, { path: "/", httpOnly: true, sameSite: "lax" });
   return { ok: true };
 }
+
+// Clears the dev cookie (part of sign-out). Safe to call regardless of the flag.
+export function devLogoutHandler(): { readonly ok: boolean } {
+  setCookie(DEV_LOGIN_COOKIE, "", { path: "/", httpOnly: true, sameSite: "lax", maxAge: 0 });
+  return { ok: true };
+}

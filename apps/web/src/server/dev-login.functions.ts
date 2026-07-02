@@ -11,3 +11,8 @@ export const devLoginEnabledFn = createServerFn({ method: "GET" }).handler(async
   const { isDevLoginEnabled } = await import("./dev-login.impl.server.ts");
   return { enabled: isDevLoginEnabled() };
 });
+
+export const devLogoutFn = createServerFn({ method: "POST" }).handler(async () => {
+  const { devLogoutHandler } = await import("./dev-login.impl.server.ts");
+  return devLogoutHandler();
+});

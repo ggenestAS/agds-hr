@@ -17,19 +17,20 @@ function sessionDeps(): SessionDeps {
   const adminDb = getDbAs("admin");
   return {
     readAuthSession: async (request) => {
-      // Dev-only bypass (guarded, never in production): a dev cookie names the
-      // user directly, skipping BetterAuth — see dev-login.impl.server.ts.
+      // A real BetterAuth session always wins.
+      const result = await getAuth().api.getSession({ headers: request.headers });
+      if (result !== null) {
+        return { userId: UserId(result.user.id), authSessionId: result.session.id };
+      }
+      // Dev-only fallback when not signed in (guarded, never in production): a
+      // dev cookie names the user directly — see dev-login.impl.server.ts.
       if (isDevLoginEnabled()) {
         const devUserId = getCookie(DEV_LOGIN_COOKIE);
         if (devUserId !== undefined) {
           return { userId: UserId(devUserId), authSessionId: "dev" };
         }
       }
-      const result = await getAuth().api.getSession({ headers: request.headers });
-      if (result === null) {
-        return null;
-      }
-      return { userId: UserId(result.user.id), authSessionId: result.session.id };
+      return null;
     },
     hydrateUser: (userId) => hydrateUser(adminDb, userId),
     readActiveImpersonation: (actorUserId) => readActiveImpersonation(adminDb, actorUserId),
