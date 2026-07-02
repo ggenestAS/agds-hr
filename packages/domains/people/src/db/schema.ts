@@ -1,0 +1,65 @@
+import { sql } from "drizzle-orm";
+import { integer, pgSchema, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+
+import { user } from "@agds-hr/auth/db/schema";
+
+import { CAREER_LEVELS, CAREER_PATHS } from "../types.ts";
+
+// The people product domain (docs/decisions/2026-07-02-people-domain-model.md).
+// `employee` is HR attributes on a provisioned auth.user, not a second account.
+// Soft delete is the default (§5.3). Grants ship hand-added in the migration.
+export const peopleSchema = pgSchema("people");
+
+export const careerLevelEnum = peopleSchema.enum("career_level", CAREER_LEVELS);
+export const careerPathEnum = peopleSchema.enum("career_path", CAREER_PATHS);
+
+export const employee = peopleSchema.table(
+  "employee",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    level: careerLevelEnum("level").notNull(),
+    path: careerPathEnum("path").notNull(),
+    // Open vocabularies — the org adds families/countries without a migration.
+    country: text("country").notNull(),
+    roleFamily: text("role_family").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: uuid("deleted_by"),
+  },
+  // One active employee row per user — a partial unique index on active rows
+  // (§5.3); a plain unique won't do it since Postgres treats NULL deleted_at as
+  // distinct.
+  (table) => [
+    uniqueIndex("employee_user_active")
+      .on(table.userId)
+      .where(sql`${table.deletedAt} is null`),
+  ],
+);
+
+// Reference tables — unseeded in slice 1, real config entered later. Integer
+// money (whole EUR) and integer basis points (10000 = 1.00) rather than numeric,
+// which Drizzle returns as a string (ADR).
+export const band = peopleSchema.table(
+  "band",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    roleFamily: text("role_family").notNull(),
+    level: careerLevelEnum("level").notNull(),
+    minEur: integer("min_eur").notNull(),
+    midEur: integer("mid_eur").notNull(),
+    maxEur: integer("max_eur").notNull(),
+  },
+  (table) => [unique("band_family_level").on(table.roleFamily, table.level)],
+);
+
+export const countryCoefficient = peopleSchema.table("country_coefficient", {
+  country: text("country").primaryKey(),
+  coefficientBp: integer("coefficient_bp").notNull(),
+});

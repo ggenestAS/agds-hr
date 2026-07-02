@@ -9,6 +9,7 @@ export default defineConfig({
     "packages/domains/audit/src/db/schema.ts",
     "packages/auth/src/db/schema.ts",
     "packages/domains/identity/src/db/schema.ts",
+    "packages/domains/people/src/db/schema.ts",
   ],
   out: "packages/db/migrations",
   strict: true,

@@ -5,6 +5,7 @@ import {
   canStartImpersonation,
   canUpdateProfile,
 } from "@agds-hr/identity";
+import { canReadDirectory } from "@agds-hr/people";
 import { ALLOW, type UserId } from "@agds-hr/shared";
 
 // The composition root (docs/new-project-directives.md §6.3): imports each
@@ -27,4 +28,6 @@ export function registerPolicies(): void {
   registerPolicy("identity.impersonation.start", (user, resource) =>
     canStartImpersonation(user, resource as { readonly targetUserId: UserId }),
   );
+
+  registerPolicy("people.directory.read", (user) => canReadDirectory(user));
 }

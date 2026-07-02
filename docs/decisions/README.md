@@ -12,3 +12,4 @@ of every ADR is a status banner: `Status: frozen` or
 | 2026-07-02 | [Stack and prerelease dependencies](./2026-07-02-stack-and-prerelease-dependencies.md)             | frozen |
 | 2026-07-02 | [Database roles and migrations](./2026-07-02-database-roles-and-migrations.md)                     | frozen |
 | 2026-07-02 | [Auth, identity, session, and the policy engine](./2026-07-02-auth-identity-session-and-policy.md) | frozen |
+| 2026-07-02 | [People domain model](./2026-07-02-people-domain-model.md)                                         | frozen |

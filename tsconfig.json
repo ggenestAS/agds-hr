@@ -10,7 +10,9 @@
       "@agds-hr/auth": ["./packages/auth/src/index.ts"],
       "@agds-hr/auth/db/schema": ["./packages/auth/src/db/schema.ts"],
       "@agds-hr/identity": ["./packages/domains/identity/src/index.ts"],
-      "@agds-hr/identity/db/schema": ["./packages/domains/identity/src/db/schema.ts"]
+      "@agds-hr/identity/db/schema": ["./packages/domains/identity/src/db/schema.ts"],
+      "@agds-hr/people": ["./packages/domains/people/src/index.ts"],
+      "@agds-hr/people/db/schema": ["./packages/domains/people/src/db/schema.ts"]
     }
   },
   "include": ["packages", "apps", "scripts", "drizzle.config.ts"]

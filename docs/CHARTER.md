@@ -40,7 +40,7 @@ Tracking the founding document's §17 bootstrap order:
 | 7    | Test harness: disposable-branch wrapper + sentinel, coverage gate, CI test job          | pending     |
 | 8    | Dev workflow scripts: `new-feature`, `commit:safe`, `check:orient`, `new-domain`        | pending     |
 | 9    | One reference domain end-to-end                                                         | pending     |
-| 10   | First product domain, via a plan in `docs/plans/`                                       | pending     |
+| 10   | First product domain (`people`), via a plan in `docs/plans/`                            | in progress |
 
 ## Pinned decisions
 
