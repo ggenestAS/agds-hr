@@ -14,6 +14,9 @@ export const RequestId = (s: string): RequestId => s as RequestId;
 export type AuditEventId = Brand<string, "AuditEventId">;
 export const AuditEventId = (s: string): AuditEventId => s as AuditEventId;
 
+export type UserRelationshipId = Brand<string, "UserRelationshipId">;
+export const UserRelationshipId = (s: string): UserRelationshipId => s as UserRelationshipId;
+
 export type Email = Brand<string, "Email">;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const Email = (s: string): Email => {

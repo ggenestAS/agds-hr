@@ -5,7 +5,11 @@ import { defineConfig } from "drizzle-kit";
 // (DATABASE_URL_MIGRATE) — the runtime roles cannot run DDL.
 export default defineConfig({
   dialect: "postgresql",
-  schema: ["packages/domains/audit/src/db/schema.ts"],
+  schema: [
+    "packages/domains/audit/src/db/schema.ts",
+    "packages/auth/src/db/schema.ts",
+    "packages/domains/identity/src/db/schema.ts",
+  ],
   out: "packages/db/migrations",
   strict: true,
   verbose: true,

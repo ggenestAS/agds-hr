@@ -35,7 +35,7 @@ Tracking the founding document's §17 bootstrap order:
 | 2    | `packages/shared` + `packages/env` (+ `check:env`)                                      | done    |
 | 3    | `packages/db`: four-role selector, setup-roles.sql, first migration, `check:migrations` | done    |
 | 4    | `packages/domains/audit`: append-only events + trigger + `recordEvent`                  | done    |
-| 5    | `packages/auth` + `packages/domains/identity`                                           | pending |
+| 5    | `packages/auth` + `packages/domains/identity`                                           | done    |
 | 6    | `apps/web`: shell, session gate, server-fn triple, UI discipline, app gates             | pending |
 | 7    | Test harness: disposable-branch wrapper + sentinel, coverage gate, CI test job          | pending |
 | 8    | Dev workflow scripts: `new-feature`, `commit:safe`, `check:orient`, `new-domain`        | pending |

@@ -55,6 +55,34 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "tooling",
   },
+  {
+    name: "BETTER_AUTH_SECRET",
+    owner: "@agds-hr/auth",
+    group: "auth",
+    scope: "server",
+    requirement: "required",
+  },
+  {
+    name: "BETTER_AUTH_URL",
+    owner: "@agds-hr/auth",
+    group: "auth",
+    scope: "server",
+    requirement: "optional",
+  },
+  {
+    name: "GOOGLE_CLIENT_ID",
+    owner: "@agds-hr/auth",
+    group: "auth",
+    scope: "server",
+    requirement: "optional",
+  },
+  {
+    name: "GOOGLE_CLIENT_SECRET",
+    owner: "@agds-hr/auth",
+    group: "auth",
+    scope: "server",
+    requirement: "optional",
+  },
 ] as const satisfies readonly EnvVarSpec[];
 
 export type EnvVarName = (typeof ENV_MANIFEST)[number]["name"];

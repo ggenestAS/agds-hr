@@ -1,0 +1,20 @@
+{
+  "name": "@agds-hr/identity",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db/schema": "./src/db/schema.ts"
+  },
+  "scripts": {
+    "typecheck": "oxlint --type-aware"
+  },
+  "dependencies": {
+    "@agds-hr/audit": "workspace:*",
+    "@agds-hr/auth": "workspace:*",
+    "@agds-hr/db": "workspace:*",
+    "@agds-hr/shared": "workspace:*",
+    "drizzle-orm": "beta"
+  }
+}
