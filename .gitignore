@@ -12,6 +12,7 @@ dist/
 .nitro/
 .vinxi/
 .vercel/
+.tanstack/
 *.tsbuildinfo
 
 # generated route tree (tsr generate, wired as postinstall)

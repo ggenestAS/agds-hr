@@ -1,4 +1,4 @@
-Status: planned
+Status: in progress
 Readiness: ready
 
 # apps/web shell + design system plan
@@ -47,6 +47,9 @@ convention gates. No product surfaces yet — those are step 10.
   comp, appeals) — step 10, its own plan.
 - `magicLink` audience; MFA — charter triggers unchanged.
 - Full 100% coverage gate — step 7.
+- Production run/deploy target — the Nitro preset + Vercel output + `start`
+  script are deferred to the deploy-wiring increment; `vite build` currently
+  emits `dist/` (client + SSR), not the `.output/` server bundle §2 expects.
 
 ## Data model
 

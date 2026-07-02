@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+/* Albert School brand tokens, sourced verbatim from the imported design's
+   design system (docs/plans/web-shell.md). This is the deliberate §2 deviation:
+   the DNA's shadcn/cva architecture, themed with Albert's palette and type
+   rather than the neutral OKLCH default. Fonts fall back to the system sans
+   stack until Albert's woff2 files are supplied (flagged in the plan). */
+@theme {
+  --font-display: "General Sans", "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", "General Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-ink-900: #202448;
+  --color-ink-700: #2e3260;
+  --color-ink-500: #5b5f84;
+  --color-ink-300: #9fa2ba;
+  --color-ink-100: #d8d9e4;
+
+  --color-shell: #faf7f1;
+  --color-cream: #f6f2ea;
+  --color-bone: #f1ece2;
+  --color-paper: #ffffff;
+
+  --color-accent: #e94b3c;
+  --color-accent-dk: #c73a2d;
+  --color-coral: #f5a28f;
+  --color-blush: #f3d9d2;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-soft: 0 1px 2px rgba(32, 36, 72, 0.06);
+  --shadow-lift: 0 8px 24px rgba(32, 36, 72, 0.08);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* shadcn-style semantic vars mapped onto the Albert palette; shadcn primitives
+   (added next) read these. Light is brand-default; dark is a reasonable
+   inversion pending a design pass. */
+:root {
+  --background: var(--color-shell);
+  --foreground: var(--color-ink-900);
+  --card: var(--color-paper);
+  --card-foreground: var(--color-ink-900);
+  --primary: var(--color-accent);
+  --primary-foreground: #ffffff;
+  --muted: var(--color-cream);
+  --muted-foreground: var(--color-ink-500);
+  --border: rgba(32, 36, 72, 0.18);
+  --ring: var(--color-accent);
+}
+
+.dark {
+  --background: #1a1d33;
+  --foreground: #f1ece2;
+  --card: #23273f;
+  --card-foreground: #f1ece2;
+  --primary: var(--color-accent);
+  --primary-foreground: #ffffff;
+  --muted: #2e3260;
+  --muted-foreground: var(--color-ink-300);
+  --border: rgba(216, 217, 228, 0.16);
+  --ring: var(--color-accent);
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
