@@ -16,6 +16,15 @@ export function isWorkspaceDomainAllowed(hd: string | null | undefined): boolean
   return typeof hd === "string" && (WORKSPACE_ALLOWED_DOMAINS as readonly string[]).includes(hd);
 }
 
+// Origins allowed to initiate auth (CSRF boundary). Hardcoded like the domain
+// allow-list — the code is the system of record. baseURL (BETTER_AUTH_URL) is
+// trusted implicitly; these cover local dev, Render, and the custom domain.
+const TRUSTED_ORIGINS = [
+  "http://localhost:5173",
+  "https://agds-hr.onrender.com",
+  "https://hr.albertschool.com",
+] as const;
+
 type BuildConfig = {
   readonly secret: string;
   readonly baseURL: string | undefined;
@@ -26,6 +35,7 @@ type BuildConfig = {
 function buildAuth(config: BuildConfig) {
   return betterAuth({
     secret: config.secret,
+    trustedOrigins: [...TRUSTED_ORIGINS],
     ...(config.baseURL !== undefined ? { baseURL: config.baseURL } : {}),
     // BetterAuth runs on the admin connection; it owns the auth schema.
     database: drizzleAdapter(getDbAs("admin"), { provider: "pg", schema: authDbSchema }),

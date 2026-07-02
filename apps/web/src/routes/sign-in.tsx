@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { authClient } from "../lib/auth-client.ts";
 import { Button } from "../components/ui/button.tsx";
 import { devLoginEnabledFn, devLoginFn } from "../server/dev-login.functions.ts";
 
@@ -34,7 +35,14 @@ function SignIn() {
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground">
           Sign in to Albert People
         </h1>
-        <Button type="button" size="lg" disabled className="mt-8 w-full">
+        <Button
+          type="button"
+          size="lg"
+          className="mt-8 w-full"
+          onClick={() => {
+            void authClient.signIn.social({ provider: "google", callbackURL: "/dashboard" });
+          }}
+        >
           Continue with Google Workspace
         </Button>
         <p className="mt-3 text-xs text-muted-foreground">
