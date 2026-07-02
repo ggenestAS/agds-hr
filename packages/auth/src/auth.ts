@@ -42,6 +42,10 @@ function buildAuth(config: BuildConfig) {
     advanced: { database: { generateId: () => crypto.randomUUID() } },
     // SSO-only: no credentials, no self-service sign-up.
     emailAndPassword: { enabled: false },
+    // Users are provisioned first (§6.1). On SSO, link the Google account to the
+    // pre-provisioned user matched by verified email — Google Workspace email is
+    // authoritative — rather than creating a new user (which disableSignUp blocks).
+    account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
     // App-owned columns, mirrored on auth.user; not user-writable via the API.
     user: {
       additionalFields: {
