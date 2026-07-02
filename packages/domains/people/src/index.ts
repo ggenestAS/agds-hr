@@ -8,11 +8,14 @@ export {
   REVIEW_SIGNOFFS_REQUIRED,
   APPEAL_WINDOW_DAYS,
   MERIT_MATRIX_BP,
+  APPEAL_CATEGORIES,
+  APPEAL_STATUSES,
   canTransition,
   isDecisionComplete,
   isP6Triggered,
   isReviewState,
   isReviewRating,
+  isAppealCategory,
   bandPositionPct,
   bandThird,
   meritIncreaseBp,
@@ -24,9 +27,13 @@ export type {
   Band,
   BandThird,
   CompRecommendation,
+  Appeal,
+  AppealCategory,
+  AppealStatus,
 } from "./types.ts";
 export type { UpsertCompInput } from "./compensation.ts";
 export { getBand, getCompRecommendation, upsertCompRecommendation } from "./compensation.ts";
+export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
 export type { EmployeeAttrs, UpsertEmployeeInput } from "./dal.ts";
 export { getEmployeeByEmail, listEmployeeAttrs, upsertEmployeeByEmail } from "./dal.ts";
 export {
@@ -43,6 +50,8 @@ export {
 export type { CalibrationCase, SignDecisionResult } from "./review.ts";
 export {
   canAdvanceReview,
+  canFileAppeal,
+  canManageAppeals,
   canManageComp,
   canManageEmployee,
   canOpenReview,

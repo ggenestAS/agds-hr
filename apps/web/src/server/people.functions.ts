@@ -3,7 +3,9 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   advanceReviewSchema,
   compReadSchema,
+  fileAppealSchema,
   openReviewSchema,
+  resolveAppealSchema,
   setCompSchema,
   setEmployeeAttrsSchema,
   setRatingSchema,
@@ -75,4 +77,23 @@ export const setCompFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { setCompHandler } = await import("./people.impl.server.ts");
     return setCompHandler(data);
+  });
+
+export const fileAppealFn = createServerFn({ method: "POST" })
+  .validator(fileAppealSchema)
+  .handler(async ({ data }) => {
+    const { fileAppealHandler } = await import("./people.impl.server.ts");
+    return fileAppealHandler(data);
+  });
+
+export const appealsListFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { appealsListHandler } = await import("./people.impl.server.ts");
+  return appealsListHandler();
+});
+
+export const resolveAppealFn = createServerFn({ method: "POST" })
+  .validator(resolveAppealSchema)
+  .handler(async ({ data }) => {
+    const { resolveAppealHandler } = await import("./people.impl.server.ts");
+    return resolveAppealHandler(data);
   });

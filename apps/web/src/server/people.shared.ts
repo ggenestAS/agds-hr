@@ -1,5 +1,10 @@
-import { CAREER_LEVELS, CAREER_PATHS, REVIEW_STATES } from "@agds-hr/people/types";
-import type { CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
+import {
+  APPEAL_CATEGORIES,
+  CAREER_LEVELS,
+  CAREER_PATHS,
+  REVIEW_STATES,
+} from "@agds-hr/people/types";
+import type { AppealCategory, CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
 import { z } from "zod";
 
 // Pure, client-importable shapes for the people server fns (§9.3). Enum tuples
@@ -48,6 +53,27 @@ export const setCompSchema = z.object({
   rationale: z.string().optional(),
 });
 export type SetCompInput = z.infer<typeof setCompSchema>;
+
+export const fileAppealSchema = z.object({
+  caseId: z.string().min(1),
+  category: z.enum(APPEAL_CATEGORIES),
+  statement: z.string().min(1).max(4000),
+});
+export const resolveAppealSchema = z.object({
+  appealId: z.string().min(1),
+  resolution: z.string().min(1).max(4000),
+});
+
+export type AppealView = {
+  readonly id: string;
+  readonly caseId: string;
+  readonly appellantEmail: string;
+  readonly category: AppealCategory;
+  readonly statement: string;
+  readonly status: "open" | "resolved";
+  readonly resolution: string | undefined;
+  readonly createdAt: string;
+};
 
 // The compensation view — the recommendation (an audited read) plus, when the
 // person has a band, their band position and the merit-matrix suggestion.
@@ -100,6 +126,8 @@ export type PersonDetail = {
   readonly canSign: boolean;
   readonly canViewComp: boolean;
   readonly canManageComp: boolean;
+  readonly appeal: AppealView | undefined;
+  readonly canAppeal: boolean;
 };
 
 export type CalibrationSummary = {

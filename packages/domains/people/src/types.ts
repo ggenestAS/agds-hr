@@ -165,3 +165,24 @@ export type CompRecommendation = {
   readonly effectiveDate: string | undefined;
   readonly rationale: string | undefined;
 };
+
+// --- Appeals ---------------------------------------------------------------
+// What is being appealed (design: Rating / Raise / Band placement / Exception).
+export const APPEAL_CATEGORIES = ["rating", "raise", "band", "exception"] as const;
+export type AppealCategory = (typeof APPEAL_CATEGORIES)[number];
+export const isAppealCategory = (value: string): value is AppealCategory =>
+  (APPEAL_CATEGORIES as readonly string[]).includes(value);
+
+export const APPEAL_STATUSES = ["open", "resolved"] as const;
+export type AppealStatus = (typeof APPEAL_STATUSES)[number];
+
+export type Appeal = {
+  readonly id: string;
+  readonly caseId: string;
+  readonly appellantEmail: string;
+  readonly category: AppealCategory;
+  readonly statement: string;
+  readonly status: AppealStatus;
+  readonly resolution: string | undefined;
+  readonly createdAt: Date;
+};

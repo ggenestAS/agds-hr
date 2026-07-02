@@ -12,7 +12,13 @@ import {
 
 import { user } from "@agds-hr/auth/db/schema";
 
-import { CAREER_LEVELS, CAREER_PATHS, REVIEW_STATES } from "../types.ts";
+import {
+  APPEAL_CATEGORIES,
+  APPEAL_STATUSES,
+  CAREER_LEVELS,
+  CAREER_PATHS,
+  REVIEW_STATES,
+} from "../types.ts";
 
 // The people product domain (docs/decisions/2026-07-02-people-domain-model.md).
 // `employee` is HR attributes on a provisioned auth.user, not a second account.
@@ -133,6 +139,31 @@ export const compRecommendation = peopleSchema.table(
       .$onUpdate(() => new Date()),
   },
   (table) => [unique("comp_recommendation_case").on(table.caseId)],
+);
+
+// Appeals live in their own table so "excluded from any future performance view"
+// is enforced by NOT joining them, not by remembering to filter (design). Routed
+// to Admins; visible only to Admins and the appellant. One appeal per decision.
+export const appealCategoryEnum = peopleSchema.enum("appeal_category", APPEAL_CATEGORIES);
+export const appealStatusEnum = peopleSchema.enum("appeal_status", APPEAL_STATUSES);
+
+export const appeal = peopleSchema.table(
+  "appeal",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    appellantEmail: text("appellant_email").notNull(),
+    category: appealCategoryEnum("category").notNull(),
+    statement: text("statement").notNull(),
+    status: appealStatusEnum("status").notNull().default("open"),
+    resolution: text("resolution"),
+    resolvedBy: uuid("resolved_by"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("appeal_case").on(table.caseId)],
 );
 
 // Founder sign-offs on a decision. Unique on [case, founder] so the two required

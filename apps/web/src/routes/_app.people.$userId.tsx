@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { CAREER_LEVELS, CAREER_PATHS } from "@agds-hr/people/types";
-import type { CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
+import { APPEAL_CATEGORIES, CAREER_LEVELS, CAREER_PATHS } from "@agds-hr/people/types";
+import type { AppealCategory, CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
 import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
@@ -9,6 +9,7 @@ import type { CompView, PersonDetail } from "../server/people.shared.ts";
 import {
   advanceReviewFn,
   compFn,
+  fileAppealFn,
   openReviewFn,
   personDetailFn,
   setEmployeeAttrsFn,
@@ -22,6 +23,12 @@ export const Route = createFileRoute("/_app/people/$userId")({
 });
 
 const PATH_LABEL: Record<CareerPath, string> = { ic: "IC", manager: "Manager" };
+const APPEAL_CATEGORY_LABEL: Record<AppealCategory, string> = {
+  rating: "Rating",
+  raise: "Raise",
+  band: "Band",
+  exception: "Other",
+};
 const STATE_LABEL: Record<ReviewState, string> = {
   self_review: "Self-review",
   peer_input: "Peer input",
@@ -39,6 +46,8 @@ function PersonDetailPage() {
   const [path, setPath] = useState<CareerPath>(person.path ?? "ic");
   const [busy, setBusy] = useState(false);
   const [comp, setComp] = useState<CompView | null>(null);
+  const [appealCategory, setAppealCategory] = useState<AppealCategory>("rating");
+  const [appealStatement, setAppealStatement] = useState("");
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -349,6 +358,96 @@ function PersonDetailPage() {
                   </dd>
                 </div>
               </dl>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {(person.appeal !== undefined || person.canAppeal) && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Appeal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {person.appeal !== undefined ? (
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+                    {APPEAL_CATEGORY_LABEL[person.appeal.category]}
+                  </span>
+                  <span
+                    className={
+                      person.appeal.status === "resolved"
+                        ? "text-muted-foreground"
+                        : "font-semibold text-[var(--color-warning)]"
+                    }
+                  >
+                    {person.appeal.status === "resolved" ? "Resolved" : "Open"}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Filed {new Date(person.appeal.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap">{person.appeal.statement}</p>
+                {person.appeal.resolution !== undefined && (
+                  <div className="rounded-[10px] bg-cream px-3 py-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Resolution
+                    </span>
+                    <p className="mt-1 whitespace-pre-wrap">{person.appeal.resolution}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-muted-foreground">
+                  You may appeal this decision within the 30-day window. Appeals go to HR (Admins)
+                  and are kept out of performance views.
+                </p>
+                <label className="block text-xs">
+                  Category
+                  <select
+                    value={appealCategory}
+                    onChange={(event) => setAppealCategory(event.target.value as AppealCategory)}
+                    className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                  >
+                    {APPEAL_CATEGORIES.map((value) => (
+                      <option key={value} value={value}>
+                        {APPEAL_CATEGORY_LABEL[value]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <textarea
+                  value={appealStatement}
+                  onChange={(event) => setAppealStatement(event.target.value)}
+                  rows={4}
+                  maxLength={4000}
+                  placeholder="Explain the grounds for your appeal…"
+                  className="block w-full rounded-[10px] border border-border bg-card px-3 py-2"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy || appealStatement.trim().length === 0}
+                  onClick={() => {
+                    const caseId = person.reviewCase?.id;
+                    if (caseId !== undefined) {
+                      void run(() =>
+                        fileAppealFn({
+                          data: {
+                            caseId,
+                            category: appealCategory,
+                            statement: appealStatement.trim(),
+                          },
+                        }),
+                      );
+                    }
+                  }}
+                >
+                  Submit appeal
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

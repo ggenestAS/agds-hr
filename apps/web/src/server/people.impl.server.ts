@@ -9,14 +9,19 @@ import {
 } from "@agds-hr/inside";
 import {
   advanceCase,
+  fileAppeal,
+  getAppealForCase,
+  getCaseById,
   getCaseBySubject,
   getCompRecommendation,
   getEmployeeByEmail,
   getSignoffs,
+  listAppeals,
   listCasesForCycle,
   listEmployeeAttrs,
   listRatingsForCycle,
   openCase,
+  resolveAppeal,
   REVIEW_CURRENT_CYCLE,
   REVIEW_TRANSITIONS,
   setCaseRating,
@@ -24,10 +29,11 @@ import {
   upsertCompRecommendation,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
-import type { ReviewRating } from "@agds-hr/people/types";
-import { NotFoundError } from "@agds-hr/shared";
+import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
+import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
 
 import type {
+  AppealView,
   CalibrationSummary,
   CompView,
   DirectoryEntry,
@@ -101,6 +107,16 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   }));
 
   const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
+  const appeal =
+    reviewCase === undefined ? undefined : await getAppealForCase(adminDb, reviewCase.id);
+  const appealOpen =
+    reviewCase?.decidedAt !== undefined &&
+    reviewCase.appealUntil !== undefined &&
+    reviewCase.appealUntil.getTime() >= Date.now();
+  const canAppeal =
+    appealOpen &&
+    appeal === undefined &&
+    session.actor.email.toLowerCase() === admin.email.toLowerCase();
 
   return {
     userId: admin.userId,
@@ -131,6 +147,20 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     canSign: can(session.subject, "people.decision.sign").allow,
     canViewComp: can(session.subject, "people.comp.read").allow,
     canManageComp: can(session.subject, "people.comp.manage").allow,
+    appeal:
+      appeal === undefined
+        ? undefined
+        : {
+            id: appeal.id,
+            caseId: appeal.caseId,
+            appellantEmail: appeal.appellantEmail,
+            category: appeal.category,
+            statement: appeal.statement,
+            status: appeal.status,
+            resolution: appeal.resolution,
+            createdAt: appeal.createdAt.toISOString(),
+          },
+    canAppeal,
   };
 }
 
@@ -237,4 +267,82 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
     }
   }
   return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+}
+
+// Appeals: the appellant may appeal their OWN delivered decision within the
+// 30-day window (both enforced here, since the policy only gates the action);
+// Admins view and resolve. Appeals live off to the side and are never joined
+// into review/comp reads.
+export async function fileAppealHandler(input: {
+  readonly caseId: string;
+  readonly category: AppealCategory;
+  readonly statement: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.appeal.file");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await getCaseById(adminDb, input.caseId);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review case", input.caseId);
+  }
+  if (session.actor.email.toLowerCase() !== reviewCase.subjectEmail.toLowerCase()) {
+    throw new ForbiddenError("people.appeal.file", "appeal_owner_only");
+  }
+  if (reviewCase.decidedAt === undefined || reviewCase.appealUntil === undefined) {
+    throw new ForbiddenError("people.appeal.file", "appeal_before_decision");
+  }
+  if (reviewCase.appealUntil.getTime() < Date.now()) {
+    throw new ForbiddenError("people.appeal.file", "appeal_window_closed");
+  }
+  await fileAppeal(
+    adminDb,
+    {
+      caseId: input.caseId,
+      appellantEmail: reviewCase.subjectEmail.toLowerCase(),
+      category: input.category,
+      statement: input.statement,
+    },
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+const toAppealView = (row: {
+  readonly id: string;
+  readonly caseId: string;
+  readonly appellantEmail: string;
+  readonly category: AppealCategory;
+  readonly statement: string;
+  readonly status: "open" | "resolved";
+  readonly resolution: string | undefined;
+  readonly createdAt: Date;
+}): AppealView => ({
+  id: row.id,
+  caseId: row.caseId,
+  appellantEmail: row.appellantEmail,
+  category: row.category,
+  statement: row.statement,
+  status: row.status,
+  resolution: row.resolution,
+  createdAt: row.createdAt.toISOString(),
+});
+
+export async function appealsListHandler(): Promise<readonly AppealView[]> {
+  await requireSession("people.appeal.manage");
+  const appeals = await listAppeals(getDbAs("admin"));
+  return appeals.map(toAppealView);
+}
+
+export async function resolveAppealHandler(input: {
+  readonly appealId: string;
+  readonly resolution: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.appeal.manage");
+  await resolveAppeal(
+    getDbAs("admin"),
+    input.appealId,
+    session.actor.id,
+    input.resolution,
+    auditContext(session),
+  );
+  return { ok: true };
 }

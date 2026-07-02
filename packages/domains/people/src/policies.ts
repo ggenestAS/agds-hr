@@ -58,3 +58,14 @@ export function canViewComp(user: User): PolicyDecision {
 export function canManageComp(user: User): PolicyDecision {
   return hasAny(user, ["admin", "developer"]) ? ALLOW : DENY("comp_admin_required");
 }
+
+// Anyone may appeal their OWN decision within the window; the handler enforces
+// ownership + the 30-day clock. Appeals are managed (viewed/resolved) by Admins —
+// routed to Admins because a dual-founder sign-off leaves no non-deciding founder.
+export function canFileAppeal(_user: User): PolicyDecision {
+  return ALLOW;
+}
+
+export function canManageAppeals(user: User): PolicyDecision {
+  return hasAny(user, ["admin", "developer"]) ? ALLOW : DENY("appeals_admin_required");
+}

@@ -7,6 +7,8 @@ import {
 } from "@agds-hr/identity";
 import {
   canAdvanceReview,
+  canFileAppeal,
+  canManageAppeals,
   canManageEmployee,
   canOpenReview,
   canRateReview,
@@ -49,4 +51,6 @@ export function registerPolicies(): void {
   registerPolicy("people.decision.sign", (user) => canSignDecision(user));
   registerPolicy("people.comp.read", (user) => canViewComp(user));
   registerPolicy("people.comp.manage", (user) => canManageComp(user));
+  registerPolicy("people.appeal.file", (user) => canFileAppeal(user));
+  registerPolicy("people.appeal.manage", (user) => canManageAppeals(user));
 }
