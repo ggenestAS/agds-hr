@@ -5,7 +5,10 @@ import {
   bandThird,
   CAREER_LEVELS,
   CAREER_PATHS,
+  canFileAppealNow,
+  canSeeAppeal,
   canTransition,
+  isAppealCategory,
   isCareerLevel,
   isCareerPath,
   isDecisionComplete,
@@ -85,5 +88,34 @@ describe("compensation", () => {
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(4, 90));
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(3, 10));
     expect(meritIncreaseBp(1, 10)).toBe(0);
+  });
+});
+
+describe("appeals", () => {
+  test("category guard rejects unknown values", () => {
+    expect(isAppealCategory("rating")).toBe(true);
+    expect(isAppealCategory("exception")).toBe(true);
+    expect(isAppealCategory("promotion")).toBe(false);
+  });
+
+  test("an appeal is visible to the appellant and to HR admins, no one else", () => {
+    expect(canSeeAppeal({ isSubject: true, canManageAppeals: false })).toBe(true);
+    expect(canSeeAppeal({ isSubject: false, canManageAppeals: true })).toBe(true);
+    expect(canSeeAppeal({ isSubject: false, canManageAppeals: false })).toBe(false);
+  });
+
+  test("filing is the subject's alone, within an open window, once", () => {
+    const base = { isSubject: true, appealUntilMs: 2000, nowMs: 1000, alreadyFiled: false };
+    expect(canFileAppealNow(base)).toBe(true);
+    // not the subject
+    expect(canFileAppealNow({ ...base, isSubject: false })).toBe(false);
+    // window elapsed
+    expect(canFileAppealNow({ ...base, nowMs: 3000 })).toBe(false);
+    // never delivered (no clock)
+    expect(canFileAppealNow({ ...base, appealUntilMs: undefined })).toBe(false);
+    // already filed
+    expect(canFileAppealNow({ ...base, alreadyFiled: true })).toBe(false);
+    // exactly at the deadline still counts
+    expect(canFileAppealNow({ ...base, nowMs: 2000 })).toBe(true);
   });
 });

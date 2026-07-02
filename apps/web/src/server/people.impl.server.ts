@@ -9,6 +9,8 @@ import {
 } from "@agds-hr/inside";
 import {
   advanceCase,
+  canFileAppealNow,
+  canSeeAppeal,
   fileAppeal,
   getAppealForCase,
   getCaseById,
@@ -111,16 +113,18 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   // The appeal (statement/category/resolution) is visible to HR Admins and the
   // appellant only (design) — never to an arbitrary directory viewer. The
   // canAppeal affordance is likewise for the subject alone, within the window.
+  // The rules themselves are pure and unit-tested (canSeeAppeal/canFileAppealNow).
   const isSubject = session.actor.email.toLowerCase() === admin.email.toLowerCase();
   const canManageAppeals = can(session.subject, "people.appeal.manage").allow;
   const filedAppeal =
     reviewCase === undefined ? undefined : await getAppealForCase(adminDb, reviewCase.id);
-  const appeal = canManageAppeals || isSubject ? filedAppeal : undefined;
-  const appealOpen =
-    reviewCase?.decidedAt !== undefined &&
-    reviewCase.appealUntil !== undefined &&
-    reviewCase.appealUntil.getTime() >= Date.now();
-  const canAppeal = appealOpen && filedAppeal === undefined && isSubject;
+  const appeal = canSeeAppeal({ isSubject, canManageAppeals }) ? filedAppeal : undefined;
+  const canAppeal = canFileAppealNow({
+    isSubject,
+    appealUntilMs: reviewCase?.appealUntil?.getTime(),
+    nowMs: Date.now(),
+    alreadyFiled: filedAppeal !== undefined,
+  });
 
   return {
     userId: admin.userId,

@@ -11,6 +11,8 @@ export {
   APPEAL_CATEGORIES,
   APPEAL_STATUSES,
   canTransition,
+  canFileAppealNow,
+  canSeeAppeal,
   isDecisionComplete,
   isP6Triggered,
   isReviewState,

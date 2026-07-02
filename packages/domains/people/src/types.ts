@@ -176,6 +176,32 @@ export const isAppealCategory = (value: string): value is AppealCategory =>
 export const APPEAL_STATUSES = ["open", "resolved"] as const;
 export type AppealStatus = (typeof APPEAL_STATUSES)[number];
 
+// Who may SEE a filed appeal (statement/category/resolution): HR Admins and the
+// appellant only (design) — never an arbitrary directory viewer.
+export function canSeeAppeal(input: {
+  readonly isSubject: boolean;
+  readonly canManageAppeals: boolean;
+}): boolean {
+  return input.isSubject || input.canManageAppeals;
+}
+
+// Whether the subject may still FILE an appeal: they are the appellant, the
+// decision was delivered (window open), the 30-day clock has not elapsed, and no
+// appeal exists yet. `nowMs`/`appealUntilMs` are passed in to keep this pure.
+export function canFileAppealNow(input: {
+  readonly isSubject: boolean;
+  readonly appealUntilMs: number | undefined;
+  readonly nowMs: number;
+  readonly alreadyFiled: boolean;
+}): boolean {
+  return (
+    input.isSubject &&
+    !input.alreadyFiled &&
+    input.appealUntilMs !== undefined &&
+    input.appealUntilMs >= input.nowMs
+  );
+}
+
 export type Appeal = {
   readonly id: string;
   readonly caseId: string;
