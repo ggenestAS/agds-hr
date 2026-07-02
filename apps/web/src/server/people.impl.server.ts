@@ -108,7 +108,8 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
             rating: reviewCase.rating,
             nextStates: REVIEW_TRANSITIONS[reviewCase.state],
           },
-    canManage: can(session.subject, "people.employee.manage").allow,
+    canEditAttrs: can(session.subject, "people.employee.manage").allow,
+    canReview: can(session.subject, "people.review.open").allow,
   };
 }
 
@@ -123,7 +124,7 @@ export async function setEmployeeAttrsHandler(input: SetEmployeeAttrsInput): Pro
 }
 
 export async function openReviewHandler(input: { readonly email: string }): Promise<{ ok: true }> {
-  const session = await requireSession("people.review.manage");
+  const session = await requireSession("people.review.open");
   await openCase(
     getDbAs("admin"),
     input.email.toLowerCase(),
@@ -137,7 +138,7 @@ export async function advanceReviewHandler(input: {
   readonly caseId: string;
   readonly toState: Parameters<typeof advanceCase>[2];
 }): Promise<{ ok: true }> {
-  const session = await requireSession("people.review.manage");
+  const session = await requireSession("people.review.advance", { toState: input.toState });
   await advanceCase(getDbAs("admin"), input.caseId, input.toState, auditContext(session));
   return { ok: true };
 }
@@ -146,7 +147,7 @@ export async function setRatingHandler(input: {
   readonly caseId: string;
   readonly rating: number;
 }): Promise<{ ok: true }> {
-  const session = await requireSession("people.review.manage");
+  const session = await requireSession("people.review.rate");
   await setCaseRating(
     getDbAs("admin"),
     input.caseId,

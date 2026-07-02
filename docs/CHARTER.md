@@ -55,17 +55,17 @@ Tracking the founding document's §17 bootstrap order:
 
 ## Deferred, with named triggers
 
-| Item                                                       | Trigger                                                          | Status                |
-| ---------------------------------------------------------- | ---------------------------------------------------------------- | --------------------- |
-| CI `test` job with coverage gate                           | step 7 lands (test harness + disposable DB branches)             | deferred              |
-| App-convention gates (`check:nav`, `check:client-barrels`) | step 6 lands (`apps/web` exists)                                 | trigger fired — built |
-| 100% coverage ratcheting allowlist                         | step 7 lands (coverage gate exists)                              | deferred              |
-| MFA / external-IdP SSO                                     | a user population outside Google Workspace MFA coverage          | deferred              |
-| `success` / `info` semantic colors                         | a surface needs one                                              | deferred              |
-| Per-PR ephemeral CI DB branches                            | PR volume makes the shared `ci` branch queue a bottleneck        | deferred              |
-| Transactional outbox / `id_map` / legacy bridge            | an external system must observe writes / a legacy system appears | deferred              |
-| Telemetry domain (`telemetry.event` stream)                | step 6 lands (first server-fn boundary to instrument)            | deferred              |
-| Domain roles beyond `staff`/`developer`                    | first product domain defines its audiences                       | deferred              |
+| Item                                                       | Trigger                                                          | Status                                             |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------- |
+| CI `test` job with coverage gate                           | step 7 lands (test harness + disposable DB branches)             | deferred                                           |
+| App-convention gates (`check:nav`, `check:client-barrels`) | step 6 lands (`apps/web` exists)                                 | trigger fired — built                              |
+| 100% coverage ratcheting allowlist                         | step 7 lands (coverage gate exists)                              | deferred                                           |
+| MFA / external-IdP SSO                                     | a user population outside Google Workspace MFA coverage          | deferred                                           |
+| `success` / `info` semantic colors                         | a surface needs one                                              | deferred                                           |
+| Per-PR ephemeral CI DB branches                            | PR volume makes the shared `ci` branch queue a bottleneck        | deferred                                           |
+| Transactional outbox / `id_map` / legacy bridge            | an external system must observe writes / a legacy system appears | deferred                                           |
+| Telemetry domain (`telemetry.event` stream)                | step 6 lands (first server-fn boundary to instrument)            | deferred                                           |
+| Domain roles beyond `staff`/`developer`                    | first product domain defines its audiences                       | trigger fired — people added manager/founder/admin |
 
 ## Settled questions
 

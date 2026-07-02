@@ -81,7 +81,7 @@ function PersonDetailPage() {
                   : `${person.level} · ${person.path === undefined ? "" : PATH_LABEL[person.path]}`}
               </span>
             </div>
-            {person.canManage && (
+            {person.canEditAttrs && (
               <div className="flex flex-wrap items-end gap-2 frm">
                 <label className="text-xs">
                   Level
@@ -166,7 +166,7 @@ function PersonDetailPage() {
           {person.reviewCase === undefined ? (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">No review case for this cycle.</span>
-              {person.canManage && (
+              {person.canReview && (
                 <Button
                   type="button"
                   size="sm"
@@ -193,7 +193,7 @@ function PersonDetailPage() {
                   </span>
                 </span>
               </div>
-              {person.canManage && (
+              {person.canReview && (
                 <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                   {person.reviewCase.nextStates.map((next) => (
                     <Button

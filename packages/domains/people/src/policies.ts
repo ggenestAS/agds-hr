@@ -1,21 +1,44 @@
 import type { User } from "@agds-hr/auth";
-import { ALLOW, DENY, type PolicyDecision } from "@agds-hr/shared";
+import { ALLOW, DENY, type PolicyDecision, type UserRole } from "@agds-hr/shared";
 
-// Pure predicates, no DB imports (§6.3). The directory is visible to any
-// authenticated user (the frame is already behind the session gate, and it
-// shows no compensation data). Setting agds-hr attributes is a privileged edit;
-// gated to developer until the HR admin role lands (charter trigger).
+import {
+  REVIEW_ADVANCE_ROLES,
+  REVIEW_AUTHORITY_ROLES,
+  REVIEW_RATING_ROLES,
+  type ReviewState,
+} from "./types.ts";
+
+// Pure predicates, no DB imports (§6.3).
+const hasAny = (user: User, roles: readonly UserRole[]): boolean =>
+  roles.some((role) => user.roles.includes(role));
+
+// The directory is visible to any authenticated user (the frame is already
+// behind the session gate, and it shows no compensation data).
 export function canReadDirectory(_user: User): PolicyDecision {
   return ALLOW;
 }
 
+// Setting agds-hr attributes (level/path) is an HR-admin edit.
 export function canManageEmployee(user: User): PolicyDecision {
-  return user.roles.includes("developer") ? ALLOW : DENY("developer_required");
+  return hasAny(user, ["developer", "admin"]) ? ALLOW : DENY("hr_admin_required");
 }
 
-// Advancing a review case / setting a rating. Gated to developer until the
-// stage-specific HR roles (manager, LT member, founder) land (charter trigger);
-// the per-stage authorization (who may move which transition) is a later slice.
-export function canManageReview(user: User): PolicyDecision {
-  return user.roles.includes("developer") ? ALLOW : DENY("developer_required");
+// Who may open a review case or act on the flow at all.
+export function canOpenReview(user: User): PolicyDecision {
+  return hasAny(user, REVIEW_AUTHORITY_ROLES) ? ALLOW : DENY("review_authority_required");
+}
+
+// Who may advance a case INTO a given state (design-mapped, §REVIEW_ADVANCE_ROLES).
+export function canAdvanceReview(
+  user: User,
+  resource: { readonly toState: ReviewState },
+): PolicyDecision {
+  return hasAny(user, REVIEW_ADVANCE_ROLES[resource.toState])
+    ? ALLOW
+    : DENY(`role_required_for_${resource.toState}`);
+}
+
+// The manager assessment produces the calibrated rating.
+export function canRateReview(user: User): PolicyDecision {
+  return hasAny(user, REVIEW_RATING_ROLES) ? ALLOW : DENY("rating_role_required");
 }

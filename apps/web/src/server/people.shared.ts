@@ -63,5 +63,6 @@ export type PersonDetail = {
   readonly path: CareerPath | undefined;
   readonly managers: readonly ManagerRef[];
   readonly reviewCase: ReviewCaseView | undefined;
-  readonly canManage: boolean;
+  readonly canEditAttrs: boolean;
+  readonly canReview: boolean;
 };

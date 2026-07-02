@@ -19,4 +19,10 @@ export {
   openCase,
   setCaseRating,
 } from "./review.ts";
-export { canManageEmployee, canManageReview, canReadDirectory } from "./policies.ts";
+export {
+  canAdvanceReview,
+  canManageEmployee,
+  canOpenReview,
+  canRateReview,
+  canReadDirectory,
+} from "./policies.ts";

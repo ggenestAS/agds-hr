@@ -5,7 +5,14 @@ import {
   canStartImpersonation,
   canUpdateProfile,
 } from "@agds-hr/identity";
-import { canManageEmployee, canReadDirectory } from "@agds-hr/people";
+import {
+  canAdvanceReview,
+  canManageEmployee,
+  canOpenReview,
+  canRateReview,
+  canReadDirectory,
+} from "@agds-hr/people";
+import type { ReviewState } from "@agds-hr/people/types";
 import { ALLOW, type UserId } from "@agds-hr/shared";
 
 // The composition root (docs/new-project-directives.md §6.3): imports each
@@ -31,4 +38,9 @@ export function registerPolicies(): void {
 
   registerPolicy("people.directory.read", (user) => canReadDirectory(user));
   registerPolicy("people.employee.manage", (user) => canManageEmployee(user));
+  registerPolicy("people.review.open", (user) => canOpenReview(user));
+  registerPolicy("people.review.advance", (user, resource) =>
+    canAdvanceReview(user, resource as { readonly toState: ReviewState }),
+  );
+  registerPolicy("people.review.rate", (user) => canRateReview(user));
 }

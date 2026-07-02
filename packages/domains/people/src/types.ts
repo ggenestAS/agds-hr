@@ -1,3 +1,5 @@
+import type { UserRole } from "@agds-hr/shared";
+
 // Bounded job-architecture sets follow the closed-enum pipeline (§5.4): one
 // `as const` tuple drives the TS union, the pg enum, and Zod. Level names are
 // L1..L4 placeholders pending Albert's canonical ladder (refinable via a tuple
@@ -45,6 +47,33 @@ export const REVIEW_TRANSITIONS: Record<ReviewState, readonly ReviewState[]> = {
 export function canTransition(from: ReviewState, to: ReviewState): boolean {
   return REVIEW_TRANSITIONS[from].includes(to);
 }
+
+// Roles allowed to advance a case INTO each state (mapped to the design:
+// managers run the assessment and submit to calibration; founders (CEO/COO) own
+// calibration sign-off and the decision; admins handle appeals/closure).
+// `developer` is the platform superuser. The decision itself is a dual-founder
+// sign-off (a guarded accumulation), not a bare advance — see the review-decision
+// slice. Manager-of-subject scoping (a manager may only act on their own reports)
+// is a deferred refinement.
+export const REVIEW_ADVANCE_ROLES: Record<ReviewState, readonly UserRole[]> = {
+  self_review: [],
+  peer_input: ["manager", "founder", "developer"],
+  manager_assessment: ["manager", "founder", "developer"],
+  calibration: ["manager", "founder", "developer"],
+  decision: ["founder", "developer"],
+  appeal: ["admin", "founder", "developer"],
+  closed: ["founder", "admin", "developer"],
+};
+
+// Roles that may open a case or set a rating (the manager assessment produces
+// the rating).
+export const REVIEW_AUTHORITY_ROLES: readonly UserRole[] = [
+  "manager",
+  "founder",
+  "admin",
+  "developer",
+];
+export const REVIEW_RATING_ROLES: readonly UserRole[] = ["manager", "founder", "developer"];
 
 // Calibrated performance rating, 1–4 (rated against level). 4 stays rare.
 export const REVIEW_RATINGS = [1, 2, 3, 4] as const;
