@@ -16,6 +16,10 @@ pre-commit:
       run: bun run scripts/ci/check-migrations.ts
     check-env:
       run: bun run scripts/ci/check-env.ts
+    check-nav:
+      run: bun run scripts/ci/check-nav.ts
+    check-client-barrels:
+      run: bun run scripts/ci/check-client-barrels.ts
     test-staged:
       glob: "*.ts"
       run: bun run scripts/ci/test-staged.ts --bail {staged_files}

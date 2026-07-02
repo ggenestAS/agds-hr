@@ -20,6 +20,8 @@
     "check:docs": "bun run scripts/ci/check-docs.ts",
     "check:migrations": "bun run scripts/ci/check-migrations.ts",
     "check:env": "bun run scripts/ci/check-env.ts",
+    "check:nav": "bun run scripts/ci/check-nav.ts",
+    "check:client-barrels": "bun run scripts/ci/check-client-barrels.ts",
     "test": "bun test",
     "test:unit": "bun test --test-name-pattern \"^(?!.*\\[integration\\])\"",
     "test:staged": "bun run scripts/ci/test-staged.ts",
