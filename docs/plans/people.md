@@ -74,6 +74,21 @@ audit-of-reads requirement arrive with slice 4.
 state until employees are provisioned. Person detail, review, calibration, comp,
 and appeals surfaces are later slices.
 
+## Built so far
+
+- Slice 1 — directory + job architecture (schema, DAL, policy, route).
+- Reconciliation — directory sourced from the Inside roster, merged with
+  agds-hr level/path by email.
+- Slice 2 — review-cycle state machine (`review_case`, guarded audited
+  transitions, rating; directory Rating column).
+- Slice 3 — person detail page (`/people/$userId`): Inside profile, editable
+  level/path, functional reporting chain from Inside `/officer/org-tree`, and
+  review-case Open/advance/rating controls.
+
+Remaining: calibration + dual-founder sign-off (P6 auto-trigger, 30-day appeal
+clock), compensation (merit matrix, decision summary, comp-data audit-of-reads),
+appeals, and the stage-specific HR roles (manager / LT member / founder).
+
 ## Open questions
 
 - The four level names are `L1..L4` placeholders pending Albert's canonical
