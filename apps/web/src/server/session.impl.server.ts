@@ -1,10 +1,11 @@
-import { getRequest } from "@tanstack/react-start/server";
+import { getCookie, getRequest } from "@tanstack/react-start/server";
 
 import { getAuth, resolveSession, type Session, type SessionDeps } from "@agds-hr/auth";
 import { getDbAs } from "@agds-hr/db";
 import { hydrateUser, readActiveImpersonation } from "@agds-hr/identity";
 import { RequestId, UserId } from "@agds-hr/shared";
 
+import { DEV_LOGIN_COOKIE, isDevLoginEnabled } from "./dev-login.impl.server.ts";
 import { registerPolicies } from "./policies.ts";
 
 // Server-only session resolution. The injected SessionDeps wire the auth-session
@@ -16,6 +17,14 @@ function sessionDeps(): SessionDeps {
   const adminDb = getDbAs("admin");
   return {
     readAuthSession: async (request) => {
+      // Dev-only bypass (guarded, never in production): a dev cookie names the
+      // user directly, skipping BetterAuth — see dev-login.impl.server.ts.
+      if (isDevLoginEnabled()) {
+        const devUserId = getCookie(DEV_LOGIN_COOKIE);
+        if (devUserId !== undefined) {
+          return { userId: UserId(devUserId), authSessionId: "dev" };
+        }
+      }
       const result = await getAuth().api.getSession({ headers: request.headers });
       if (result === null) {
         return null;

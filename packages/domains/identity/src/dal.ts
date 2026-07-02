@@ -109,6 +109,31 @@ export async function listUsers(
   return directory;
 }
 
+// Provisioning primitive (§6.1 — users are provisioned before they can sign in;
+// also the seam step 7's createTestUser and the dev-login bypass build on).
+// Find-or-create by email on the admin connection; returns the id either way.
+// Not audited by itself — this is bootstrap/provisioning, like the documented
+// one-time SQL insert; audited role grants are layered on by the caller.
+export async function ensureUserByEmail(
+  db: DrizzleDb,
+  email: string,
+  name: string,
+): Promise<UserId> {
+  const [existing] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
+  if (existing !== undefined) {
+    return UserId(existing.id);
+  }
+  const [row] = await db
+    .insert(user)
+    .values({ name, email, emailVerified: true, displayName: name })
+    .returning({ id: user.id });
+  return UserId(row!.id);
+}
+
 export async function grantRole(
   db: DrizzleDb,
   userId: UserId,

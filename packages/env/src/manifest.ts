@@ -83,6 +83,13 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "optional",
   },
+  {
+    name: "DEV_LOGIN",
+    owner: "@agds-hr/web",
+    group: "dev",
+    scope: "server",
+    requirement: "optional",
+  },
 ] as const satisfies readonly EnvVarSpec[];
 
 export type EnvVarName = (typeof ENV_MANIFEST)[number]["name"];

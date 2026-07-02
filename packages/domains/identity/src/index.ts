@@ -3,6 +3,7 @@ export type { DirectoryUser } from "./types.ts";
 export type { ListUsersFilter } from "./dal.ts";
 export {
   deactivateUser,
+  ensureUserByEmail,
   grantRole,
   hydrateUser,
   listUsers,
