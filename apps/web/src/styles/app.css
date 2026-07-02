@@ -27,6 +27,10 @@
   --color-coral: #f5a28f;
   --color-blush: #f3d9d2;
 
+  /* warning is the one added semantic color (§9.4); success/info deferred. */
+  --color-warning: #8a6a1e;
+  --color-warning-surface: #f6eeda;
+
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 14px;
@@ -38,6 +42,22 @@
 
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emph: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Map shadcn semantic tokens onto the runtime CSS vars (defined in :root/.dark
+   below) so utilities like bg-primary / text-foreground / border-border resolve
+   through them and respond to the theme. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
 }
 
 /* shadcn-style semantic vars mapped onto the Albert palette; shadcn primitives
