@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { integer, pgSchema, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  pgSchema,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { user } from "@agds-hr/auth/db/schema";
 
@@ -87,6 +96,11 @@ export const reviewCase = peopleSchema.table(
     cyclePeriod: text("cycle_period").notNull(),
     state: reviewStateEnum("state").notNull().default("self_review"),
     rating: integer("rating"),
+    // Set at delivery (dual-founder sign-off): the decision timestamp, the
+    // 30-day appeal deadline, and whether a P6 improvement plan was triggered.
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    appealUntil: timestamp("appeal_until", { withTimezone: true }),
+    p6Triggered: boolean("p6_triggered").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -94,4 +108,20 @@ export const reviewCase = peopleSchema.table(
       .$onUpdate(() => new Date()),
   },
   (table) => [unique("review_case_subject_cycle").on(table.subjectEmail, table.cyclePeriod)],
+);
+
+// Founder sign-offs on a decision. Unique on [case, founder] so the two required
+// confirmations must come from distinct founders (design: two distinct,
+// authenticated confirmations).
+export const reviewSignoff = peopleSchema.table(
+  "review_signoff",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    founderUserId: uuid("founder_user_id").notNull(),
+    signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique("review_signoff_case_founder").on(table.caseId, table.founderUserId)],
 );

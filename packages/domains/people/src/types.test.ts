@@ -6,6 +6,8 @@ import {
   canTransition,
   isCareerLevel,
   isCareerPath,
+  isDecisionComplete,
+  isP6Triggered,
   isReviewRating,
   isReviewState,
 } from "./types.ts";
@@ -44,5 +46,20 @@ describe("review state machine", () => {
     expect(isReviewState("bogus")).toBe(false);
     expect(isReviewRating(4)).toBe(true);
     expect(isReviewRating(5)).toBe(false);
+  });
+
+  test("a decision completes only at two distinct sign-offs", () => {
+    expect(isDecisionComplete(0)).toBe(false);
+    expect(isDecisionComplete(1)).toBe(false);
+    expect(isDecisionComplete(2)).toBe(true);
+    expect(isDecisionComplete(3)).toBe(true);
+  });
+
+  test("P6 is triggered for ratings 1–2 only", () => {
+    expect(isP6Triggered(1)).toBe(true);
+    expect(isP6Triggered(2)).toBe(true);
+    expect(isP6Triggered(3)).toBe(false);
+    expect(isP6Triggered(4)).toBe(false);
+    expect(isP6Triggered(undefined)).toBe(false);
   });
 });

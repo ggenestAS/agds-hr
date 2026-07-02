@@ -91,4 +91,25 @@ export type ReviewCase = {
   readonly cyclePeriod: string;
   readonly state: ReviewState;
   readonly rating: ReviewRating | undefined;
+  readonly decidedAt: Date | undefined;
+  readonly appealUntil: Date | undefined;
+  readonly p6Triggered: boolean;
 };
+
+// A decision requires two distinct, authenticated founder confirmations before
+// the summary is delivered (design). Sign-off is a guarded accumulation, not a
+// plain state transition — delivery fires only when the distinct count reaches
+// this threshold.
+export const REVIEW_SIGNOFFS_REQUIRED = 2;
+
+export function isDecisionComplete(distinctSignoffCount: number): boolean {
+  return distinctSignoffCount >= REVIEW_SIGNOFFS_REQUIRED;
+}
+
+// Delivering the decision starts the appeal clock (anyone may appeal within 30
+// days of delivery) and auto-triggers a P6 improvement plan for ratings of 1–2.
+export const APPEAL_WINDOW_DAYS = 30;
+
+export function isP6Triggered(rating: ReviewRating | undefined): boolean {
+  return rating !== undefined && rating <= 2;
+}

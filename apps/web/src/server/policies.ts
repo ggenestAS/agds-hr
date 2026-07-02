@@ -11,6 +11,7 @@ import {
   canOpenReview,
   canRateReview,
   canReadDirectory,
+  canSignDecision,
 } from "@agds-hr/people";
 import type { ReviewState } from "@agds-hr/people/types";
 import { ALLOW, type UserId } from "@agds-hr/shared";
@@ -43,4 +44,5 @@ export function registerPolicies(): void {
     canAdvanceReview(user, resource as { readonly toState: ReviewState }),
   );
   registerPolicy("people.review.rate", (user) => canRateReview(user));
+  registerPolicy("people.decision.sign", (user) => canSignDecision(user));
 }

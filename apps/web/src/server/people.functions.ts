@@ -5,6 +5,7 @@ import {
   openReviewSchema,
   setEmployeeAttrsSchema,
   setRatingSchema,
+  signDecisionSchema,
 } from "./people.shared.ts";
 
 // Thin transports (§9.3); each impl stays behind the lazy-import seam.
@@ -47,3 +48,15 @@ export const setRatingFn = createServerFn({ method: "POST" })
     const { setRatingHandler } = await import("./people.impl.server.ts");
     return setRatingHandler(data);
   });
+
+export const signDecisionFn = createServerFn({ method: "POST" })
+  .validator(signDecisionSchema)
+  .handler(async ({ data }) => {
+    const { signDecisionHandler } = await import("./people.impl.server.ts");
+    return signDecisionHandler(data);
+  });
+
+export const calibrationFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { calibrationHandler } = await import("./people.impl.server.ts");
+  return calibrationHandler();
+});

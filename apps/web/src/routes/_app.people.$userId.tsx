@@ -12,6 +12,7 @@ import {
   personDetailFn,
   setEmployeeAttrsFn,
   setRatingFn,
+  signDecisionFn,
 } from "../server/people.functions.ts";
 
 export const Route = createFileRoute("/_app/people/$userId")({
@@ -192,7 +193,52 @@ function PersonDetailPage() {
                     {person.reviewCase.rating ?? "—"}
                   </span>
                 </span>
+                {person.reviewCase.p6Triggered && (
+                  <span className="rounded-full bg-[var(--color-warning-surface)] px-2 py-0.5 text-xs font-semibold text-[var(--color-warning)]">
+                    P6 improvement plan
+                  </span>
+                )}
               </div>
+
+              {person.reviewCase.decidedAt !== undefined ? (
+                <div className="rounded-[10px] bg-cream px-3 py-2 text-sm">
+                  Decision delivered {new Date(person.reviewCase.decidedAt).toLocaleDateString()} ·
+                  appeal window until{" "}
+                  <span className="font-semibold">
+                    {person.reviewCase.appealUntil === undefined
+                      ? "—"
+                      : new Date(person.reviewCase.appealUntil).toLocaleDateString()}
+                  </span>
+                </div>
+              ) : (
+                person.reviewCase.state === "decision" && (
+                  <div className="flex items-center gap-3 border-t border-border pt-3 text-sm">
+                    <span className="text-muted-foreground">
+                      Founder sign-offs:{" "}
+                      <span className="font-semibold tabular-nums text-foreground">
+                        {person.reviewCase.signoffCount}/2
+                      </span>{" "}
+                      — both founders must sign to deliver.
+                    </span>
+                    {person.canSign && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="ml-auto"
+                        disabled={busy}
+                        onClick={() => {
+                          const caseId = person.reviewCase?.id;
+                          if (caseId !== undefined) {
+                            void run(() => signDecisionFn({ data: { caseId } }));
+                          }
+                        }}
+                      >
+                        Sign decision
+                      </Button>
+                    )}
+                  </div>
+                )
+              )}
               {person.canReview && (
                 <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                   {person.reviewCase.nextStates.map((next) => (

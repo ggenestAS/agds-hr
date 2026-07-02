@@ -5,7 +5,11 @@ export {
   REVIEW_TRANSITIONS,
   REVIEW_RATINGS,
   REVIEW_CURRENT_CYCLE,
+  REVIEW_SIGNOFFS_REQUIRED,
+  APPEAL_WINDOW_DAYS,
   canTransition,
+  isDecisionComplete,
+  isP6Triggered,
   isReviewState,
   isReviewRating,
 } from "./types.ts";
@@ -15,14 +19,19 @@ export { getEmployeeByEmail, listEmployeeAttrs, upsertEmployeeByEmail } from "./
 export {
   advanceCase,
   getCaseBySubject,
+  getSignoffs,
+  listCasesForCycle,
   listRatingsForCycle,
   openCase,
   setCaseRating,
+  signDecision,
 } from "./review.ts";
+export type { CalibrationCase, SignDecisionResult } from "./review.ts";
 export {
   canAdvanceReview,
   canManageEmployee,
   canOpenReview,
   canRateReview,
   canReadDirectory,
+  canSignDecision,
 } from "./policies.ts";

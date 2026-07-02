@@ -42,3 +42,9 @@ export function canAdvanceReview(
 export function canRateReview(user: User): PolicyDecision {
   return hasAny(user, REVIEW_RATING_ROLES) ? ALLOW : DENY("rating_role_required");
 }
+
+// Only founders (CEO/COO) may sign off a decision; two distinct sign-offs are
+// required to deliver (enforced by the DAL, not this predicate).
+export function canSignDecision(user: User): PolicyDecision {
+  return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
+}

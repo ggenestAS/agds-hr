@@ -11,18 +11,26 @@ import {
   advanceCase,
   getCaseBySubject,
   getEmployeeByEmail,
+  getSignoffs,
+  listCasesForCycle,
   listEmployeeAttrs,
   listRatingsForCycle,
   openCase,
   REVIEW_CURRENT_CYCLE,
   REVIEW_TRANSITIONS,
   setCaseRating,
+  signDecision,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
 import type { ReviewRating } from "@agds-hr/people/types";
 import { NotFoundError } from "@agds-hr/shared";
 
-import type { DirectoryEntry, PersonDetail, SetEmployeeAttrsInput } from "./people.shared.ts";
+import type {
+  CalibrationSummary,
+  DirectoryEntry,
+  PersonDetail,
+  SetEmployeeAttrsInput,
+} from "./people.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
 
 // The directory is the Albert Inside roster merged with agds-hr-native level/path
@@ -88,6 +96,8 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     title: node.title,
   }));
 
+  const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
+
   return {
     userId: admin.userId,
     name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -107,9 +117,14 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
             state: reviewCase.state,
             rating: reviewCase.rating,
             nextStates: REVIEW_TRANSITIONS[reviewCase.state],
+            signoffCount: signoffs.length,
+            decidedAt: reviewCase.decidedAt?.toISOString(),
+            appealUntil: reviewCase.appealUntil?.toISOString(),
+            p6Triggered: reviewCase.p6Triggered,
           },
     canEditAttrs: can(session.subject, "people.employee.manage").allow,
     canReview: can(session.subject, "people.review.open").allow,
+    canSign: can(session.subject, "people.decision.sign").allow,
   };
 }
 
@@ -155,4 +170,31 @@ export async function setRatingHandler(input: {
     auditContext(session),
   );
   return { ok: true };
+}
+
+export async function signDecisionHandler(input: {
+  readonly caseId: string;
+}): Promise<{ readonly signoffs: number; readonly delivered: boolean }> {
+  const session = await requireSession("people.decision.sign");
+  return signDecision(getDbAs("admin"), input.caseId, session.actor.id, auditContext(session));
+}
+
+export async function calibrationHandler(): Promise<CalibrationSummary> {
+  await requireSession("people.review.open");
+  const cases = await listCasesForCycle(getDbAs("admin"), REVIEW_CURRENT_CYCLE);
+  const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let unrated = 0;
+  const needsDecision: { subjectEmail: string; rating: number | undefined }[] = [];
+  for (const entry of cases) {
+    if (entry.rating === undefined) {
+      unrated += 1;
+    } else {
+      distribution[entry.rating] += 1;
+    }
+    // Flagged for calibration & sign-off: at calibration/decision, not yet delivered.
+    if ((entry.state === "calibration" || entry.state === "decision") && !entry.decided) {
+      needsDecision.push({ subjectEmail: entry.subjectEmail, rating: entry.rating });
+    }
+  }
+  return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
 }

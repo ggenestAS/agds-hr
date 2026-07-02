@@ -37,12 +37,17 @@ export const setRatingSchema = z.object({
 });
 
 export const openReviewSchema = z.object({ email: z.string().email() });
+export const signDecisionSchema = z.object({ caseId: z.string().min(1) });
 
 export type ReviewCaseView = {
   readonly id: string;
   readonly state: ReviewState;
   readonly rating: number | undefined;
   readonly nextStates: readonly ReviewState[];
+  readonly signoffCount: number;
+  readonly decidedAt: string | undefined;
+  readonly appealUntil: string | undefined;
+  readonly p6Triggered: boolean;
 };
 
 export type ManagerRef = {
@@ -65,4 +70,16 @@ export type PersonDetail = {
   readonly reviewCase: ReviewCaseView | undefined;
   readonly canEditAttrs: boolean;
   readonly canReview: boolean;
+  readonly canSign: boolean;
+};
+
+export type CalibrationSummary = {
+  readonly cycle: string;
+  readonly distribution: Readonly<Record<1 | 2 | 3 | 4, number>>;
+  readonly total: number;
+  readonly unrated: number;
+  readonly needsDecision: readonly {
+    readonly subjectEmail: string;
+    readonly rating: number | undefined;
+  }[];
 };

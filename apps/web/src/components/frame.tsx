@@ -13,6 +13,7 @@ import { devLogoutFn } from "../server/dev-login.functions.ts";
 // content pane does.
 const NAV_ITEMS = [
   { to: "/people", label: "People" },
+  { to: "/calibration", label: "Calibration" },
   { to: "/dashboard", label: "Dashboard" },
 ] as const;
 
