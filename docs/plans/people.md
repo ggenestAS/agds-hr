@@ -64,9 +64,13 @@ compensation, and appeals — with the audit trail as a first-class product.
 
 ## Policies
 
-`people.directory.read` — staff (any authenticated). `people.employee.manage` —
-developer, until the HR admin role lands. Compensation-data read gating and the
-audit-of-reads requirement arrive with slice 4.
+`people.directory.read` — any authenticated user. `people.employee.manage` —
+developer/admin. Review flow: `people.review.open`/`.rate` — manager/founder/
+developer; `people.review.advance` is per-target-state (`REVIEW_ADVANCE_ROLES`);
+`people.decision.sign` — founder/developer. `people.comp.read` —
+admin/founder/developer (the read is itself audited); `people.comp.manage` —
+admin/developer. `people.appeal.file` — ALLOW (handler enforces
+ownership + the 30-day window); `people.appeal.manage` — admin/developer.
 
 ## Surfaces
 
@@ -84,10 +88,32 @@ and appeals surfaces are later slices.
 - Slice 3 — person detail page (`/people/$userId`): Inside profile, editable
   level/path, functional reporting chain from Inside `/officer/org-tree`, and
   review-case Open/advance/rating controls.
+- Slice D — stage-gated review authorization + HR product roles. Added
+  `manager`/`founder`/`admin` to the role tuple and `identity.role`; the review
+  flow's per-transition authority (`REVIEW_ADVANCE_ROLES`), rating authority, and
+  sign-off/comp/appeal gates are now real roles rather than developer-only.
+- Slice E — calibration + dual-founder sign-off. `/calibration` shows the rating
+  distribution and the cases awaiting a decision; sign-off is guarded
+  accumulation (unique `[case_id, founder_user_id]`), delivering only at two
+  distinct sign-offs — which stamps `decided_at`, opens the 30-day
+  `appeal_until` clock, sets `p6_triggered` when rating ≤ 2, and records
+  `people.review.decision_delivered`.
+- Slice F — compensation with audited reads. `comp_recommendation` (integer EUR),
+  merit matrix (basis points) + band-position helpers; reading a recommendation
+  writes `people.comp.viewed` in the SAME transaction as the SELECT (fail-closed
+  audit-of-reads). Comp is leadership-only and revealed behind an explicit action.
+- Slice G — appeals. `people.appeal` lives in its own table, never joined into
+  review/comp/directory reads (structurally out of performance views). An
+  appellant may appeal their OWN delivered decision within the 30-day window
+  (ownership + clock enforced in the handler); appeals route to HR Admins because
+  a dual-founder sign-off leaves no non-deciding founder. `/appeals` is the Admin
+  queue (resolve with a recorded resolution); mutations audited
+  (`people.appeal.filed` / `people.appeal.resolved`).
 
-Remaining: calibration + dual-founder sign-off (P6 auto-trigger, 30-day appeal
-clock), compensation (merit matrix, decision summary, comp-data audit-of-reads),
-appeals, and the stage-specific HR roles (manager / LT member / founder).
+Remaining: seed band figures / country coefficients and canonical ladder names;
+surface band-position + merit suggestion in the comp card once bands are seeded;
+wire the `lt_member` role (deferred) into calibration authority if the design
+calls for it.
 
 ## Open questions
 
