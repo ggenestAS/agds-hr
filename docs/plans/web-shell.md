@@ -38,7 +38,7 @@ convention gates. No product surfaces yet — those are step 10.
   variants, `cn()`; primitives needed by the shell (Button, Card, Input,
   Dialog, Tooltip, Sonner).
 - New CI gates with co-located tests: `check:nav` (no `onClick={() =>
-  navigate()}`), `check:client-barrels` (no domain-barrel value imports in
+navigate()}`), `check:client-barrels` (no domain-barrel value imports in
   client-scanned files).
 
 ### Out (with named triggers)

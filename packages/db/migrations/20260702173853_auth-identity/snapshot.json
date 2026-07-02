@@ -2,9 +2,7 @@
   "version": "8",
   "dialect": "postgres",
   "id": "1efb8bb8-c98c-4fb0-a3e0-ff5ef997c798",
-  "prevIds": [
-    "964a1afd-7592-4de5-9142-1dde2c2105e2"
-  ],
+  "prevIds": ["964a1afd-7592-4de5-9142-1dde2c2105e2"],
   "ddl": [
     {
       "name": "audit",
@@ -19,10 +17,7 @@
       "entityType": "schemas"
     },
     {
-      "values": [
-        "staff",
-        "developer"
-      ],
+      "values": ["staff", "developer"],
       "name": "role",
       "entityType": "enums",
       "schema": "identity"
@@ -928,14 +923,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "account_user_id_user_id_fkey",
@@ -945,14 +936,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "session_user_id_user_id_fkey",
@@ -962,14 +949,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "impersonation_session_actor_user_id_user_id_fkey",
@@ -979,14 +962,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "subject_user_id"
-      ],
+      "columns": ["subject_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "impersonation_session_subject_user_id_user_id_fkey",
@@ -996,14 +975,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_relationship_user_id_user_id_fkey",
@@ -1013,14 +988,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "related_user_id"
-      ],
+      "columns": ["related_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_relationship_related_user_id_user_id_fkey",
@@ -1030,14 +1001,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_role_user_id_user_id_fkey",
@@ -1046,10 +1013,7 @@
       "table": "user_role"
     },
     {
-      "columns": [
-        "user_id",
-        "role"
-      ],
+      "columns": ["user_id", "role"],
       "nameExplicit": false,
       "name": "user_role_pkey",
       "entityType": "pks",
@@ -1057,9 +1021,7 @@
       "table": "user_role"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "events_pkey",
       "schema": "audit",
@@ -1067,9 +1029,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_pkey",
       "schema": "auth",
@@ -1077,9 +1037,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "session_pkey",
       "schema": "auth",
@@ -1087,9 +1045,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_pkey",
       "schema": "auth",
@@ -1097,9 +1053,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "verification_pkey",
       "schema": "auth",
@@ -1107,9 +1061,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "nameExplicit": false,
       "name": "impersonation_session_pkey",
       "schema": "identity",
@@ -1117,9 +1069,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_relationship_pkey",
       "schema": "identity",
@@ -1128,11 +1078,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "user_id",
-        "related_user_id",
-        "kind"
-      ],
+      "columns": ["user_id", "related_user_id", "kind"],
       "nullsNotDistinct": false,
       "name": "user_relationship_edge",
       "entityType": "uniques",
@@ -1141,9 +1087,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "token"
-      ],
+      "columns": ["token"],
       "nullsNotDistinct": false,
       "name": "session_token_key",
       "schema": "auth",
@@ -1152,9 +1096,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "email"
-      ],
+      "columns": ["email"],
       "nullsNotDistinct": false,
       "name": "user_email_key",
       "schema": "auth",

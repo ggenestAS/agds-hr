@@ -29,18 +29,18 @@ binding here:
 
 Tracking the founding document's §17 bootstrap order:
 
-| Step | Content                                                                                 | Status  |
-| ---- | --------------------------------------------------------------------------------------- | ------- |
-| 1    | Repo scaffold: workspaces, tsconfig, oxlint/oxfmt, lefthook, docs, CI static            | done    |
-| 2    | `packages/shared` + `packages/env` (+ `check:env`)                                      | done    |
-| 3    | `packages/db`: four-role selector, setup-roles.sql, first migration, `check:migrations` | done    |
-| 4    | `packages/domains/audit`: append-only events + trigger + `recordEvent`                  | done    |
-| 5    | `packages/auth` + `packages/domains/identity`                                           | done    |
+| Step | Content                                                                                 | Status      |
+| ---- | --------------------------------------------------------------------------------------- | ----------- |
+| 1    | Repo scaffold: workspaces, tsconfig, oxlint/oxfmt, lefthook, docs, CI static            | done        |
+| 2    | `packages/shared` + `packages/env` (+ `check:env`)                                      | done        |
+| 3    | `packages/db`: four-role selector, setup-roles.sql, first migration, `check:migrations` | done        |
+| 4    | `packages/domains/audit`: append-only events + trigger + `recordEvent`                  | done        |
+| 5    | `packages/auth` + `packages/domains/identity`                                           | done        |
 | 6    | `apps/web`: shell, session gate, server-fn triple, UI discipline, app gates             | in progress |
-| 7    | Test harness: disposable-branch wrapper + sentinel, coverage gate, CI test job          | pending |
-| 8    | Dev workflow scripts: `new-feature`, `commit:safe`, `check:orient`, `new-domain`        | pending |
-| 9    | One reference domain end-to-end                                                         | pending |
-| 10   | First product domain, via a plan in `docs/plans/`                                       | pending |
+| 7    | Test harness: disposable-branch wrapper + sentinel, coverage gate, CI test job          | pending     |
+| 8    | Dev workflow scripts: `new-feature`, `commit:safe`, `check:orient`, `new-domain`        | pending     |
+| 9    | One reference domain end-to-end                                                         | pending     |
+| 10   | First product domain, via a plan in `docs/plans/`                                       | pending     |
 
 ## Pinned decisions
 
@@ -55,17 +55,17 @@ Tracking the founding document's §17 bootstrap order:
 
 ## Deferred, with named triggers
 
-| Item                                                       | Trigger                                                          | Status   |
-| ---------------------------------------------------------- | ---------------------------------------------------------------- | -------- |
-| CI `test` job with coverage gate                           | step 7 lands (test harness + disposable DB branches)             | deferred |
+| Item                                                       | Trigger                                                          | Status                |
+| ---------------------------------------------------------- | ---------------------------------------------------------------- | --------------------- |
+| CI `test` job with coverage gate                           | step 7 lands (test harness + disposable DB branches)             | deferred              |
 | App-convention gates (`check:nav`, `check:client-barrels`) | step 6 lands (`apps/web` exists)                                 | trigger fired — built |
-| 100% coverage ratcheting allowlist                         | step 7 lands (coverage gate exists)                              | deferred |
-| MFA / external-IdP SSO                                     | a user population outside Google Workspace MFA coverage          | deferred |
-| `success` / `info` semantic colors                         | a surface needs one                                              | deferred |
-| Per-PR ephemeral CI DB branches                            | PR volume makes the shared `ci` branch queue a bottleneck        | deferred |
-| Transactional outbox / `id_map` / legacy bridge            | an external system must observe writes / a legacy system appears | deferred |
-| Telemetry domain (`telemetry.event` stream)                | step 6 lands (first server-fn boundary to instrument)            | deferred |
-| Domain roles beyond `staff`/`developer`                    | first product domain defines its audiences                       | deferred |
+| 100% coverage ratcheting allowlist                         | step 7 lands (coverage gate exists)                              | deferred              |
+| MFA / external-IdP SSO                                     | a user population outside Google Workspace MFA coverage          | deferred              |
+| `success` / `info` semantic colors                         | a surface needs one                                              | deferred              |
+| Per-PR ephemeral CI DB branches                            | PR volume makes the shared `ci` branch queue a bottleneck        | deferred              |
+| Transactional outbox / `id_map` / legacy bridge            | an external system must observe writes / a legacy system appears | deferred              |
+| Telemetry domain (`telemetry.event` stream)                | step 6 lands (first server-fn boundary to instrument)            | deferred              |
+| Domain roles beyond `staff`/`developer`                    | first product domain defines its audiences                       | deferred              |
 
 ## Settled questions
 
