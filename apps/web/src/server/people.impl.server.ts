@@ -1,12 +1,14 @@
+import { getDbAs } from "@agds-hr/db";
 import { isInsideConfigured, listAdminDirectory, type InsideAdmin } from "@agds-hr/inside";
+import { listEmployeeAttrs } from "@agds-hr/people";
 
 import type { DirectoryEntry } from "./people.shared.ts";
 import { requireSession } from "./require-session.server.ts";
 
 // Gated read: session + policy first (requireSession), then the roster. The
-// directory is sourced from the Albert Inside API when configured (the real
-// admin/officer roster); otherwise an empty state. agds-hr level/path/rating
-// (people.employee) reconcile onto this roster in a later slice.
+// directory is the Albert Inside roster merged with agds-hr-native level/path
+// (people.employee, keyed by email) when assigned; the empty state shows when
+// Inside is unconfigured.
 const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   userId: admin.userId,
   name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -16,6 +18,8 @@ const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   country: admin.country,
   managerName: admin.functionalManagerName,
   active: admin.active,
+  level: undefined,
+  path: undefined,
 });
 
 export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]> {
@@ -23,6 +27,13 @@ export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]>
   if (!isInsideConfigured()) {
     return [];
   }
-  const admins = await listAdminDirectory({ limit: 1000 });
-  return admins.map(toEntry);
+  const [admins, attrs] = await Promise.all([
+    listAdminDirectory({ limit: 1000 }),
+    listEmployeeAttrs(getDbAs("admin")),
+  ]);
+  const byEmail = new Map(attrs.map((entry) => [entry.email.toLowerCase(), entry]));
+  return admins.map((admin) => {
+    const assigned = byEmail.get(admin.email.toLowerCase());
+    return { ...toEntry(admin), level: assigned?.level, path: assigned?.path };
+  });
 }

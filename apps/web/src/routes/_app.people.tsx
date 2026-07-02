@@ -4,13 +4,15 @@ import { Card, CardContent } from "../components/ui/card.tsx";
 import type { DirectoryEntry } from "../server/people.shared.ts";
 import { listDirectoryFn } from "../server/people.functions.ts";
 
-// The People directory, sourced from the Albert Inside roster. agds-hr
-// level/path/rating/band position layer on in later slices (they show once
-// employees are reconciled + reviews run).
+// The People directory, sourced from the Albert Inside roster merged with
+// agds-hr-native level/path (shown once assigned on a person's detail page).
+// Rating/band position layer on with the review + comp slices.
 export const Route = createFileRoute("/_app/people")({
   loader: () => listDirectoryFn(),
   component: People,
 });
+
+const PATH_LABEL: Record<string, string> = { ic: "IC", manager: "Manager" };
 
 function People() {
   const directory = Route.useLoaderData();
@@ -42,6 +44,7 @@ function People() {
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-[0.06em] text-muted-foreground">
                   <th className="px-4 py-3 font-semibold">Person</th>
+                  <th className="px-4 py-3 font-semibold">Level · Path</th>
                   <th className="px-4 py-3 font-semibold">Title</th>
                   <th className="px-4 py-3 font-semibold">Campus</th>
                   <th className="px-4 py-3 font-semibold">Country</th>
@@ -55,6 +58,19 @@ function People() {
                     <td className="px-4 py-3">
                       <div className="font-medium">{row.name}</div>
                       <div className="text-xs text-muted-foreground">{row.email}</div>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {row.level === undefined ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <>
+                          <span className="font-semibold">{row.level}</span>
+                          <span className="text-muted-foreground">
+                            {" · "}
+                            {row.path === undefined ? "" : (PATH_LABEL[row.path] ?? row.path)}
+                          </span>
+                        </>
+                      )}
                     </td>
                     <td className="px-4 py-3">{row.title ?? "—"}</td>
                     <td className="px-4 py-3">{row.campus ?? "—"}</td>

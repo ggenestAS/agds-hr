@@ -17,14 +17,19 @@ export const employee = peopleSchema.table(
   "employee",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    // Reconciliation key: the directory roster comes from Inside (most staff are
+    // not provisioned auth.user rows), so agds-hr attributes attach by verified
+    // school email. `insideUserId` records the Inside id; `userId` links a
+    // provisioned auth.user when one exists (nullable).
+    email: text("email").notNull(),
+    insideUserId: text("inside_user_id"),
+    userId: uuid("user_id").references(() => user.id, { onDelete: "set null" }),
     level: careerLevelEnum("level").notNull(),
     path: careerPathEnum("path").notNull(),
-    // Open vocabularies — the org adds families/countries without a migration.
-    country: text("country").notNull(),
-    roleFamily: text("role_family").notNull(),
+    // Inside is the source for country/role_family on the directory; kept
+    // nullable here for the agds-hr-native path.
+    country: text("country"),
+    roleFamily: text("role_family"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -33,10 +38,15 @@ export const employee = peopleSchema.table(
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by"),
   },
-  // One active employee row per user — a partial unique index on active rows
-  // (§5.3); a plain unique won't do it since Postgres treats NULL deleted_at as
-  // distinct.
+  // Partial unique indexes on active rows (§5.3). `email` is the reconciliation
+  // key (one active employee per email). The original `user_id` index is kept
+  // (now over a nullable column, so it only constrains the provisioned-user
+  // case) — retaining it keeps this migration add-only, avoiding a drizzle
+  // rename prompt on an already-applied table (AGENTS.md).
   (table) => [
+    uniqueIndex("employee_email_active")
+      .on(table.email)
+      .where(sql`${table.deletedAt} is null`),
     uniqueIndex("employee_user_active")
       .on(table.userId)
       .where(sql`${table.deletedAt} is null`),

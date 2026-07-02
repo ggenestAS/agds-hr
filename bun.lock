@@ -91,6 +91,7 @@
       "name": "@agds-hr/people",
       "version": "0.0.0",
       "dependencies": {
+        "@agds-hr/audit": "workspace:*",
         "@agds-hr/auth": "workspace:*",
         "@agds-hr/db": "workspace:*",
         "@agds-hr/shared": "workspace:*",
