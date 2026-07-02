@@ -3,7 +3,7 @@ import { integer, pgSchema, text, timestamp, unique, uniqueIndex, uuid } from "d
 
 import { user } from "@agds-hr/auth/db/schema";
 
-import { CAREER_LEVELS, CAREER_PATHS } from "../types.ts";
+import { CAREER_LEVELS, CAREER_PATHS, REVIEW_STATES } from "../types.ts";
 
 // The people product domain (docs/decisions/2026-07-02-people-domain-model.md).
 // `employee` is HR attributes on a provisioned auth.user, not a second account.
@@ -73,3 +73,25 @@ export const countryCoefficient = peopleSchema.table("country_coefficient", {
   country: text("country").primaryKey(),
   coefficientBp: integer("coefficient_bp").notNull(),
 });
+
+// One annual-review case per person per cycle. Cases are the compliance record —
+// no soft delete (the audit trail is the product). `rating` (1–4) is set at the
+// manager-assessment stage. Subject is keyed by email like `employee`.
+export const reviewStateEnum = peopleSchema.enum("review_state", REVIEW_STATES);
+
+export const reviewCase = peopleSchema.table(
+  "review_case",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectEmail: text("subject_email").notNull(),
+    cyclePeriod: text("cycle_period").notNull(),
+    state: reviewStateEnum("state").notNull().default("self_review"),
+    rating: integer("rating"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("review_case_subject_cycle").on(table.subjectEmail, table.cyclePeriod)],
+);

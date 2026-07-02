@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { User } from "@agds-hr/auth";
 import { UserId, type UserRole } from "@agds-hr/shared";
 
-import { canManageEmployee, canReadDirectory } from "./policies.ts";
+import { canManageEmployee, canManageReview, canReadDirectory } from "./policies.ts";
 
 const userWith = (roles: readonly UserRole[]): User => ({
   id: UserId("00000000-0000-4000-8000-000000000001"),
@@ -24,5 +24,10 @@ describe("people policies", () => {
       reason: "developer_required",
     });
     expect(canManageEmployee(userWith(["developer"])).allow).toBe(true);
+  });
+
+  test("managing a review requires developer", () => {
+    expect(canManageReview(userWith(["staff"])).allow).toBe(false);
+    expect(canManageReview(userWith(["developer"])).allow).toBe(true);
   });
 });

@@ -49,6 +49,7 @@ function People() {
                   <th className="px-4 py-3 font-semibold">Campus</th>
                   <th className="px-4 py-3 font-semibold">Country</th>
                   <th className="px-4 py-3 font-semibold">Reports to</th>
+                  <th className="px-4 py-3 font-semibold">Rating</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
@@ -76,6 +77,13 @@ function People() {
                     <td className="px-4 py-3">{row.campus ?? "—"}</td>
                     <td className="px-4 py-3">{row.country ?? "—"}</td>
                     <td className="px-4 py-3">{row.managerName ?? "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {row.rating === undefined ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span className="font-semibold">{row.rating}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={

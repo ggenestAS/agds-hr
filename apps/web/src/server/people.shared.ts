@@ -15,4 +15,5 @@ export type DirectoryEntry = {
   readonly active: boolean;
   readonly level: CareerLevel | undefined;
   readonly path: CareerPath | undefined;
+  readonly rating: number | undefined;
 };

@@ -12,3 +12,10 @@ export function canReadDirectory(_user: User): PolicyDecision {
 export function canManageEmployee(user: User): PolicyDecision {
   return user.roles.includes("developer") ? ALLOW : DENY("developer_required");
 }
+
+// Advancing a review case / setting a rating. Gated to developer until the
+// stage-specific HR roles (manager, LT member, founder) land (charter trigger);
+// the per-stage authorization (who may move which transition) is a later slice.
+export function canManageReview(user: User): PolicyDecision {
+  return user.roles.includes("developer") ? ALLOW : DENY("developer_required");
+}
