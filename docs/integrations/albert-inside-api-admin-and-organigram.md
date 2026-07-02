@@ -66,13 +66,14 @@ Response includes `token` **once** — store it securely.
 | Endpoint | JWT (any allowed role) | PAT | `X-API-Key` |
 | --- | --- | --- | --- |
 | `GET /user/user-directory?role=ADMIN` | yes (all roles) | yes | yes |
-| `GET /user/search-users?type=admin` | yes | yes (via `verify_token_or_api_key` on other routes; search uses JWT only — see note) | no |
-| `GET /officer/org-tree` | **ADMIN or ACCOUNTANT only** | no | no |
-| `GET /officer/officer` | **ADMIN or ACCOUNTANT only** | no | no |
-| `GET /keystone/officers` | **ADMIN only** | yes | yes |
+| `GET /user/search-users?type=admin` | yes | no | no |
+| `GET /officer/org-tree` | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
+| `GET /officer/officer` | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
+| `GET /keystone/officers` | **ADMIN only** | yes (owner must be ADMIN) | yes (resolves as ADMIN) |
 
-`GET /user/search-users` depends on `verify_jwt_token` only — PAT/API key do **not**
-work there. Prefer `user-directory` or `keystone/officers` for machine access.
+`/officer/org-tree` and `/officer/officer` use `security.require_admin_or_accountant`
+(`verify_token_or_api_key` + role gate). `GET /user/search-users` still depends on
+`verify_jwt_token` only — prefer `user-directory` or `org-tree` for machine access.
 
 RBAC is enforced twice: route dependencies plus app-level `x-required-roles` checks
 on `openapi_extra`.
@@ -143,12 +144,12 @@ Implementation: `app/routes/user.py` → `get_user_directory_endpoint` →
 
 ```http
 GET /officer/officer
-Authorization: Bearer <supabase_jwt_as_admin_or_accountant>
+Authorization: Bearer albert_pat_...
 ```
 
 Returns an array of `Officer` objects with resolved manager **names**, campus,
-job description audit fields, etc. Requires JWT as ADMIN or ACCOUNTANT (not PAT/API
-key).
+job description audit fields, etc. Requires caller role ADMIN or ACCOUNTANT (JWT,
+PAT owned by admin/accountant, or service `X-API-Key`).
 
 Implementation: `app/routes/officer.py` → `list_officers`.
 
@@ -214,7 +215,7 @@ Inside does not expose a route named “organigram”. The org chart is backed b
 
 ```http
 GET /officer/org-tree
-Authorization: Bearer <supabase_jwt_as_admin_or_accountant>
+Authorization: Bearer albert_pat_...
 ```
 
 Returns a **flat forest** — one node per active admin user who has an `Officer`
@@ -299,11 +300,11 @@ curl -sS \
   "http://localhost:8000/user/user-directory?role=ADMIN&limit=200"
 ```
 
-Production org tree (interactive admin session JWT):
+Production org tree (PAT):
 
 ```bash
 curl -sS \
-  -H "Authorization: Bearer eyJ..." \
+  -H "Authorization: Bearer albert_pat_..." \
   "https://api-inside.albertschool.com/officer/org-tree"
 ```
 
@@ -321,12 +322,12 @@ while true; do
 done
 ```
 
-Service API key (directory only):
+Service API key (directory or org tree):
 
 ```bash
 curl -sS \
   -H "X-API-Key: ${INSIDE_API_KEY}" \
-  "https://api-inside.albertschool.com/user/user-directory?role=ADMIN&limit=500"
+  "https://api-inside.albertschool.com/officer/org-tree"
 ```
 
 ---
@@ -336,15 +337,16 @@ curl -sS \
 | Goal | Endpoint | Auth for scripts |
 | --- | --- | --- |
 | Paginated admin staff with names, emails, titles, managers | `GET /user/user-directory?role=ADMIN` | PAT or `X-API-Key` |
-| Active organigram nodes (flat, build tree locally) | `GET /officer/org-tree` | Supabase JWT (admin/accountant) |
+| Active organigram nodes (flat, build tree locally) | `GET /officer/org-tree` | PAT or `X-API-Key` |
 | Full officer rows incl. inactive, keystone contract | `GET /keystone/officers` | PAT or `X-API-Key` (admin) |
 | Quick name lookup in the UI | `GET /user/search-users?type=admin` | Supabase JWT only |
-| Richest officer detail (job description, audit) | `GET /officer/officer` | Supabase JWT (admin/accountant) |
+| Richest officer detail (job description, audit) | `GET /officer/officer` | PAT or `X-API-Key` |
 
-For **agds-hr** batch sync, start with `GET /keystone/officers` (manager UUIDs +
-deactivation state) or `GET /user/user-directory?role=ADMIN` (display-ready names).
-Use `/officer/org-tree` when you need exactly what the Inside organigram UI shows
-(active staff only, compact nodes).
+For **agds-hr** batch sync, **`GET /officer/org-tree`** is now the simplest path
+for the active organigram (manager UUIDs, compact nodes, PAT/API-key friendly).
+Use `GET /keystone/officers` when you also need inactive officers or the keystone
+import contract; use `GET /user/user-directory?role=ADMIN` for display-ready names
+and extra user PII.
 
 ## Errors
 
