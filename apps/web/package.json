@@ -15,6 +15,7 @@
     "@agds-hr/db": "workspace:*",
     "@agds-hr/env": "workspace:*",
     "@agds-hr/identity": "workspace:*",
+    "@agds-hr/inside": "workspace:*",
     "@agds-hr/people": "workspace:*",
     "@agds-hr/shared": "workspace:*",
     "@tanstack/react-router": "^1.95.0",

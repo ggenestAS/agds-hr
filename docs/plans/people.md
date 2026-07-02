@@ -27,6 +27,13 @@ compensation, and appeals — with the audit trail as a first-class product.
 - DAL: `listDirectory` only (admin connection — reads auth.user name/email).
   Employee mutations + band/coefficient reads land with their surfaces (every
   shipped export stays exercised; coverage gate is step 7).
+- **Directory source: the Albert Inside roster.** `@agds-hr/inside` (a thin §8.3
+  integration) fetches admin/officer staff from `GET /user/user-directory` with
+  `X-API-Key` (`INSIDE_API_KEY`); `/people` renders that roster (name, email,
+  title, campus, country, functional manager, active). `people.employee` holds
+  agds-hr-native level/path and reconciles onto the roster in a later slice (by
+  email/user_id); `listDirectory` (DB) is the future native path. Empty state
+  when `INSIDE_API_KEY` is unset.
 - `people.directory.read` policy (registered in the composition root); the
   server-fn triple; the `/people` route
   renders the real directory table (Person / Level·Path / Country / Band position

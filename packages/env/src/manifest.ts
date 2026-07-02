@@ -90,6 +90,13 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "optional",
   },
+  {
+    name: "INSIDE_API_KEY",
+    owner: "@agds-hr/inside",
+    group: "integrations",
+    scope: "server",
+    requirement: "optional",
+  },
 ] as const satisfies readonly EnvVarSpec[];
 
 export type EnvVarName = (typeof ENV_MANIFEST)[number]["name"];

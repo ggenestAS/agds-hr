@@ -23,6 +23,7 @@
         "@agds-hr/db": "workspace:*",
         "@agds-hr/env": "workspace:*",
         "@agds-hr/identity": "workspace:*",
+        "@agds-hr/inside": "workspace:*",
         "@agds-hr/people": "workspace:*",
         "@agds-hr/shared": "workspace:*",
         "@tanstack/react-router": "^1.95.0",
@@ -103,6 +104,13 @@
         "zod": "^4.1.0",
       },
     },
+    "packages/integrations/inside": {
+      "name": "@agds-hr/inside",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agds-hr/env": "workspace:*",
+      },
+    },
     "packages/shared": {
       "name": "@agds-hr/shared",
       "version": "0.0.0",
@@ -121,6 +129,8 @@
     "@agds-hr/env": ["@agds-hr/env@workspace:packages/env"],
 
     "@agds-hr/identity": ["@agds-hr/identity@workspace:packages/domains/identity"],
+
+    "@agds-hr/inside": ["@agds-hr/inside@workspace:packages/integrations/inside"],
 
     "@agds-hr/people": ["@agds-hr/people@workspace:packages/domains/people"],
 
