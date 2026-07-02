@@ -1,0 +1,17 @@
+{
+  "name": "@agds-hr/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "oxlint --type-aware"
+  },
+  "dependencies": {
+    "@agds-hr/env": "workspace:*",
+    "drizzle-orm": "beta",
+    "postgres": "^3.4.7"
+  }
+}

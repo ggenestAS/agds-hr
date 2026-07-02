@@ -1,0 +1,15 @@
+{
+  "name": "@agds-hr/env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "oxlint --type-aware"
+  },
+  "dependencies": {
+    "zod": "^4.1.0"
+  }
+}

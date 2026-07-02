@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["node_modules", "dist", "packages/db/migrations"],
+  "overrides": [
+    {
+      "files": ["apps/web/src/server/**/*.impl.server.ts", "packages/domains/**/src/**/*.ts"],
+      "rules": {
+        "no-console": "error",
+        "no-empty": ["error", { "allowEmptyCatch": false }]
+      }
+    }
+  ]
+}

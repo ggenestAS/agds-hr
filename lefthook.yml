@@ -1,0 +1,21 @@
+# Pre-commit is the fast staged-scope gate; CI is the full-tree gate.
+# Wired by the root `prepare` script on `bun install`.
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+    lint-staged:
+      glob: "*.{ts,tsx}"
+      run: bun run scripts/ci/lint-staged.ts {staged_files}
+    check-docs:
+      run: bun run scripts/ci/check-docs.ts
+    check-migrations:
+      run: bun run scripts/ci/check-migrations.ts
+    check-env:
+      run: bun run scripts/ci/check-env.ts
+    test-staged:
+      glob: "*.ts"
+      run: bun run scripts/ci/test-staged.ts --bail {staged_files}

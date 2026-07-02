@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@agds-hr/shared": ["./packages/shared/src/index.ts"],
+      "@agds-hr/env": ["./packages/env/src/index.ts"],
+      "@agds-hr/db": ["./packages/db/src/index.ts"],
+      "@agds-hr/audit": ["./packages/domains/audit/src/index.ts"],
+      "@agds-hr/audit/db/schema": ["./packages/domains/audit/src/db/schema.ts"]
+    }
+  },
+  "include": ["packages", "apps", "scripts", "drizzle.config.ts"]
+}

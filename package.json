@@ -1,0 +1,41 @@
+{
+  "name": "agds-hr",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/domains/*",
+    "packages/integrations/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepare": "lefthook install",
+    "lint": "oxlint --type-aware --type-check .",
+    "lint:staged": "bun run scripts/ci/lint-staged.ts",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "check:docs": "bun run scripts/ci/check-docs.ts",
+    "check:migrations": "bun run scripts/ci/check-migrations.ts",
+    "check:env": "bun run scripts/ci/check-env.ts",
+    "test": "bun test",
+    "test:unit": "bun test --test-name-pattern \"^(?!.*\\[integration\\])\"",
+    "test:staged": "bun run scripts/ci/test-staged.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "knip": "knip"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.5",
+    "drizzle-kit": "beta",
+    "knip": "^5.44.0",
+    "lefthook": "^1.13.6",
+    "oxfmt": "^0.57.0",
+    "oxlint": "^1.72.0",
+    "oxlint-tsgolint": "^0.24.0",
+    "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "zod": "^4.1.0"
+  }
+}

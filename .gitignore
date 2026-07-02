@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# env — .env.example is the only committed env file
+.env
+.env.*
+!.env.example
+
+# build output
+dist/
+.output/
+.nitro/
+.vinxi/
+.vercel/
+*.tsbuildinfo
+
+# generated route tree (tsr generate, wired as postinstall)
+routeTree.gen.ts
+
+# test artifacts
+coverage/
+
+# ephemeral agent coordination — never the system of record
+.agents/
+
+# os noise
+.DS_Store
