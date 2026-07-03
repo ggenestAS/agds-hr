@@ -1,0 +1,1 @@
+ALTER TABLE "people"."assessment" ADD COLUMN "promo_note" text DEFAULT '' NOT NULL;

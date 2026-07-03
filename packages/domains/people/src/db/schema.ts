@@ -273,6 +273,10 @@ export const assessment = peopleSchema.table(
     narrative: text("narrative").notNull().default(""),
     proposedRating: integer("proposed_rating"),
     promoProposed: boolean("promo_proposed").notNull().default(false),
+    // Target level / next scope for a proposed promotion (required at submit
+    // when promo_proposed — enforced by canSubmitAssessment, not a constraint,
+    // so drafts can save incomplete).
+    promoNote: text("promo_note").notNull().default(""),
     compRec: text("comp_rec").notNull().default(""),
     p6Acknowledged: boolean("p6_acknowledged").notNull().default(false),
     // Who wrote it (email, like every people-domain subject key) — drives the

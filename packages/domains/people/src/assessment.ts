@@ -24,6 +24,7 @@ export type AssessmentDraft = {
   readonly narrative: string;
   readonly proposedRating: ReviewRating | undefined;
   readonly promoProposed: boolean;
+  readonly promoNote: string;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
   readonly authorEmail: string;
@@ -35,6 +36,7 @@ const rowToAssessment = (row: {
   readonly narrative: string;
   readonly proposedRating: number | null;
   readonly promoProposed: boolean;
+  readonly promoNote: string;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
   readonly authorEmail: string | null;
@@ -48,6 +50,7 @@ const rowToAssessment = (row: {
       ? row.proposedRating
       : undefined,
   promoProposed: row.promoProposed,
+  promoNote: row.promoNote,
   compRec: row.compRec,
   p6Acknowledged: row.p6Acknowledged,
   authorEmail: row.authorEmail ?? undefined,
@@ -60,6 +63,7 @@ const SELECT = {
   narrative: assessment.narrative,
   proposedRating: assessment.proposedRating,
   promoProposed: assessment.promoProposed,
+  promoNote: assessment.promoNote,
   compRec: assessment.compRec,
   p6Acknowledged: assessment.p6Acknowledged,
   authorEmail: assessment.authorEmail,
@@ -83,6 +87,7 @@ const draftColumns = (draft: AssessmentDraft) => ({
   narrative: draft.narrative,
   proposedRating: draft.proposedRating ?? null,
   promoProposed: draft.promoProposed,
+  promoNote: draft.promoNote,
   compRec: draft.compRec,
   p6Acknowledged: draft.p6Acknowledged,
   authorEmail: draft.authorEmail.toLowerCase(),

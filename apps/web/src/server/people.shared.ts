@@ -867,6 +867,7 @@ export const assessmentSaveSchema = z.object({
   narrative: z.string().max(8000),
   proposedRating: z.number().int().min(1).max(4).optional(),
   promoProposed: z.boolean(),
+  promoNote: z.string().max(1000),
   compRec: z.string().max(200),
   p6Acknowledged: z.boolean(),
 });
@@ -884,6 +885,7 @@ export type AssessmentView = {
   readonly narrative: string;
   readonly proposedRating: number | undefined;
   readonly promoProposed: boolean;
+  readonly promoNote: string;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
   readonly submittedAt: string | undefined;
@@ -943,6 +945,7 @@ export type SignQueueEntry = {
   readonly p6Triggered: boolean;
   readonly compRecType: string;
   readonly promoProposed: boolean;
+  readonly promoNote: string;
   readonly rationale: string;
 };
 

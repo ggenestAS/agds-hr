@@ -155,6 +155,14 @@ function SignOffPage() {
                   {selected.compRecType !== "" ? selected.compRecType : "—"}
                 </span>
               </div>
+              {selected.promoProposed && (
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="text-muted-foreground">Promotion</span>
+                  <span className="text-right font-bold">
+                    {selected.promoNote.trim() !== "" ? selected.promoNote : "proposed"}
+                  </span>
+                </div>
+              )}
               {selected.rationale !== "" && (
                 <div>
                   <p className="mb-1 text-muted-foreground">Rationale</p>

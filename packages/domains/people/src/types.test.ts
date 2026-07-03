@@ -140,30 +140,61 @@ describe("assessment gate", () => {
     culture: dim("n", "e"),
   };
 
+  const noPromo = { promoProposed: false, promoNote: "" };
+
   test("complete dims + rating submits; missing evidence blocks", () => {
-    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 3, p6Acknowledged: false })).toBe(
-      true,
-    );
+    expect(
+      canSubmitAssessment({ dims: fullDims, proposedRating: 3, ...noPromo, p6Acknowledged: false }),
+    ).toBe(true);
     expect(
       canSubmitAssessment({
         dims: { ...fullDims, quality: dim("n", "  ") },
         proposedRating: 3,
+        ...noPromo,
         p6Acknowledged: false,
       }),
     ).toBe(false);
-    expect(canSubmitAssessment({ dims: {}, proposedRating: 3, p6Acknowledged: false })).toBe(false);
     expect(
-      canSubmitAssessment({ dims: fullDims, proposedRating: undefined, p6Acknowledged: false }),
+      canSubmitAssessment({ dims: {}, proposedRating: 3, ...noPromo, p6Acknowledged: false }),
+    ).toBe(false);
+    expect(
+      canSubmitAssessment({
+        dims: fullDims,
+        proposedRating: undefined,
+        ...noPromo,
+        p6Acknowledged: false,
+      }),
     ).toBe(false);
   });
 
   test("a low rating requires the P6 acknowledgment", () => {
-    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 2, p6Acknowledged: false })).toBe(
-      false,
-    );
-    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 2, p6Acknowledged: true })).toBe(
-      true,
-    );
+    expect(
+      canSubmitAssessment({ dims: fullDims, proposedRating: 2, ...noPromo, p6Acknowledged: false }),
+    ).toBe(false);
+    expect(
+      canSubmitAssessment({ dims: fullDims, proposedRating: 2, ...noPromo, p6Acknowledged: true }),
+    ).toBe(true);
+  });
+
+  test("a proposed promotion requires the promotion note", () => {
+    expect(
+      canSubmitAssessment({
+        dims: fullDims,
+        proposedRating: 3,
+        promoProposed: true,
+        promoNote: "  ",
+        p6Acknowledged: false,
+      }),
+    ).toBe(false);
+    expect(
+      canSubmitAssessment({
+        dims: fullDims,
+        proposedRating: 3,
+        promoProposed: true,
+        promoNote: "L2 → L3 — owns the funnel end-to-end",
+        p6Acknowledged: false,
+      }),
+    ).toBe(true);
   });
 });
 

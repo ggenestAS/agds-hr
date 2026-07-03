@@ -36,6 +36,7 @@ type Draft = {
   narrative: string;
   proposedRating: number | undefined;
   promoProposed: boolean;
+  promoNote: string;
   compRec: string;
   p6Acknowledged: boolean;
 };
@@ -50,6 +51,7 @@ const emptyDraft = (): Draft => ({
   narrative: "",
   proposedRating: undefined,
   promoProposed: false,
+  promoNote: "",
   compRec: "",
   p6Acknowledged: false,
 });
@@ -75,6 +77,7 @@ const draftFromDetail = (detail: AssessCaseDetail): Draft => {
     narrative: existing.narrative,
     proposedRating: existing.proposedRating,
     promoProposed: existing.promoProposed,
+    promoNote: existing.promoNote,
     compRec: existing.compRec,
     p6Acknowledged: existing.p6Acknowledged,
   };
@@ -100,6 +103,7 @@ const toPayload = (caseId: string, draft: Draft) => ({
   narrative: draft.narrative,
   ...(draft.proposedRating !== undefined ? { proposedRating: draft.proposedRating } : {}),
   promoProposed: draft.promoProposed,
+  promoNote: draft.promoNote,
   compRec: draft.compRec,
   p6Acknowledged: draft.p6Acknowledged,
 });
@@ -129,6 +133,8 @@ const isComplete = (draft: Draft): boolean => {
       draft.proposedRating !== undefined && isReviewRating(draft.proposedRating)
         ? draft.proposedRating
         : undefined,
+    promoProposed: draft.promoProposed,
+    promoNote: draft.promoNote,
     p6Acknowledged: draft.p6Acknowledged,
   });
 };
@@ -190,6 +196,9 @@ const buildMarkdown = (detail: AssessCaseDetail, draft: Draft): string => {
   }
   lines.push(`Proposed rating: ${ratingLabel(draft.proposedRating)}`);
   lines.push(`Promotion proposed: ${draft.promoProposed ? "yes" : "no"}`);
+  if (draft.promoProposed && draft.promoNote.trim() !== "") {
+    lines.push(`Proposed promotion: ${draft.promoNote.trim()}`);
+  }
   if (draft.compRec.trim() !== "") {
     lines.push(`Compensation recommendation: ${draft.compRec.trim()}`);
   }
@@ -561,47 +570,73 @@ function AssessCasePage() {
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4">
-                <label className="text-xs">
-                  <span className="mb-1 block font-semibold text-foreground">Proposed rating</span>
-                  <select
-                    value={draft.proposedRating ?? ""}
-                    disabled={submitted}
-                    onChange={(event) =>
-                      update((prev) => ({
-                        ...prev,
-                        proposedRating:
-                          event.target.value === "" ? undefined : Number(event.target.value),
-                      }))
-                    }
-                    className="rounded-[10px] border border-border bg-card px-2 py-1.5"
-                  >
-                    <option value="">—</option>
-                    {[1, 2, 3, 4].map((rating) => (
-                      <option key={rating} value={rating}>
-                        {rating} · {REVIEW_RATING_LABELS[rating as ReviewRating]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-[13px] font-medium">
-                  <input
-                    type="checkbox"
-                    checked={draft.promoProposed}
-                    disabled={submitted}
-                    onChange={(event) =>
-                      update((prev) => ({ ...prev, promoProposed: event.target.checked }))
-                    }
-                  />
-                  Promotion proposed
-                </label>
-                <label className="min-w-40 flex-1 text-xs">
+              <div className="space-y-4 border-t border-border pt-4">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="text-xs">
+                    <span className="mb-1 block font-semibold text-foreground">
+                      Proposed rating
+                    </span>
+                    <select
+                      value={draft.proposedRating ?? ""}
+                      disabled={submitted}
+                      onChange={(event) =>
+                        update((prev) => ({
+                          ...prev,
+                          proposedRating:
+                            event.target.value === "" ? undefined : Number(event.target.value),
+                        }))
+                      }
+                      className="rounded-[10px] border border-border bg-card px-2 py-1.5"
+                    >
+                      <option value="">—</option>
+                      {[1, 2, 3, 4].map((rating) => (
+                        <option key={rating} value={rating}>
+                          {rating} · {REVIEW_RATING_LABELS[rating as ReviewRating]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2 text-[13px] font-medium">
+                    <input
+                      type="checkbox"
+                      checked={draft.promoProposed}
+                      disabled={submitted}
+                      onChange={(event) =>
+                        update((prev) => ({ ...prev, promoProposed: event.target.checked }))
+                      }
+                    />
+                    Promotion proposed
+                  </label>
+                </div>
+                {draft.promoProposed && (
+                  <label className="block text-xs">
+                    <span className="mb-1 block font-semibold text-foreground">
+                      What promotion — target level & next scope
+                    </span>
+                    <textarea
+                      rows={2}
+                      maxLength={1000}
+                      placeholder='e.g. "L2 → L3 Senior — owns the admissions funnel end-to-end, starts mentoring the two juniors"'
+                      value={draft.promoNote}
+                      disabled={submitted}
+                      onChange={(event) =>
+                        update((prev) => ({ ...prev, promoNote: event.target.value }))
+                      }
+                      className={inputCls}
+                    />
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      Required — calibration weighs the proposal against the target level's
+                      expectations, not the current one.
+                    </p>
+                  </label>
+                )}
+                <label className="block text-xs">
                   <span className="mb-1 block font-semibold text-foreground">
                     Compensation recommendation (type only)
                   </span>
                   <input
                     maxLength={200}
-                    placeholder='e.g. "+4% + bonus" — amounts are set by Admins at sign-off'
+                    placeholder='e.g. "+4% + bonus"'
                     value={draft.compRec}
                     disabled={submitted}
                     onChange={(event) =>
@@ -609,6 +644,9 @@ function AssessCasePage() {
                     }
                     className={inputCls}
                   />
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Describe the recommendation in words — amounts are set by Admins at sign-off.
+                  </p>
                 </label>
               </div>
 
@@ -675,6 +713,9 @@ function AssessCasePage() {
                     {!complete && (
                       <p className="mt-1.5 text-xs text-muted-foreground">
                         Enabled once every dimension has a score, narrative & evidence
+                        {draft.promoProposed &&
+                          draft.promoNote.trim() === "" &&
+                          ", and the proposed promotion is described"}
                         {lowRating && " and the improvement plan is acknowledged"}
                       </p>
                     )}

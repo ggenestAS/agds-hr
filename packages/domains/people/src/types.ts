@@ -332,6 +332,9 @@ export type Assessment = {
   readonly narrative: string;
   readonly proposedRating: ReviewRating | undefined;
   readonly promoProposed: boolean;
+  // What promotion — target level and next scope. Required when promoProposed:
+  // calibration weighs the proposal, so a bare flag is not an evidence-based case.
+  readonly promoNote: string;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
   readonly authorEmail: string | undefined;
@@ -341,10 +344,13 @@ export type Assessment = {
 // An assessment may only be submitted when every dimension has a score, a
 // narrative, and at least one piece of evidence — and a low proposed rating
 // (P6 trigger) has been explicitly acknowledged (design: "Assessments must be
-// evidence-based; vague impressions are not sufficient").
+// evidence-based; vague impressions are not sufficient"). A proposed promotion
+// must say what it proposes (target level / next scope) for the same reason.
 export function canSubmitAssessment(input: {
   readonly dims: Readonly<Partial<Record<EvaluationDimension, AssessmentDimension>>>;
   readonly proposedRating: ReviewRating | undefined;
+  readonly promoProposed: boolean;
+  readonly promoNote: string;
   readonly p6Acknowledged: boolean;
 }): boolean {
   const complete = EVALUATION_DIMENSIONS.every((dimension) => {
@@ -354,6 +360,9 @@ export function canSubmitAssessment(input: {
     );
   });
   if (!complete || input.proposedRating === undefined) {
+    return false;
+  }
+  if (input.promoProposed && input.promoNote.trim().length === 0) {
     return false;
   }
   return isP6Triggered(input.proposedRating) ? input.p6Acknowledged : true;

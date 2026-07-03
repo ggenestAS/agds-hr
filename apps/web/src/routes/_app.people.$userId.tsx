@@ -148,7 +148,11 @@ function AssessmentBlock({ assessment }: { assessment: AssessmentView }) {
         <span>
           Promotion:{" "}
           <strong className="text-foreground">
-            {assessment.promoProposed ? "proposed" : "at level"}
+            {assessment.promoProposed
+              ? assessment.promoNote.trim() !== ""
+                ? `proposed — ${assessment.promoNote}`
+                : "proposed"
+              : "at level"}
           </strong>
         </span>
         {assessment.compRec !== "" && (

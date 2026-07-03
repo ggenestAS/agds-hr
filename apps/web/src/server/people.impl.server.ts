@@ -239,6 +239,7 @@ const toAssessmentView = (
   narrative: row.narrative,
   proposedRating: row.proposedRating,
   promoProposed: row.promoProposed,
+  promoNote: row.promoNote,
   compRec: row.compRec,
   p6Acknowledged: row.p6Acknowledged,
   submittedAt: row.submittedAt?.toISOString(),
@@ -1234,6 +1235,7 @@ export async function assessDetailHandler(caseId: string): Promise<AssessCaseDet
             narrative: existing.narrative,
             proposedRating: existing.proposedRating,
             promoProposed: existing.promoProposed,
+            promoNote: existing.promoNote,
             compRec: existing.compRec,
             p6Acknowledged: existing.p6Acknowledged,
             submittedAt: existing.submittedAt?.toISOString(),
@@ -1249,6 +1251,7 @@ const toDraft = (input: AssessmentSaveInput, authorEmail: string): AssessmentDra
   proposedRating:
     input.proposedRating === undefined ? undefined : (input.proposedRating as ReviewRating),
   promoProposed: input.promoProposed,
+  promoNote: input.promoNote,
   compRec: input.compRec,
   p6Acknowledged: input.p6Acknowledged,
   authorEmail,
@@ -1339,6 +1342,7 @@ export async function signQueueHandler(): Promise<SignPageView> {
         p6Triggered: reviewCase?.p6Triggered ?? false,
         compRecType: assessment?.compRec ?? "",
         promoProposed: assessment?.promoProposed ?? false,
+        promoNote: assessment?.promoNote ?? "",
         rationale: assessment?.narrative ?? "",
       };
     }),
