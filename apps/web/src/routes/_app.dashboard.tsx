@@ -1,28 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { REVIEW_RATING_LABELS } from "@agds-hr/people/types";
 import type { ReviewState } from "@agds-hr/people/types";
 
 import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
+import { PolicyArticle } from "../components/policy-article.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { OverviewData } from "../server/people.shared.ts";
 import { overviewFn } from "../server/people.functions.ts";
 
-// The Overview surface (design): the cycle at a glance. Leadership sees org-wide
-// rating distribution; reviewers see the scoped needs-a-decision list; everyone
-// sees the cycle timeline and their own review status.
+// The Overview surface (design): the cycle at a glance. Reviewers see the scoped
+// needs-a-decision list; everyone sees the cycle timeline and their own review status.
 export const Route = createFileRoute("/_app/dashboard")({
   loader: () => overviewFn(),
   pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
   component: Overview,
 });
-
-const RATINGS = [4, 3, 2, 1] as const;
-const RATING_BAR: Record<(typeof RATINGS)[number], string> = {
-  4: "bg-ink-900",
-  3: "bg-[#1e3a8a]",
-  2: "bg-coral",
-  1: "bg-[var(--color-accent)]",
-};
 
 // The optimized cycle (2026-07-03): budget constraints are set BEFORE reviews
 // begin, calibration happens BEFORE outcomes are communicated, and the annual
@@ -81,15 +72,7 @@ const STATE_STEP: Record<ReviewState, number> = {
 
 function Overview() {
   const data: OverviewData = Route.useLoaderData();
-  const distribution = data.distribution;
   const activeStep = data.myCase === undefined ? 2 : STATE_STEP[data.myCase.state];
-  const distTotal =
-    distribution === undefined
-      ? 1
-      : Math.max(
-          1,
-          RATINGS.reduce((sum, rating) => sum + distribution[rating], 0),
-        );
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -152,77 +135,47 @@ function Overview() {
           </CardContent>
         </Card>
 
-        {distribution !== undefined ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Rating distribution</CardTitle>
-              <p className="text-sm text-muted-foreground">Ratings so far this cycle.</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {RATINGS.map((rating) => {
-                const count = distribution[rating];
-                return (
-                  <div key={rating}>
-                    <div className="mb-1 flex items-baseline justify-between">
-                      <span className="text-sm font-semibold">{REVIEW_RATING_LABELS[rating]}</span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {count} {count === 1 ? "person" : "people"}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-bone">
-                      <div
-                        className={`h-full rounded-full ${RATING_BAR[rating]}`}
-                        style={{ width: `${Math.round((count / distTotal) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Your review</CardTitle>
-              <p className="text-sm text-muted-foreground">Cycle {data.cycle}</p>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {data.myCase === undefined ? (
-                <span className="text-muted-foreground">
-                  Your review case has not been opened yet. Your manager opens it when the cycle
-                  starts.
-                </span>
-              ) : data.myCase.decidedAt !== undefined ? (
-                <div className="space-y-2">
-                  <p>
-                    Your decision summary was delivered on{" "}
-                    <span className="font-semibold">
-                      {new Date(data.myCase.decidedAt).toLocaleDateString()}
-                    </span>
-                    .
-                  </p>
-                  {data.myCase.appealUntil !== undefined && (
-                    <p className="text-muted-foreground">
-                      You may appeal until{" "}
-                      <span className="font-semibold text-foreground">
-                        {new Date(data.myCase.appealUntil).toLocaleDateString()}
-                      </span>{" "}
-                      from your record page.
-                    </p>
-                  )}
-                </div>
-              ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your review</CardTitle>
+            <p className="text-sm text-muted-foreground">Cycle {data.cycle}</p>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {data.myCase === undefined ? (
+              <span className="text-muted-foreground">
+                Your review case has not been opened yet. Your manager opens it when the cycle
+                starts.
+              </span>
+            ) : data.myCase.decidedAt !== undefined ? (
+              <div className="space-y-2">
                 <p>
-                  Your case is at{" "}
-                  <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
-                    {data.myCase.state.replace(/_/g, " ")}
+                  Your decision summary was delivered on{" "}
+                  <span className="font-semibold">
+                    {new Date(data.myCase.decidedAt).toLocaleDateString()}
                   </span>
-                  . The decision summary arrives after calibration and dual founder sign-off.
+                  .
                 </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                {data.myCase.appealUntil !== undefined && (
+                  <p className="text-muted-foreground">
+                    You may appeal until{" "}
+                    <span className="font-semibold text-foreground">
+                      {new Date(data.myCase.appealUntil).toLocaleDateString()}
+                    </span>{" "}
+                    from your record page.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p>
+                Your case is at{" "}
+                <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+                  {data.myCase.state.replace(/_/g, " ")}
+                </span>
+                . The decision summary arrives after calibration and dual founder sign-off.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {data.isReviewer && (
@@ -271,6 +224,10 @@ function Overview() {
           </CardContent>
         </Card>
       )}
+
+      <div className="mt-5">
+        <PolicyArticle />
+      </div>
     </div>
   );
 }
