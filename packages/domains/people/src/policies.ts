@@ -49,10 +49,21 @@ export function canSignDecision(user: User): PolicyDecision {
   return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
 }
 
-// Compensation is leadership-only. Reading it is itself audited (the DAL records
-// the read); admins set the amounts at sign-off (design).
+// An individual's compensation (recommendation amounts) is leadership-only.
+// Reading it is itself audited (the DAL records the read); admins set the
+// amounts at sign-off (design).
 export function canViewComp(user: User): PolicyDecision {
   return hasAny(user, ["admin", "founder", "developer"]) ? ALLOW : DENY("comp_view_required");
+}
+
+// Compensation *principles* (the merit matrix, what must not drive pay) carry
+// no individual or band data — every manager writing an assessment comp
+// recommendation needs this guidance, unlike canViewComp (a person's actual
+// numbers) or the band figures (still leadership-only to read).
+export function canViewCompPrinciples(user: User): PolicyDecision {
+  return hasAny(user, ["admin", "founder", "developer", "manager"])
+    ? ALLOW
+    : DENY("comp_principles_view_required");
 }
 
 export function canManageComp(user: User): PolicyDecision {

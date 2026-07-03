@@ -121,6 +121,11 @@ export const bandsFn = createServerFn({ method: "GET" }).handler(async () => {
   return bandsHandler();
 });
 
+export const compPrinciplesFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { compPrinciplesHandler } = await import("./people.impl.server.ts");
+  return compPrinciplesHandler();
+});
+
 export const setBandFn = createServerFn({ method: "POST" })
   .validator(setBandSchema)
   .handler(async ({ data }) => {

@@ -14,6 +14,7 @@ import {
   canReadDirectory,
   canSignDecision,
   canViewComp,
+  canViewCompPrinciples,
 } from "./policies.ts";
 
 const userWith = (roles: readonly UserRole[]): User => ({
@@ -72,6 +73,16 @@ describe("people policies", () => {
     expect(canViewComp(userWith(["staff"]))).toEqual({
       allow: false,
       reason: "comp_view_required",
+    });
+  });
+
+  test("compensation principles (merit matrix) are open to managers too", () => {
+    expect(canViewCompPrinciples(userWith(["manager"])).allow).toBe(true);
+    expect(canViewCompPrinciples(userWith(["admin"])).allow).toBe(true);
+    expect(canViewCompPrinciples(userWith(["founder"])).allow).toBe(true);
+    expect(canViewCompPrinciples(userWith(["staff"]))).toEqual({
+      allow: false,
+      reason: "comp_principles_view_required",
     });
   });
 

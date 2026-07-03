@@ -20,6 +20,7 @@ import {
   canRespondPeerInput,
   canSignDecision,
   canViewComp,
+  canViewCompPrinciples,
   canWriteAssessment,
   canWriteSelfReview,
 } from "@agds-hr/people";
@@ -56,6 +57,7 @@ export function registerPolicies(): void {
   registerPolicy("people.review.rate", (user) => canRateReview(user));
   registerPolicy("people.decision.sign", (user) => canSignDecision(user));
   registerPolicy("people.comp.read", (user) => canViewComp(user));
+  registerPolicy("people.comp.principles.read", (user) => canViewCompPrinciples(user));
   registerPolicy("people.comp.manage", (user) => canManageComp(user));
   registerPolicy("people.appeal.file", (user) => canFileAppeal(user));
   registerPolicy("people.appeal.manage", (user) => canManageAppeals(user));

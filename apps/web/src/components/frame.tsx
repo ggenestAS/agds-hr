@@ -56,7 +56,9 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
   {
     header: "Compensation",
     items: [
-      { to: "/compensation", label: "Compensation", roles: LEADERSHIP },
+      // Principles/merit-matrix only, no amounts or bands — every manager
+      // needs this to write sound comp recommendations. Bands stay leadership.
+      { to: "/compensation", label: "Compensation", roles: REVIEWERS },
       { to: "/bands", label: "Salary bands", roles: LEADERSHIP },
     ],
   },

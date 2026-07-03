@@ -1441,6 +1441,16 @@ export async function decisionsHandler(): Promise<readonly DecisionDoc[]> {
   });
 }
 
+// The /compensation page (merit matrix, comp philosophy) is static reference
+// content — no per-person or band data — so the loader has nothing to fetch;
+// it only needs to enforce the read gate before the route renders. Open to
+// every manager (unlike canViewComp/canManageBands, which stay leadership-only
+// since those cover individual amounts and band figures).
+export async function compPrinciplesHandler(): Promise<{ ok: true }> {
+  await requireSession("people.comp.principles.read");
+  return { ok: true };
+}
+
 // Salary bands + campus coefficients (design: "Internal — used by CEO, COO &
 // leadership"). Band figures are reference config, not a person's comp, so a
 // normal (leadership-gated) read rather than an audited one. Founders edit the

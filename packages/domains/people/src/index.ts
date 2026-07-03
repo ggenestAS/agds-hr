@@ -143,6 +143,7 @@ export {
   canRespondPeerInput,
   canSignDecision,
   canViewComp,
+  canViewCompPrinciples,
   canWriteAssessment,
   canWriteSelfReview,
 } from "./policies.ts";

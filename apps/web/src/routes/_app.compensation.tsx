@@ -4,13 +4,15 @@ import type { BandThird } from "@agds-hr/people/types";
 
 import { TableRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
-import { bandsFn } from "../server/people.functions.ts";
+import { compPrinciplesFn } from "../server/people.functions.ts";
 
 // Compensation principles surface (design): the merit matrix as a guide, what
-// must NOT drive pay, and the bonus/variable rules. Leadership-only — the
-// loader enforces the people.comp.read gate (the matrix is internal config).
+// must NOT drive pay, and the bonus/variable rules. Reference content only —
+// no individual amounts, no band figures — so every manager can see it (the
+// loader enforces people.comp.principles.read); those stay leadership-only
+// via people.comp.read / people.band.manage on /people/{id}, /sign-off, /bands.
 export const Route = createFileRoute("/_app/compensation")({
-  loader: () => bandsFn(),
+  loader: () => compPrinciplesFn(),
   pendingComponent: () => <TableRoutePending width="4xl" columns={4} />,
   component: Compensation,
 });
