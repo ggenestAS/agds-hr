@@ -1424,13 +1424,11 @@ export async function setBandHandler(input: SetBandInput): Promise<{ ok: true }>
   return { ok: true };
 }
 
-// The Overview surface: the cycle timeline + the viewer's own case status;
-// reviewers additionally get the calibrated rating distribution (org-wide but
-// aggregate — no names, so not a per-person rating disclosure) and the
-// needs-a-decision list. That list carries per-person in-flight ratings, so it
-// follows the rating visibility rule: leadership sees the full queue (they run
-// sign-off); a manager sees only people in their own managed set (either
-// reporting line, any depth). The stat tiles were dropped (improve-ux plan).
+// The Overview surface: the cycle timeline + the viewer's own case status.
+// Leadership alone gets org-wide rating distribution (aggregate, no names);
+// managers and leadership get the needs-a-decision list scoped to their managed
+// set (managers) or the full queue (leadership). Org-wide distribution for
+// calibration participants lives on /calibration.
 export async function overviewHandler(): Promise<OverviewData> {
   const session = await requireSession("people.directory.read");
   const adminDb = getDbAs("admin");
@@ -1446,7 +1444,9 @@ export async function overviewHandler(): Promise<OverviewData> {
       : Promise.resolve(undefined),
   ]);
 
-  const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const distribution: Record<1 | 2 | 3 | 4, number> | undefined = leadership
+    ? { 1: 0, 2: 0, 3: 0, 4: 0 }
+    : undefined;
   const needsDecision: OverviewData["needsDecision"][number][] = [];
   const byEmail = new Map(
     admins.map((admin) => [
@@ -1457,7 +1457,7 @@ export async function overviewHandler(): Promise<OverviewData> {
   const inDecisionScope = (subjectEmail: string): boolean =>
     leadership || (managed?.all.has(subjectEmail) ?? false);
   for (const entry of cases) {
-    if (entry.rating !== undefined) {
+    if (distribution !== undefined && entry.rating !== undefined) {
       distribution[entry.rating] += 1;
     }
     if (
@@ -1478,7 +1478,7 @@ export async function overviewHandler(): Promise<OverviewData> {
   return {
     cycle: REVIEW_CURRENT_CYCLE,
     isReviewer,
-    distribution,
+    ...(distribution !== undefined ? { distribution } : {}),
     needsDecision,
     myCase:
       myCase === undefined

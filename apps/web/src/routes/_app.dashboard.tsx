@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.
 import type { OverviewData } from "../server/people.shared.ts";
 import { overviewFn } from "../server/people.functions.ts";
 
-// The Overview surface (design): the cycle at a glance. Reviewers see stat
-// tiles, the calibrated rating distribution, and the needs-a-decision list;
-// everyone sees the cycle timeline and their own review status.
+// The Overview surface (design): the cycle at a glance. Leadership sees org-wide
+// rating distribution; reviewers see the scoped needs-a-decision list; everyone
+// sees the cycle timeline and their own review status.
 export const Route = createFileRoute("/_app/dashboard")({
   loader: () => overviewFn(),
   pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
@@ -81,11 +81,15 @@ const STATE_STEP: Record<ReviewState, number> = {
 
 function Overview() {
   const data: OverviewData = Route.useLoaderData();
-  const distTotal = Math.max(
-    1,
-    RATINGS.reduce((sum, rating) => sum + data.distribution[rating], 0),
-  );
+  const distribution = data.distribution;
   const activeStep = data.myCase === undefined ? 2 : STATE_STEP[data.myCase.state];
+  const distTotal =
+    distribution === undefined
+      ? 1
+      : Math.max(
+          1,
+          RATINGS.reduce((sum, rating) => sum + distribution[rating], 0),
+        );
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -148,17 +152,15 @@ function Overview() {
           </CardContent>
         </Card>
 
-        {data.isReviewer ? (
+        {distribution !== undefined ? (
           <Card>
             <CardHeader>
               <CardTitle>Rating distribution</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Calibrated ratings · Exceptional stays rare.
-              </p>
+              <p className="text-sm text-muted-foreground">Ratings so far this cycle.</p>
             </CardHeader>
             <CardContent className="space-y-3">
               {RATINGS.map((rating) => {
-                const count = data.distribution[rating];
+                const count = distribution[rating];
                 return (
                   <div key={rating}>
                     <div className="mb-1 flex items-baseline justify-between">

@@ -117,7 +117,7 @@ All 13 views of the imported design are implemented, wired to real data:
 - H — shell + Overview: ink-900 grouped sidebar (Review cycle /
   Compensation / Governance, role-filtered); `/dashboard` Overview with stat
   tiles, the 2026 cycle timeline keyed to the viewer's own case, rating
-  distribution (reviewers) or personal status (staff), needs-a-decision list.
+  distribution (leadership) or personal status (staff), needs-a-decision list.
   Design display metadata pinned in types: `CAREER_LEVEL_META`
   (Contributor/Owner/Lead/Head + level tests) and `REVIEW_RATING_LABELS`
   (Exceptional/Strong/Inconsistent/Not at level).
