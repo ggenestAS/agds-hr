@@ -146,8 +146,9 @@ function Bands() {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              Two families per level — jobs with a high variable component (lower base, variable
-              plan on top) and jobs with a low variable component. France reference · adjust by
+              Three families per level — high variable component (lower base, variable plan on top),
+              low variable component, and Teaching. Progression is performance-related within the
+              range, appraisal-based — no automatic seniority steps. France reference · adjust by
               country coefficient. Internal — used by CEO, COO & leadership.
               {data.canManageBands && " Edits are recorded in the audit trail."}
             </p>
