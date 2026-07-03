@@ -560,7 +560,11 @@ export async function peerPageHandler(): Promise<PeerPageView> {
     );
     cases = await Promise.all(
       inScope.map(async (entry) => {
-        const requests = await listPeerRequestsForCase(adminDb, entry.caseId);
+        const [requests, selfReview] = await Promise.all([
+          listPeerRequestsForCase(adminDb, entry.caseId),
+          getSelfReviewByCase(adminDb, entry.caseId),
+        ]);
+        const peerSuggestions = (selfReview?.payload["sr_peers"] ?? "").trim();
         return {
           caseId: entry.caseId,
           subjectEmail: entry.subjectEmail,
@@ -577,6 +581,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
             submittedAt: request.submittedAt?.toISOString(),
             input: request.input,
           })),
+          peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
         };
       }),
     );

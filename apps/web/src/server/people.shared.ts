@@ -234,6 +234,10 @@ export const SELF_REVIEW_KEYS = [
   "e_direction",
   "e_support",
   "f_fair",
+  // Suggested peer reviewers: the subject proposes, the manager decides
+  // (selection authority stays with the reviewer; information comes from the
+  // person with the most of it).
+  "sr_peers",
 ] as const;
 export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
 
@@ -291,6 +295,9 @@ export type PeerCaseView = {
   readonly state: ReviewState;
   readonly quotaMet: boolean;
   readonly requests: readonly PeerRequestView[];
+  // The subject's own suggestion from their self-review (sr_peers) — a hint
+  // for the reviewer, who decides the final list.
+  readonly peerSuggestions: string | undefined;
 };
 
 export type PeerPageView = {

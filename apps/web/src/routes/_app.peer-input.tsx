@@ -313,6 +313,18 @@ function PeerInputPage() {
                           </span>
                         </div>
 
+                        {selectedCase.peerSuggestions !== undefined && (
+                          <div className="rounded-[14px] bg-cream px-4 py-3">
+                            <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                              Suggested by {selectedCase.subjectName ?? "the subject"} — you decide
+                              the final list
+                            </p>
+                            <p className="mt-1 text-[13px] leading-relaxed text-ink-700">
+                              {selectedCase.peerSuggestions}
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
                           <label className="min-w-0 flex-1 text-xs">
                             <span className="mb-1 block font-semibold text-ink-700">Colleague</span>

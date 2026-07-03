@@ -273,6 +273,26 @@ function SelfReviewPage() {
       </div>
 
       <div className={sectionCls}>
+        <div className="flex items-baseline gap-2.5">
+          <p className={eyebrowCls}>Peer input</p>
+          <span className="text-[11px] font-semibold text-ink-300">optional</span>
+        </div>
+        <h3 className="font-display text-lg font-semibold">Suggest your peer reviewers</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Name colleagues who saw your work firsthand this year — especially cross-team. Your
+          manager decides the final list; suggestions inform it.
+        </p>
+        <div className="mt-3.5">
+          {field(
+            "sr_peers",
+            "Suggested peer reviewers",
+            "e.g. Nadia Haddad (budget cycle), Diego Ferrer (student success handoffs)",
+            true,
+          )}
+        </div>
+      </div>
+
+      <div className={sectionCls}>
         <p className={eyebrowCls}>A · Objectives</p>
         <h3 className="font-display text-lg font-semibold">What you owned this year</h3>
         <p className="mt-1 text-sm text-muted-foreground">

@@ -130,6 +130,7 @@ const isComplete = (draft: Draft): boolean => {
 
 // Self-review keys worth surfacing to the assessing manager, with labels.
 const SELF_HIGHLIGHTS: readonly { key: string; label: string }[] = [
+  { key: "sr_peers", label: "Suggested peer reviewers (you decide)" },
   { key: "o1_result", label: "Objective 1 · result" },
   { key: "o2_result", label: "Objective 2 · result" },
   { key: "o3_result", label: "Objective 3 · result" },
