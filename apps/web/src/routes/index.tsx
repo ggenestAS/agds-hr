@@ -1,4 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+
+import { buttonVariants } from "../components/ui/button.tsx";
+import { cn } from "../lib/cn.ts";
 
 // Placeholder public landing for the booting shell. The authenticated layout
 // (_app), sign-in, and the "Albert People" surfaces land in the next Phase 6
@@ -20,7 +23,12 @@ function Landing() {
         <p className="mt-4 text-[var(--muted-foreground)]">
           Performance reviews, calibration, compensation, and appeals for Albert School.
         </p>
-        <span className="mt-8 inline-block h-1 w-16 rounded-full bg-[var(--primary)]" />
+        <Link
+          to="/sign-in"
+          className={cn(buttonVariants({ variant: "primary", size: "lg" }), "mt-8")}
+        >
+          Sign in
+        </Link>
       </div>
     </main>
   );
