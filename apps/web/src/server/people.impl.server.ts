@@ -13,6 +13,8 @@ import {
   advanceCase,
   canFileAppealNow,
   canSeeAppeal,
+  createPeerRequests,
+  declinePeerRequest,
   fileAppeal,
   getAppealForCase,
   getCaseById,
@@ -28,8 +30,12 @@ import {
   listEmployeeAttrs,
   listRatingsForCycle,
   getSelfReviewByCase,
+  isPeerQuotaMet,
+  listPeerRequestsForCase,
+  listPeerRequestsForRequestee,
   openCase,
   reopenSelfReview,
+  submitPeerInput,
   resolveAppeal,
   saveSelfReview,
   submitSelfReview,
@@ -52,6 +58,10 @@ import type {
   DecisionDoc,
   DirectoryEntry,
   OverviewData,
+  PeerCaseView,
+  PeerPageView,
+  PeerRequestCreateInput,
+  PeerSubmitInput,
   PersonDetail,
   SelfReviewPayloadInput,
   SelfReviewView,
@@ -213,7 +223,19 @@ export async function advanceReviewHandler(input: {
   readonly toState: Parameters<typeof advanceCase>[2];
 }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.advance", { toState: input.toState });
-  await advanceCase(getDbAs("admin"), input.caseId, input.toState, auditContext(session));
+  const adminDb = getDbAs("admin");
+  // The LT peer-input gate (design M5): a case that entered peer_input cannot
+  // advance to the manager assessment until 2 LT + 2 own-team inputs are in.
+  if (input.toState === "manager_assessment") {
+    const reviewCase = await getCaseById(adminDb, input.caseId);
+    if (reviewCase?.state === "peer_input") {
+      const requests = await listPeerRequestsForCase(adminDb, input.caseId);
+      if (!isPeerQuotaMet(requests)) {
+        throw new ForbiddenError("people.review.advance", "peer_quota_not_met");
+      }
+    }
+  }
+  await advanceCase(adminDb, input.caseId, input.toState, auditContext(session));
   return { ok: true };
 }
 
@@ -382,6 +404,138 @@ export async function selfReviewReopenHandler(): Promise<{ ok: true }> {
     throw new ForbiddenError("people.selfreview.write", "decision_delivered");
   }
   await reopenSelfReview(adminDb, reviewCase.id, auditContext(session));
+  return { ok: true };
+}
+
+// Peer input handlers (design M5). Named input — never anonymous, never shown
+// to the person being reviewed: the reviewer view structurally excludes the
+// actor's OWN case, so nobody (including founders) reads peer input about
+// themselves through this surface.
+export async function peerPageHandler(): Promise<PeerPageView> {
+  const session = await requireSession("people.peer.respond");
+  const adminDb = getDbAs("admin");
+  const actorEmail = session.actor.email.toLowerCase();
+  const isReviewer = can(session.subject, "people.peer.request").allow;
+
+  const [forYou, admins] = await Promise.all([
+    listPeerRequestsForRequestee(adminDb, actorEmail),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+  ]);
+  const nameByEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      `${admin.firstName} ${admin.lastName}`.trim(),
+    ]),
+  );
+
+  let cases: PeerCaseView[] = [];
+  if (isReviewer) {
+    const allCases = await listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE);
+    const inScope = allCases.filter(
+      (entry) =>
+        !entry.decided &&
+        (entry.state === "self_review" || entry.state === "peer_input") &&
+        entry.subjectEmail.toLowerCase() !== actorEmail,
+    );
+    cases = await Promise.all(
+      inScope.map(async (entry) => {
+        const requests = await listPeerRequestsForCase(adminDb, entry.caseId);
+        return {
+          caseId: entry.caseId,
+          subjectEmail: entry.subjectEmail,
+          subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
+          state: entry.state,
+          quotaMet: isPeerQuotaMet(requests),
+          requests: requests.map((request) => ({
+            id: request.id,
+            requesteeEmail: request.requesteeEmail,
+            requesteeName: nameByEmail.get(request.requesteeEmail),
+            kind: request.kind,
+            status: request.status,
+            declineReason: request.declineReason,
+            submittedAt: request.submittedAt?.toISOString(),
+            input: request.input,
+          })),
+        };
+      }),
+    );
+  }
+
+  return {
+    requestsForYou: forYou.map((request) => ({
+      id: request.id,
+      subjectEmail: request.subjectEmail,
+      subjectName: nameByEmail.get(request.subjectEmail.toLowerCase()),
+      kind: request.kind,
+      status: request.status,
+      declineReason: request.declineReason,
+    })),
+    isReviewer,
+    cases,
+    directory: admins
+      .filter((admin) => admin.active && admin.email.toLowerCase() !== actorEmail)
+      .map((admin) => ({
+        email: admin.email.toLowerCase(),
+        name: `${admin.firstName} ${admin.lastName}`.trim(),
+        title: admin.title,
+      })),
+  };
+}
+
+export async function peerRequestCreateHandler(
+  input: PeerRequestCreateInput,
+): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.request");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await getCaseById(adminDb, input.caseId);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review case", input.caseId);
+  }
+  if (reviewCase.subjectEmail.toLowerCase() === session.actor.email.toLowerCase()) {
+    throw new ForbiddenError("people.peer.request", "own_review");
+  }
+  const subjectEmail = reviewCase.subjectEmail.toLowerCase();
+  await createPeerRequests(
+    adminDb,
+    input.caseId,
+    session.actor.id,
+    input.requests.filter((request) => request.email.toLowerCase() !== subjectEmail),
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+const cleanDims = (
+  input: PeerSubmitInput["input"],
+): Readonly<Partial<Record<keyof PeerSubmitInput["input"], string>>> =>
+  Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined && value.trim().length > 0),
+  ) as Readonly<Partial<Record<keyof PeerSubmitInput["input"], string>>>;
+
+export async function peerSubmitHandler(input: PeerSubmitInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.respond");
+  await submitPeerInput(
+    getDbAs("admin"),
+    input.requestId,
+    session.actor.email,
+    cleanDims(input.input),
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+export async function peerDeclineHandler(input: {
+  readonly requestId: string;
+  readonly reason: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.respond");
+  await declinePeerRequest(
+    getDbAs("admin"),
+    input.requestId,
+    session.actor.email,
+    input.reason,
+    auditContext(session),
+  );
   return { ok: true };
 }
 

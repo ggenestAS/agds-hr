@@ -210,6 +210,22 @@ export type PeerKind = (typeof PEER_KINDS)[number];
 export const PEER_REQUEST_STATUSES = ["pending", "submitted", "declined"] as const;
 export type PeerRequestStatus = (typeof PEER_REQUEST_STATUSES)[number];
 
+// The LT peer-input gate (design M5): at least 2 LT peers + 2 own-team
+// reviewers must have SUBMITTED before a peer_input case may advance to the
+// manager assessment. Enforced at the case level by the advance handler.
+export const PEER_QUOTA: Readonly<Partial<Record<PeerKind, number>>> = { lt: 2, team: 2 };
+
+export function isPeerQuotaMet(
+  requests: readonly { readonly kind: PeerKind; readonly status: PeerRequestStatus }[],
+): boolean {
+  return Object.entries(PEER_QUOTA).every(([kind, needed]) => {
+    const submitted = requests.filter(
+      (request) => request.kind === kind && request.status === "submitted",
+    ).length;
+    return submitted >= needed;
+  });
+}
+
 export type PeerRequest = {
   readonly id: string;
   readonly caseId: string;

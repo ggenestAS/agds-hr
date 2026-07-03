@@ -268,6 +268,7 @@ export async function getSignoffs(
 }
 
 export type CalibrationCase = {
+  readonly caseId: string;
   readonly subjectEmail: string;
   readonly state: ReviewState;
   readonly rating: ReviewRating | undefined;
@@ -282,6 +283,7 @@ export async function listCasesForCycle(
 ): Promise<readonly CalibrationCase[]> {
   const rows = await db
     .select({
+      caseId: reviewCase.id,
       subjectEmail: reviewCase.subjectEmail,
       state: reviewCase.state,
       rating: reviewCase.rating,
@@ -290,6 +292,7 @@ export async function listCasesForCycle(
     .from(reviewCase)
     .where(eq(reviewCase.cyclePeriod, cyclePeriod));
   return rows.map((row) => ({
+    caseId: row.caseId,
     subjectEmail: row.subjectEmail,
     state: row.state,
     rating: row.rating !== null && isReviewRating(row.rating) ? row.rating : undefined,

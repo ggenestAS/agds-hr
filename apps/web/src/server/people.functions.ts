@@ -5,6 +5,9 @@ import {
   compReadSchema,
   fileAppealSchema,
   openReviewSchema,
+  peerDeclineSchema,
+  peerRequestCreateSchema,
+  peerSubmitSchema,
   resolveAppealSchema,
   selfReviewPayloadSchema,
   setCompSchema,
@@ -142,3 +145,29 @@ export const selfReviewReopenFn = createServerFn({ method: "POST" }).handler(asy
   const { selfReviewReopenHandler } = await import("./people.impl.server.ts");
   return selfReviewReopenHandler();
 });
+
+export const peerPageFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { peerPageHandler } = await import("./people.impl.server.ts");
+  return peerPageHandler();
+});
+
+export const peerRequestCreateFn = createServerFn({ method: "POST" })
+  .validator(peerRequestCreateSchema)
+  .handler(async ({ data }) => {
+    const { peerRequestCreateHandler } = await import("./people.impl.server.ts");
+    return peerRequestCreateHandler(data);
+  });
+
+export const peerSubmitFn = createServerFn({ method: "POST" })
+  .validator(peerSubmitSchema)
+  .handler(async ({ data }) => {
+    const { peerSubmitHandler } = await import("./people.impl.server.ts");
+    return peerSubmitHandler(data);
+  });
+
+export const peerDeclineFn = createServerFn({ method: "POST" })
+  .validator(peerDeclineSchema)
+  .handler(async ({ data }) => {
+    const { peerDeclineHandler } = await import("./people.impl.server.ts");
+    return peerDeclineHandler(data);
+  });

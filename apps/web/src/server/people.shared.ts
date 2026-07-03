@@ -2,9 +2,19 @@ import {
   APPEAL_CATEGORIES,
   CAREER_LEVELS,
   CAREER_PATHS,
+  EVALUATION_DIMENSIONS,
+  PEER_KINDS,
   REVIEW_STATES,
 } from "@agds-hr/people/types";
-import type { AppealCategory, CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
+import type {
+  AppealCategory,
+  CareerLevel,
+  CareerPath,
+  EvaluationDimension,
+  PeerKind,
+  PeerRequestStatus,
+  ReviewState,
+} from "@agds-hr/people/types";
 import { z } from "zod";
 
 // Pure, client-importable shapes for the people server fns (§9.3). Enum tuples
@@ -181,7 +191,7 @@ export const SELF_REVIEW_KEYS = [
 export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
 
 export const selfReviewPayloadSchema = z.object({
-  payload: z.record(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
+  payload: z.partialRecord(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
 });
 export type SelfReviewPayloadInput = z.infer<typeof selfReviewPayloadSchema>;
 
@@ -191,6 +201,67 @@ export type SelfReviewView = {
   readonly submittedAt: string | undefined;
   readonly managerName: string | undefined;
   readonly locked: boolean;
+};
+
+// Peer input (design M5): named input, never anonymous, never shown to the
+// person being reviewed. Reviewers request; requestees submit or decline
+// (declines logged with a reason).
+export const peerRequestCreateSchema = z.object({
+  caseId: z.string().min(1),
+  requests: z
+    .array(z.object({ email: z.string().email(), kind: z.enum(PEER_KINDS) }))
+    .min(1)
+    .max(20),
+});
+export type PeerRequestCreateInput = z.infer<typeof peerRequestCreateSchema>;
+
+export const peerSubmitSchema = z.object({
+  requestId: z.string().min(1),
+  input: z.partialRecord(z.enum(EVALUATION_DIMENSIONS), z.string().max(4000)),
+});
+export type PeerSubmitInput = z.infer<typeof peerSubmitSchema>;
+
+export const peerDeclineSchema = z.object({
+  requestId: z.string().min(1),
+  reason: z.string().min(1).max(1000),
+});
+
+export type PeerRequestView = {
+  readonly id: string;
+  readonly requesteeEmail: string;
+  readonly requesteeName: string | undefined;
+  readonly kind: PeerKind;
+  readonly status: PeerRequestStatus;
+  readonly declineReason: string | undefined;
+  readonly submittedAt: string | undefined;
+  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+};
+
+export type PeerCaseView = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly state: ReviewState;
+  readonly quotaMet: boolean;
+  readonly requests: readonly PeerRequestView[];
+};
+
+export type PeerPageView = {
+  readonly requestsForYou: readonly {
+    readonly id: string;
+    readonly subjectEmail: string;
+    readonly subjectName: string | undefined;
+    readonly kind: PeerKind;
+    readonly status: PeerRequestStatus;
+    readonly declineReason: string | undefined;
+  }[];
+  readonly isReviewer: boolean;
+  readonly cases: readonly PeerCaseView[];
+  readonly directory: readonly {
+    readonly email: string;
+    readonly name: string;
+    readonly title: string | undefined;
+  }[];
 };
 
 // The Audit log surface (design P9): append-only trail, leadership-read-only.

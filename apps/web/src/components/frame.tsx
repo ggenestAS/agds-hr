@@ -24,6 +24,7 @@ type NavEntry = {
     | "/dashboard"
     | "/people"
     | "/self-review"
+    | "/peer-input"
     | "/calibration"
     | "/appeals"
     | "/compensation"
@@ -41,6 +42,7 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
       { to: "/dashboard", label: "Overview", roles: EVERYONE },
       { to: "/people", label: "People", roles: EVERYONE },
       { to: "/self-review", label: "Self-review", roles: EVERYONE },
+      { to: "/peer-input", label: "Peer input", roles: EVERYONE },
       { to: "/calibration", label: "Calibration", roles: REVIEWERS },
     ],
   },

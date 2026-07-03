@@ -56,6 +56,15 @@ export {
   saveSelfReview,
   submitSelfReview,
 } from "./self-review.ts";
+export type { PeerRequestForRequestee } from "./peer-input.ts";
+export {
+  createPeerRequests,
+  declinePeerRequest,
+  listPeerRequestsForCase,
+  listPeerRequestsForRequestee,
+  submitPeerInput,
+} from "./peer-input.ts";
+export { PEER_QUOTA, isPeerQuotaMet } from "./types.ts";
 export {
   EVALUATION_DIMENSIONS,
   EVALUATION_DIMENSION_LABELS,

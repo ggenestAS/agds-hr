@@ -1,0 +1,195 @@
+import { and, desc, eq, sql } from "drizzle-orm";
+
+import { recordEvent, type AuditContext } from "@agds-hr/audit";
+import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
+import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
+
+import { peerRequest, reviewCase } from "./db/schema.ts";
+import type { EvaluationDimension, PeerKind, PeerRequest } from "./types.ts";
+
+// Peer input DAL (design M5): NAMED input — never anonymous, never shown to
+// the person being reviewed (enforced at the handler layer by excluding the
+// subject's own case from reviewer views). Declines are allowed but logged
+// with a reason. Mutations audited.
+
+const SELECT = {
+  id: peerRequest.id,
+  caseId: peerRequest.caseId,
+  requesteeEmail: peerRequest.requesteeEmail,
+  kind: peerRequest.kind,
+  status: peerRequest.status,
+  declineReason: peerRequest.declineReason,
+  input: peerRequest.input,
+  submittedAt: peerRequest.submittedAt,
+  createdAt: peerRequest.createdAt,
+};
+
+type PeerRequestRow = {
+  readonly id: string;
+  readonly caseId: string;
+  readonly requesteeEmail: string;
+  readonly kind: PeerKind;
+  readonly status: "pending" | "submitted" | "declined";
+  readonly declineReason: string | null;
+  readonly input: unknown;
+  readonly submittedAt: Date | null;
+  readonly createdAt: Date;
+};
+
+const rowToPeerRequest = (row: PeerRequestRow): PeerRequest => ({
+  id: row.id,
+  caseId: row.caseId,
+  requesteeEmail: row.requesteeEmail,
+  kind: row.kind,
+  status: row.status,
+  declineReason: row.declineReason ?? undefined,
+  input: (row.input ?? {}) as PeerRequest["input"],
+  submittedAt: row.submittedAt ?? undefined,
+  createdAt: row.createdAt,
+});
+
+export async function listPeerRequestsForCase(
+  db: DrizzleExecutor,
+  caseId: string,
+): Promise<readonly PeerRequest[]> {
+  const rows = await db
+    .select(SELECT)
+    .from(peerRequest)
+    .where(eq(peerRequest.caseId, caseId))
+    .orderBy(desc(peerRequest.createdAt));
+  return rows.map(rowToPeerRequest);
+}
+
+// "Requests for you" — includes the case's subject so the requestee knows who
+// the input is about (the request itself is not secret from the requestee).
+export type PeerRequestForRequestee = PeerRequest & { readonly subjectEmail: string };
+
+export async function listPeerRequestsForRequestee(
+  db: DrizzleExecutor,
+  requesteeEmail: string,
+): Promise<readonly PeerRequestForRequestee[]> {
+  const rows = await db
+    .select({ ...SELECT, subjectEmail: reviewCase.subjectEmail })
+    .from(peerRequest)
+    .innerJoin(reviewCase, eq(reviewCase.id, peerRequest.caseId))
+    .where(eq(peerRequest.requesteeEmail, requesteeEmail))
+    .orderBy(desc(peerRequest.createdAt));
+  return rows.map((row) => ({ ...rowToPeerRequest(row), subjectEmail: row.subjectEmail }));
+}
+
+// Create requests for a case (reviewer action). Idempotent per requestee —
+// re-requesting an existing requestee is a no-op, not an error.
+export async function createPeerRequests(
+  db: DrizzleDb,
+  caseId: string,
+  requestedBy: UserId,
+  entries: readonly { readonly email: string; readonly kind: PeerKind }[],
+  context: AuditContext,
+): Promise<void> {
+  if (entries.length === 0) {
+    return;
+  }
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(peerRequest)
+      .values(
+        entries.map((entry) => ({
+          caseId,
+          requesteeEmail: entry.email.toLowerCase(),
+          kind: entry.kind,
+          requestedBy,
+        })),
+      )
+      .onConflictDoNothing();
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.peer.requested",
+      resourceId: caseId,
+      payload: { requestees: entries.map((entry) => entry.email.toLowerCase()) },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
+}
+
+// Submit named input. Only the addressed requestee may submit, only once.
+export async function submitPeerInput(
+  db: DrizzleDb,
+  requestId: string,
+  requesteeEmail: string,
+  input: Readonly<Partial<Record<EvaluationDimension, string>>>,
+  context: AuditContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ requesteeEmail: peerRequest.requesteeEmail, status: peerRequest.status })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, requestId))
+      .limit(1);
+    if (current === undefined) {
+      throw new NotFoundError("peer request", requestId);
+    }
+    if (current.requesteeEmail !== requesteeEmail.toLowerCase()) {
+      throw new ForbiddenError("people.peer.respond", "not_addressed_to_you");
+    }
+    if (current.status !== "pending") {
+      throw new ConflictError("peer_request_already_answered");
+    }
+    await tx
+      .update(peerRequest)
+      .set({ status: "submitted", input, submittedAt: sql`now()` })
+      .where(and(eq(peerRequest.id, requestId), eq(peerRequest.status, "pending")));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.peer.submitted",
+      resourceId: requestId,
+      payload: { dimensions: Object.keys(input).length },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
+}
+
+// Declines are allowed but logged with a reason (design).
+export async function declinePeerRequest(
+  db: DrizzleDb,
+  requestId: string,
+  requesteeEmail: string,
+  reason: string,
+  context: AuditContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ requesteeEmail: peerRequest.requesteeEmail, status: peerRequest.status })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, requestId))
+      .limit(1);
+    if (current === undefined) {
+      throw new NotFoundError("peer request", requestId);
+    }
+    if (current.requesteeEmail !== requesteeEmail.toLowerCase()) {
+      throw new ForbiddenError("people.peer.respond", "not_addressed_to_you");
+    }
+    if (current.status !== "pending") {
+      throw new ConflictError("peer_request_already_answered");
+    }
+    await tx
+      .update(peerRequest)
+      .set({ status: "declined", declineReason: reason })
+      .where(and(eq(peerRequest.id, requestId), eq(peerRequest.status, "pending")));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.peer.declined",
+      resourceId: requestId,
+      payload: { reason },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
+}

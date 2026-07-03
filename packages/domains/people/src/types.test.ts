@@ -11,6 +11,7 @@ import {
   isAppealCategory,
   isCareerLevel,
   isCareerPath,
+  isPeerQuotaMet,
   isDecisionComplete,
   isP6Triggered,
   isReviewRating,
@@ -88,6 +89,30 @@ describe("compensation", () => {
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(4, 90));
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(3, 10));
     expect(meritIncreaseBp(1, 10)).toBe(0);
+  });
+});
+
+describe("peer input", () => {
+  test("LT quota needs 2 submitted LT + 2 submitted own-team; declines don't count", () => {
+    const submitted = (kind: "lt" | "team" | "cross") => ({ kind, status: "submitted" as const });
+    const declined = (kind: "lt" | "team" | "cross") => ({ kind, status: "declined" as const });
+    expect(
+      isPeerQuotaMet([submitted("lt"), submitted("lt"), submitted("team"), submitted("team")]),
+    ).toBe(true);
+    expect(
+      isPeerQuotaMet([submitted("lt"), declined("lt"), submitted("team"), submitted("team")]),
+    ).toBe(false);
+    expect(isPeerQuotaMet([])).toBe(false);
+    // cross-team input is optional — it neither helps nor blocks
+    expect(
+      isPeerQuotaMet([
+        submitted("lt"),
+        submitted("lt"),
+        submitted("team"),
+        submitted("team"),
+        declined("cross"),
+      ]),
+    ).toBe(true);
   });
 });
 
