@@ -1,5 +1,6 @@
 import {
   APPEAL_CATEGORIES,
+  CAREER_LEVEL_META,
   CAREER_LEVELS,
   CAREER_PATHS,
   EMPLOYMENT_TYPES,
@@ -269,6 +270,66 @@ export const SELF_REVIEW_KEYS = [
 ] as const;
 export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
 
+// Header keys stamped from server-resolved context on save/submit — never
+// collected from the subject (design-import artefact; the case + roster own
+// name, role, manager, and cycle period).
+export const SELF_REVIEW_STAMPED_KEYS = [
+  "sr_name",
+  "sr_role",
+  "sr_manager",
+  "sr_period",
+] as const satisfies readonly SelfReviewKey[];
+
+export type SelfReviewContext = {
+  readonly name: string;
+  readonly role: string;
+  readonly manager: string;
+  readonly period: string;
+};
+
+export type SelfReviewPayload = Readonly<Partial<Record<SelfReviewKey, string>>>;
+
+// Role line for the self-review header: Inside title + agds-hr level/path.
+export function formatSelfReviewRole(input: {
+  readonly title: string | undefined;
+  readonly level: CareerLevel | undefined;
+  readonly path: CareerPath | undefined;
+}): string {
+  const parts: string[] = [];
+  if (input.title !== undefined && input.title.trim().length > 0) {
+    parts.push(input.title.trim());
+  }
+  if (input.level !== undefined) {
+    parts.push(`${input.level} · ${CAREER_LEVEL_META[input.level].name}`);
+  }
+  if (input.path !== undefined) {
+    parts.push(input.path === "ic" ? "IC" : "Management");
+  }
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+const stampedKeySet = new Set<string>(SELF_REVIEW_STAMPED_KEYS);
+
+// Strip client-supplied header keys, then stamp server truth into the payload
+// so the stored JSON carries a point-in-time snapshot without user drift.
+export function stampSelfReviewHeader(
+  payload: SelfReviewPayload,
+  context: SelfReviewContext,
+): Record<string, string> {
+  const body = Object.fromEntries(
+    Object.entries(payload).filter(
+      ([key, value]) => typeof value === "string" && !stampedKeySet.has(key),
+    ),
+  );
+  return {
+    ...body,
+    sr_name: context.name,
+    sr_role: context.role,
+    sr_manager: context.manager,
+    sr_period: context.period,
+  };
+}
+
 // Row-slot views over the flat key set, in display order.
 export const SELF_REVIEW_OBJECTIVE_ROWS = [
   { obj: "o1_obj", target: "o1_target", result: "o1_result" },
@@ -300,8 +361,6 @@ export const selfReviewPayloadSchema = z.object({
   payload: z.partialRecord(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
 });
 export type SelfReviewPayloadInput = z.infer<typeof selfReviewPayloadSchema>;
-
-export type SelfReviewPayload = Readonly<Partial<Record<SelfReviewKey, string>>>;
 
 // Word-count guidance for the long-form fields (displayed live in the form and
 // enforced at submit for FILLED fields). Bounds keep answers substantive
@@ -448,7 +507,7 @@ export type SelfReviewView = {
   readonly caseId: string | undefined;
   readonly payload: Readonly<Partial<Record<SelfReviewKey, string>>>;
   readonly submittedAt: string | undefined;
-  readonly managerName: string | undefined;
+  readonly context: SelfReviewContext;
   readonly locked: boolean;
 };
 

@@ -10,9 +10,11 @@ import {
   SELF_REVIEW_OBJECTIVES_MIN,
   SELF_REVIEW_WORD_BOUNDS,
   countWords,
+  formatSelfReviewRole,
   kpiRowsInUse,
   objectiveRowsInUse,
   selfReviewSubmitIssues,
+  stampSelfReviewHeader,
 } from "./people.shared.ts";
 
 const words = (count: number) => Array.from({ length: count }, (_, i) => `w${i}`).join(" ");
@@ -127,5 +129,36 @@ describe("selfReviewSubmitIssues", () => {
 
   test("empty bounded fields are not flagged — required-ness is the row rules' job", () => {
     expect(selfReviewSubmitIssues({ ...validPayload(), d_proud: "" })).toEqual([]);
+  });
+});
+
+describe("formatSelfReviewRole", () => {
+  test("joins title, level meta, and path", () => {
+    expect(
+      formatSelfReviewRole({ title: "Head of Ops", level: "L3", path: "manager" }),
+    ).toBe("Head of Ops · L3 · Lead · Management");
+  });
+
+  test("returns em dash when nothing is assigned", () => {
+    expect(formatSelfReviewRole({ title: undefined, level: undefined, path: undefined })).toBe(
+      "—",
+    );
+  });
+});
+
+describe("stampSelfReviewHeader", () => {
+  test("overwrites client header keys with server context", () => {
+    const stamped = stampSelfReviewHeader(
+      { ...validPayload(), sr_name: "wrong", sr_period: "wrong period" },
+      {
+        name: "Ada Lovelace",
+        role: "Engineer · L2 · Owner · IC",
+        manager: "Charles Babbage",
+        period: "Sep 2025 – Aug 2026",
+      },
+    );
+    expect(stamped.sr_name).toBe("Ada Lovelace");
+    expect(stamped.sr_period).toBe("Sep 2025 – Aug 2026");
+    expect(stamped.o1_obj).toBe("Own the admissions funnel");
   });
 });

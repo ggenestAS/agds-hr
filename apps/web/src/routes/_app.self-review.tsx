@@ -10,6 +10,7 @@ import {
   SELF_REVIEW_OBJECTIVE_ROWS,
   SELF_REVIEW_OBJECTIVES_MAX,
   SELF_REVIEW_OBJECTIVES_MIN,
+  SELF_REVIEW_STAMPED_KEYS,
   SELF_REVIEW_WORD_BOUNDS,
   countWords,
   kpiRowsInUse,
@@ -112,6 +113,10 @@ const removeBtnCls =
   "text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-[var(--color-accent)] hover:underline";
 const addBtnCls =
   "mt-4 rounded-xl border border-dashed border-border px-3.5 py-2 text-xs font-semibold text-ink-700 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]";
+const contextLabelCls = "text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground";
+const contextValueCls = "text-sm font-medium text-ink-900";
+
+const stampedKeySet = new Set<string>(SELF_REVIEW_STAMPED_KEYS);
 
 // Live word counter for bounded fields: amber below the minimum, red above the
 // maximum, quiet when in range or empty.
@@ -230,7 +235,7 @@ function SelfReviewPage() {
   // Progress counts only the fields currently in play (visible rows), so
   // adding a row lowers the percentage instead of the denominator lying.
   const activeKeys = useMemo(() => {
-    const keys: SelfReviewKey[] = ["sr_name", "sr_role", "sr_manager", "sr_period", "sr_peers"];
+    const keys: SelfReviewKey[] = ["sr_peers"];
     SELF_REVIEW_OBJECTIVE_ROWS.slice(0, objectiveCount).forEach((row) => {
       keys.push(row.obj, row.target, row.result);
     });
@@ -265,7 +270,9 @@ function SelfReviewPage() {
     Object.fromEntries(
       Object.entries(form).filter(
         ([key, value]) =>
-          typeof value === "string" && (SELF_REVIEW_KEYS as readonly string[]).includes(key),
+          typeof value === "string" &&
+          (SELF_REVIEW_KEYS as readonly string[]).includes(key) &&
+          !stampedKeySet.has(key),
       ),
     ) as Record<SelfReviewKey, string>;
 
@@ -399,10 +406,10 @@ function SelfReviewPage() {
           </span>
           <span>
             Sent
-            {view.managerName !== undefined && (
+            {view.context.manager !== "—" && (
               <>
                 {" "}
-                to <strong>{view.managerName}</strong>
+                to <strong>{view.context.manager}</strong>
               </>
             )}
             . They'll add their assessment and share it before your review conversation.
@@ -412,13 +419,27 @@ function SelfReviewPage() {
       )}
 
       <div className={sectionCls}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {field("sr_name", "Name", "Your name")}
-          {field("sr_role", "Role", "Role · level · path")}
-          {field("sr_manager", "Manager", view.managerName ?? "Who you report to")}
-          {field("sr_period", "Period reviewed", "e.g. Sep 2025 – Aug 2026", {
-            help: "The window your answers cover — so results are read against the right timeframe.",
-          })}
+        <p className={contextLabelCls}>Your review context</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          From your profile and the active review cycle — not editable here.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className={contextLabelCls}>Name</p>
+            <p className={contextValueCls}>{view.context.name}</p>
+          </div>
+          <div>
+            <p className={contextLabelCls}>Role</p>
+            <p className={contextValueCls}>{view.context.role}</p>
+          </div>
+          <div>
+            <p className={contextLabelCls}>Manager</p>
+            <p className={contextValueCls}>{view.context.manager}</p>
+          </div>
+          <div>
+            <p className={contextLabelCls}>Period reviewed</p>
+            <p className={contextValueCls}>{view.context.period}</p>
+          </div>
         </div>
       </div>
 
@@ -644,7 +665,7 @@ function SelfReviewPage() {
         </span>
         {submitted ? (
           <span className="text-sm font-semibold text-muted-foreground">
-            Sent{view.managerName !== undefined ? ` to ${view.managerName}` : ""}
+            Sent{view.context.manager !== "—" ? ` to ${view.context.manager}` : ""}
           </span>
         ) : (
           <Button type="button" disabled={busy || !canSubmit} onClick={() => void submit()}>

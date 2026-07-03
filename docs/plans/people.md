@@ -139,7 +139,9 @@ All 13 views of the imported design are implemented, wired to real data:
   gate (`selfReviewSubmitIssues`, pure and shared) enforces the minimum
   complete objectives, no half-filled rows, and word bounds on filled fields —
   the form disables Send on any issue and the server re-checks (fail closed);
-  draft saves are never gated.
+  draft saves are never gated. Name, role, manager, and period are server-
+  resolved context (`REVIEW_CYCLE_PERIOD_LABEL` + Inside roster + employee
+  attrs) — displayed read-only and stamped into the payload on save/submit.
 - L — peer input: `peer_request` table (named, one per requestee per case,
   decline-with-reason); `/peer-input` with requestee answer/decline flows and
   the reviewer panel (case chips, quota pills, requestee picker, submitted

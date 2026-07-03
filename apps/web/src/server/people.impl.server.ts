@@ -54,9 +54,15 @@ import {
 import type { AssessmentDraft } from "@agds-hr/people";
 import { CAREER_LEVELS } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
+import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
 import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
-import { selfReviewSubmitIssues } from "./people.shared.ts";
+import {
+  formatSelfReviewRole,
+  selfReviewSubmitIssues,
+  stampSelfReviewHeader,
+} from "./people.shared.ts";
+import type { SelfReviewContext } from "./people.shared.ts";
 import type {
   AppealsPageView,
   AppealView,
@@ -440,15 +446,17 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
 // form: the case is looked up by the actor's email, never by a client-supplied
 // id, so ownership is structural. Saving/submitting auto-opens the case
 // (idempotent) — the self-review is how a cycle starts for most people.
-export async function selfReviewGetHandler(): Promise<SelfReviewView> {
-  const session = await requireSession("people.selfreview.write");
-  const adminDb = getDbAs("admin");
+async function resolveSelfReviewContext(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  adminDb: ReturnType<typeof getDbAs>,
+): Promise<SelfReviewContext> {
   const email = session.actor.email.toLowerCase();
-  const reviewCase = await getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE);
-  const selfReview =
-    reviewCase === undefined ? undefined : await getSelfReviewByCase(adminDb, reviewCase.id);
+  const attrs = await getEmployeeByEmail(adminDb, email);
 
-  let managerName: string | undefined;
+  let name = session.actor.email;
+  let title: string | undefined;
+  let manager = "—";
+
   if (isInsideConfigured()) {
     const [admins, orgNodes] = await Promise.all([
       listAdminDirectory({ limit: 1000 }),
@@ -456,17 +464,38 @@ export async function selfReviewGetHandler(): Promise<SelfReviewView> {
     ]);
     const me = admins.find((admin) => admin.email.toLowerCase() === email);
     if (me !== undefined) {
+      name = `${me.firstName} ${me.lastName}`.trim();
+      title = me.title;
       const chain = managementChain(orgNodes, me.userId);
       const first = chain[0];
-      managerName = first === undefined ? undefined : `${first.firstName} ${first.lastName}`.trim();
+      manager = first === undefined ? "—" : `${first.firstName} ${first.lastName}`.trim();
     }
   }
+
+  return {
+    name,
+    role: formatSelfReviewRole({ title, level: attrs?.level, path: attrs?.path }),
+    manager,
+    period: REVIEW_CYCLE_PERIOD_LABEL,
+  };
+}
+
+export async function selfReviewGetHandler(): Promise<SelfReviewView> {
+  const session = await requireSession("people.selfreview.write");
+  const adminDb = getDbAs("admin");
+  const email = session.actor.email.toLowerCase();
+  const [reviewCase, context] = await Promise.all([
+    getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE),
+    resolveSelfReviewContext(session, adminDb),
+  ]);
+  const selfReview =
+    reviewCase === undefined ? undefined : await getSelfReviewByCase(adminDb, reviewCase.id);
 
   return {
     caseId: reviewCase?.id,
     payload: (selfReview?.payload ?? {}) as SelfReviewView["payload"],
     submittedAt: selfReview?.submittedAt?.toISOString(),
-    managerName,
+    context,
     locked: reviewCase?.decidedAt !== undefined,
   };
 }
@@ -477,12 +506,6 @@ async function ensureOwnCase(session: Awaited<ReturnType<typeof requireSession>>
   return openCase(adminDb, email, REVIEW_CURRENT_CYCLE, auditContext(session));
 }
 
-const cleanPayload = (payload: SelfReviewPayloadInput["payload"]): Record<string, string> =>
-  Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Record<
-    string,
-    string
-  >;
-
 export async function selfReviewSaveHandler(input: SelfReviewPayloadInput): Promise<{ ok: true }> {
   const session = await requireSession("people.selfreview.write");
   const adminDb = getDbAs("admin");
@@ -491,7 +514,13 @@ export async function selfReviewSaveHandler(input: SelfReviewPayloadInput): Prom
   if (existing?.submittedAt !== undefined) {
     throw new ForbiddenError("people.selfreview.write", "already_submitted");
   }
-  await saveSelfReview(adminDb, reviewCase.id, cleanPayload(input.payload), auditContext(session));
+  const context = await resolveSelfReviewContext(session, adminDb);
+  await saveSelfReview(
+    adminDb,
+    reviewCase.id,
+    stampSelfReviewHeader(input.payload, context),
+    auditContext(session),
+  );
   return { ok: true };
 }
 
@@ -512,10 +541,11 @@ export async function selfReviewSubmitHandler(
   if (issues.length > 0) {
     throw new ConflictError(`self_review_requirements_not_met (${issues.join("; ")})`);
   }
+  const context = await resolveSelfReviewContext(session, adminDb);
   await submitSelfReview(
     adminDb,
     reviewCase.id,
-    cleanPayload(input.payload),
+    stampSelfReviewHeader(input.payload, context),
     auditContext(session),
   );
   return { ok: true };

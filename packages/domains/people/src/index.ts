@@ -2,16 +2,29 @@ export {
   CAREER_LEVELS,
   CAREER_LEVEL_META,
   CAREER_PATHS,
+  EMPLOYMENT_TYPES,
+  EMPLOYMENT_TYPE_LABELS,
   isCareerLevel,
   isCareerPath,
+  isEmploymentType,
+  isReviewParticipationOverride,
+  isSalaryBandApplicable,
+  participatesInReview,
+  REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_RATING_LABELS,
 } from "./types.ts";
-export type { CareerLevel, CareerPath } from "./types.ts";
+export type {
+  CareerLevel,
+  CareerPath,
+  EmploymentType,
+  ReviewParticipationOverride,
+} from "./types.ts";
 export {
   REVIEW_STATES,
   REVIEW_TRANSITIONS,
   REVIEW_RATINGS,
   REVIEW_CURRENT_CYCLE,
+  REVIEW_CYCLE_PERIOD_LABEL,
   REVIEW_SIGNOFFS_REQUIRED,
   APPEAL_WINDOW_DAYS,
   MERIT_MATRIX_BP,
