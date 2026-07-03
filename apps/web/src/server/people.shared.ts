@@ -989,13 +989,12 @@ export type DecisionDoc = {
   readonly effectiveDate: string | undefined;
 };
 
-// The Overview surface: leadership gets org-wide rating distribution; reviewers
-// get the scoped needs-a-decision list; everyone gets the cycle timeline and
-// their own status. Full distribution for calibration lives on /calibration.
+// The Overview surface: reviewers get the scoped needs-a-decision list;
+// everyone gets the cycle timeline and their own status. Org-wide distribution
+// lives on /calibration.
 export type OverviewData = {
   readonly cycle: string;
   readonly isReviewer: boolean;
-  readonly distribution?: Readonly<Record<1 | 2 | 3 | 4, number>>;
   readonly needsDecision: readonly {
     readonly subjectEmail: string;
     readonly name: string | undefined;
