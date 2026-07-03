@@ -18,6 +18,7 @@ import { devLogoutFn } from "../server/dev-login.functions.ts";
 const LEADERSHIP = ["admin", "founder", "developer"] as const;
 const REVIEWERS = ["manager", ...LEADERSHIP] as const;
 const EVERYONE = ["staff", ...REVIEWERS] as const;
+const DEVELOPER = ["developer"] as const;
 
 type NavEntry = {
   readonly to:
@@ -32,7 +33,8 @@ type NavEntry = {
     | "/compensation"
     | "/bands"
     | "/documentation"
-    | "/audit";
+    | "/audit"
+    | "/roles";
   readonly label: string;
   readonly roles: readonly string[];
 };
@@ -63,6 +65,7 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
       { to: "/appeals", label: "Appeals", roles: EVERYONE },
       { to: "/documentation", label: "Documentation", roles: LEADERSHIP },
       { to: "/audit", label: "Audit log", roles: LEADERSHIP },
+      { to: "/roles", label: "Roles", roles: DEVELOPER },
     ],
   },
 ];
