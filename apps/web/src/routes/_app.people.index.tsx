@@ -19,20 +19,17 @@ export const Route = createFileRoute("/_app/people/")({
 const PATH_LABEL: Record<string, string> = { ic: "IC path", manager: "Management" };
 
 function People() {
-  const directory = Route.useLoaderData();
+  const directory: readonly DirectoryEntry[] = Route.useLoaderData();
   const [filter, setFilter] = useState<string>("all");
 
   const countries = [
     ...new Set(
       directory
-        .map((row: DirectoryEntry) => row.country)
+        .map((row) => row.country)
         .filter((country): country is string => country !== undefined),
     ),
-  ].sort();
-  const visible =
-    filter === "all"
-      ? directory
-      : directory.filter((row: DirectoryEntry) => row.country === filter);
+  ].sort((a, b) => a.localeCompare(b));
+  const visible = filter === "all" ? directory : directory.filter((row) => row.country === filter);
 
   return (
     <div className="mx-auto max-w-5xl p-6">
