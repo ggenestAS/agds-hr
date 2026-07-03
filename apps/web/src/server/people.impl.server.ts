@@ -6,8 +6,10 @@ import {
   isInsideConfigured,
   listAdminDirectory,
   listOrgTree,
+  localTeamPeerCount,
   managementChain,
   type InsideAdmin,
+  type OrgNode,
 } from "@agds-hr/inside";
 import {
   advanceCase,
@@ -35,6 +37,7 @@ import {
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
   openCase,
+  peerInputQuota,
   participatesInReview,
   reopenSelfReview,
   saveAssessment,
@@ -91,6 +94,18 @@ import type {
 } from "./people.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
 
+function resolvePeerInputQuota(
+  subjectEmail: string,
+  orgNodes: readonly OrgNode[],
+  userIdByEmail: ReadonlyMap<string, string>,
+): ReturnType<typeof peerInputQuota> {
+  const userId = userIdByEmail.get(subjectEmail.toLowerCase());
+  // Fail closed when org data is missing — assume a full local team.
+  const localPeers =
+    userId === undefined || orgNodes.length === 0 ? 2 : localTeamPeerCount(orgNodes, userId);
+  return peerInputQuota(localPeers);
+}
+
 // The directory is the Albert Inside roster merged with agds-hr-native level/path
 // (people.employee, by email) and the current-cycle rating; the empty state shows
 // when Inside is unconfigured. All reads run on the admin connection.
@@ -101,7 +116,8 @@ const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   title: admin.title,
   campus: admin.campus,
   country: admin.country,
-  managerName: admin.functionalManagerName,
+  functionalManagerName: admin.functionalManagerName,
+  localManagerName: admin.localManagerName,
   active: admin.active,
   level: undefined,
   path: undefined,
@@ -304,13 +320,21 @@ export async function advanceReviewHandler(input: {
 }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.advance", { toState: input.toState });
   const adminDb = getDbAs("admin");
-  // The LT peer-input gate (design M5): a case that entered peer_input cannot
-  // advance to the manager assessment until 2 LT + 2 own-team inputs are in.
+  // The peer-input gate (design M5): a case in peer_input cannot advance to the
+  // manager assessment until cross-team + own-team quotas are met.
   if (input.toState === "manager_assessment") {
     const reviewCase = await getCaseById(adminDb, input.caseId);
     if (reviewCase?.state === "peer_input") {
-      const requests = await listPeerRequestsForCase(adminDb, input.caseId);
-      if (!isPeerQuotaMet(requests)) {
+      const [requests, orgNodes, admins] = await Promise.all([
+        listPeerRequestsForCase(adminDb, input.caseId),
+        isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
+        isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+      ]);
+      const userIdByEmail = new Map(
+        admins.map((admin) => [admin.email.toLowerCase(), admin.userId]),
+      );
+      const quota = resolvePeerInputQuota(reviewCase.subjectEmail, orgNodes, userIdByEmail);
+      if (!isPeerQuotaMet(requests, quota)) {
         throw new ForbiddenError("people.review.advance", "peer_quota_not_met");
       }
     }
@@ -573,11 +597,13 @@ export async function selfReviewReopenHandler(): Promise<{ ok: true }> {
 export async function peerPageHandler(): Promise<PeerPageView> {
   const session = await requireSession("people.peer.respond");
   const adminDb = getDbAs("admin");
-  const actorEmail = session.actor.email.toLowerCase();
+  // Peer requests are addressed to the effective user (subject), not the signed-in
+  // actor — otherwise impersonation shows an empty "Requests for you" list.
+  const effectiveEmail = session.subject.email.toLowerCase();
   const isReviewer = can(session.subject, "people.peer.request").allow;
 
   const [forYou, admins] = await Promise.all([
-    listPeerRequestsForRequestee(adminDb, actorEmail),
+    listPeerRequestsForRequestee(adminDb, effectiveEmail),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
   ]);
   const nameByEmail = new Map(
@@ -589,12 +615,16 @@ export async function peerPageHandler(): Promise<PeerPageView> {
 
   let cases: PeerCaseView[] = [];
   if (isReviewer) {
-    const allCases = await listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE);
+    const [allCases, orgNodes] = await Promise.all([
+      listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+      isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
+    ]);
+    const userIdByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.userId]));
     const inScope = allCases.filter(
       (entry) =>
         !entry.decided &&
         (entry.state === "self_review" || entry.state === "peer_input") &&
-        entry.subjectEmail.toLowerCase() !== actorEmail,
+        entry.subjectEmail.toLowerCase() !== effectiveEmail,
     );
     cases = await Promise.all(
       inScope.map(async (entry) => {
@@ -603,12 +633,14 @@ export async function peerPageHandler(): Promise<PeerPageView> {
           getSelfReviewByCase(adminDb, entry.caseId),
         ]);
         const peerSuggestions = (selfReview?.payload["sr_peers"] ?? "").trim();
+        const quota = resolvePeerInputQuota(entry.subjectEmail, orgNodes, userIdByEmail);
         return {
           caseId: entry.caseId,
           subjectEmail: entry.subjectEmail,
           subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
           state: entry.state,
-          quotaMet: isPeerQuotaMet(requests),
+          quota,
+          quotaMet: isPeerQuotaMet(requests, quota),
           requests: requests.map((request) => ({
             id: request.id,
             requesteeEmail: request.requesteeEmail,
@@ -637,7 +669,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
     isReviewer,
     cases,
     directory: admins
-      .filter((admin) => admin.active && admin.email.toLowerCase() !== actorEmail)
+      .filter((admin) => admin.active && admin.email.toLowerCase() !== effectiveEmail)
       .map((admin) => ({
         email: admin.email.toLowerCase(),
         name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -655,7 +687,7 @@ export async function peerRequestCreateHandler(
   if (reviewCase === undefined) {
     throw new NotFoundError("review case", input.caseId);
   }
-  if (reviewCase.subjectEmail.toLowerCase() === session.actor.email.toLowerCase()) {
+  if (reviewCase.subjectEmail.toLowerCase() === session.subject.email.toLowerCase()) {
     throw new ForbiddenError("people.peer.request", "own_review");
   }
   const subjectEmail = reviewCase.subjectEmail.toLowerCase();
@@ -681,7 +713,7 @@ export async function peerSubmitHandler(input: PeerSubmitInput): Promise<{ ok: t
   await submitPeerInput(
     getDbAs("admin"),
     input.requestId,
-    session.actor.email,
+    session.subject.email,
     cleanDims(input.input),
     auditContext(session),
   );
@@ -696,7 +728,7 @@ export async function peerDeclineHandler(input: {
   await declinePeerRequest(
     getDbAs("admin"),
     input.requestId,
-    session.actor.email,
+    session.subject.email,
     input.reason,
     auditContext(session),
   );
@@ -709,7 +741,7 @@ export async function peerDeclineHandler(input: {
 export async function assessListHandler(): Promise<readonly AssessCaseSummary[]> {
   const session = await requireSession("people.assessment.write");
   const adminDb = getDbAs("admin");
-  const actorEmail = session.actor.email.toLowerCase();
+  const effectiveEmail = session.subject.email.toLowerCase();
   const [cases, admins] = await Promise.all([
     listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
@@ -721,7 +753,7 @@ export async function assessListHandler(): Promise<readonly AssessCaseSummary[]>
     ]),
   );
   return cases
-    .filter((entry) => !entry.decided && entry.subjectEmail.toLowerCase() !== actorEmail)
+    .filter((entry) => !entry.decided && entry.subjectEmail.toLowerCase() !== effectiveEmail)
     .map((entry) => ({
       caseId: entry.caseId,
       subjectEmail: entry.subjectEmail,
@@ -737,7 +769,7 @@ export async function assessDetailHandler(caseId: string): Promise<AssessCaseDet
   if (reviewCase === undefined) {
     throw new NotFoundError("review case", caseId);
   }
-  if (reviewCase.subjectEmail.toLowerCase() === session.actor.email.toLowerCase()) {
+  if (reviewCase.subjectEmail.toLowerCase() === session.subject.email.toLowerCase()) {
     throw new ForbiddenError("people.assessment.write", "own_review");
   }
   const [attrs, selfReview, peerRequests, existing, admins] = await Promise.all([

@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { isInsideConfigured, listAdminDirectory, managementChain, type OrgNode } from "./client.ts";
+import {
+  isInsideConfigured,
+  listAdminDirectory,
+  localTeamPeerCount,
+  managementChain,
+  type OrgNode,
+} from "./client.ts";
 
 const RESPONSE = {
   total: 2,
@@ -86,12 +92,17 @@ describe("inside client", () => {
 });
 
 describe("managementChain", () => {
-  const node = (userId: string, mgr: string | undefined): OrgNode => ({
+  const node = (
+    userId: string,
+    functional: string | undefined,
+    local?: string | undefined,
+  ): OrgNode => ({
     userId,
     firstName: userId,
     lastName: "x",
     title: undefined,
-    functionalManagerUserId: mgr,
+    functionalManagerUserId: functional,
+    localManagerUserId: local,
   });
   const nodes = [node("a", "b"), node("b", "c"), node("c", undefined)];
 
@@ -103,5 +114,54 @@ describe("managementChain", () => {
   test("is cycle-guarded", () => {
     const cyclic = [node("a", "b"), node("b", "a")];
     expect(managementChain(cyclic, "a").map((n) => n.userId)).toEqual(["b"]);
+  });
+});
+
+describe("localTeamPeerCount", () => {
+  const node = (userId: string, local: string | undefined): OrgNode => ({
+    userId,
+    firstName: userId,
+    lastName: "x",
+    title: undefined,
+    functionalManagerUserId: undefined,
+    localManagerUserId: local,
+  });
+
+  test("counts other org nodes on the same local line", () => {
+    const nodes = [node("solo", "mgr"), node("a", "mgr"), node("b", "mgr"), node("c", "other")];
+    expect(localTeamPeerCount(nodes, "solo")).toBe(2);
+    expect(localTeamPeerCount(nodes, "a")).toBe(2);
+    expect(localTeamPeerCount(nodes, "c")).toBe(0);
+  });
+
+  test("returns 0 when the subject has no local manager", () => {
+    expect(localTeamPeerCount([node("a", undefined)], "a")).toBe(0);
+  });
+});
+
+describe("listOrgTree", () => {
+  test("maps functional and local manager ids (null -> undefined)", async () => {
+    const orgResponse = [
+      {
+        user_id: "u1",
+        first_name: "Marie",
+        last_name: "Curie",
+        title: "Director",
+        functional_manager_user_id: "u2",
+        local_manager_user_id: "u3",
+      },
+    ];
+    const fetchImpl = (async () =>
+      new Response(JSON.stringify(orgResponse), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })) as unknown as typeof fetch;
+    const { listOrgTree } = await import("./client.ts");
+    const nodes = await listOrgTree({ env: { INSIDE_API_KEY: "secret" }, fetchImpl });
+    expect(nodes[0]).toMatchObject({
+      userId: "u1",
+      functionalManagerUserId: "u2",
+      localManagerUserId: "u3",
+    });
   });
 });

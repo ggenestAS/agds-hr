@@ -4,6 +4,7 @@ import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { ConflictError, NotFoundError, UserId } from "@agds-hr/shared";
 
+import { getEmployeeByEmail } from "./dal.ts";
 import { reviewCase, reviewSignoff } from "./db/schema.ts";
 import {
   APPEAL_WINDOW_DAYS,
@@ -12,6 +13,7 @@ import {
   isP6Triggered,
   isReviewRating,
   isReviewState,
+  participatesInReview,
   type ReviewCase,
   type ReviewRating,
   type ReviewState,
@@ -92,6 +94,11 @@ export async function listRatingsForCycle(
 }
 
 // Open (or return the existing) case for a person in a cycle. Idempotent.
+// Participation is gated HERE, in the DAL, so every entry point (the reviewer's
+// open button, the subject's self-review auto-open) hits the same mechanism
+// (ADR 2026-07-03-employment-types-and-review-participation). A person with no
+// employee record reads as the default `employee` type — participating — so
+// the gate only bites once HR has marked someone as an exception.
 export async function openCase(
   db: DrizzleDb,
   subjectEmail: string,
@@ -102,6 +109,13 @@ export async function openCase(
     const existing = await getCaseBySubject(tx, subjectEmail, cyclePeriod);
     if (existing !== undefined) {
       return existing;
+    }
+    const attrs = await getEmployeeByEmail(tx, subjectEmail);
+    if (
+      attrs !== undefined &&
+      !participatesInReview(attrs.employmentType, attrs.reviewParticipationOverride)
+    ) {
+      throw new ConflictError(`not_in_review_cycle: ${subjectEmail} (${attrs.employmentType})`);
     }
     const [row] = await tx
       .insert(reviewCase)

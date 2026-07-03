@@ -3,6 +3,7 @@ export {
   isInsideConfigured,
   listAdminDirectory,
   listOrgTree,
+  localTeamPeerCount,
   managementChain,
 } from "./client.ts";
 export type { InsideAdmin, ListAdminDirectoryOptions, OrgNode } from "./client.ts";

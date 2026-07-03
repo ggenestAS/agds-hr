@@ -15,8 +15,8 @@ import {
 
 // Peer input (design M5): all input is NAMED — never anonymous, never shown to
 // the person being reviewed. Requestees answer five dimensions; reviewers pick
-// requestees and watch the LT quota gate (2 LT + 2 own-team before the case
-// may advance to assessment).
+// requestees and watch the quota gate (2 cross-team + own-team scaled to local
+// team size before the case may advance to assessment).
 export const Route = createFileRoute("/_app/peer-input")({
   loader: () => peerPageFn(),
   component: PeerInputPage,
@@ -256,9 +256,10 @@ function PeerInputPage() {
               <CardHeader>
                 <CardTitle>Request peer input</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Pick colleagues who have seen the work firsthand. For an LT member you need at
-                  least <strong>2 LT peers and 2 own-team</strong> reviewers; cross-team input is
-                  optional.
+                  Pick colleagues who have seen the work firsthand. You need at least{" "}
+                  <strong>2 cross-team</strong> and <strong>2 own-team</strong> reviewers — own-team
+                  drops to <strong>1</strong> or <strong>0</strong> when the subject&apos;s local
+                  team has fewer than two other members.
                 </p>
               </CardHeader>
               <CardContent className="space-y-4 text-sm">
@@ -288,24 +289,28 @@ function PeerInputPage() {
                     {selectedCase !== undefined && (
                       <>
                         <div className="flex flex-wrap items-center gap-2">
-                          {(["lt", "team"] as const).map((kind) => {
-                            const submitted = selectedCase.requests.filter(
-                              (request) => request.kind === kind && request.status === "submitted",
-                            ).length;
-                            const ok = submitted >= 2;
-                            return (
-                              <span
-                                key={kind}
-                                className={
-                                  ok
-                                    ? "rounded-full bg-[#e4f1e9] px-3 py-1 text-[11.5px] font-bold text-[#1e7a46]"
-                                    : "rounded-full bg-[var(--color-blush)] px-3 py-1 text-[11.5px] font-bold text-[var(--color-accent-dk)]"
-                                }
-                              >
-                                {KIND_LABEL[kind]} {submitted}/2
-                              </span>
-                            );
-                          })}
+                          {(["cross", "team"] as const)
+                            .filter((kind) => selectedCase.quota[kind] !== undefined)
+                            .map((kind) => {
+                              const needed = selectedCase.quota[kind] ?? 0;
+                              const submitted = selectedCase.requests.filter(
+                                (request) =>
+                                  request.kind === kind && request.status === "submitted",
+                              ).length;
+                              const ok = submitted >= needed;
+                              return (
+                                <span
+                                  key={kind}
+                                  className={
+                                    ok
+                                      ? "rounded-full bg-[#e4f1e9] px-3 py-1 text-[11.5px] font-bold text-[#1e7a46]"
+                                      : "rounded-full bg-[var(--color-blush)] px-3 py-1 text-[11.5px] font-bold text-[var(--color-accent-dk)]"
+                                  }
+                                >
+                                  {KIND_LABEL[kind]} {submitted}/{needed}
+                                </span>
+                              );
+                            })}
                           <span className="text-xs text-muted-foreground">
                             {selectedCase.quotaMet
                               ? "Quota met — the case may advance to assessment."

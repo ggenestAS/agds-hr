@@ -13,7 +13,7 @@ const hydrated = (id: UserId, overrides: Partial<HydratedUser> = {}): HydratedUs
   id,
   email: `${id}@albertschool.com`,
   roles: ["staff"],
-  relationships: { reportsTo: [], manages: [] },
+  relationships: { reportsTo: [], manages: [], localReportsTo: [], localManages: [] },
   deactivatedAt: null,
   ...overrides,
 });

@@ -6,6 +6,8 @@ import type { RequestId, UserId, UserRole } from "@agds-hr/shared";
 export type UserRelationships = {
   readonly reportsTo: readonly UserId[];
   readonly manages: readonly UserId[];
+  readonly localReportsTo: readonly UserId[];
+  readonly localManages: readonly UserId[];
 };
 
 export type User = {

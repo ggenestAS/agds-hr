@@ -21,6 +21,7 @@ export type InsideAdmin = {
   readonly campus: string | undefined;
   readonly country: string | undefined;
   readonly functionalManagerName: string | undefined;
+  readonly localManagerName: string | undefined;
   readonly active: boolean;
 };
 
@@ -33,6 +34,7 @@ type RawUser = {
   readonly campus_name?: string | null;
   readonly country?: string | null;
   readonly functional_manager_name?: string | null;
+  readonly local_manager_name?: string | null;
   readonly active?: boolean;
 };
 
@@ -72,6 +74,7 @@ export async function listAdminDirectory(
     campus: raw.campus_name ?? undefined,
     country: raw.country ?? undefined,
     functionalManagerName: raw.functional_manager_name ?? undefined,
+    localManagerName: raw.local_manager_name ?? undefined,
     active: raw.active ?? true,
   }));
 }
@@ -85,6 +88,7 @@ export type OrgNode = {
   readonly lastName: string;
   readonly title: string | undefined;
   readonly functionalManagerUserId: string | undefined;
+  readonly localManagerUserId: string | undefined;
 };
 
 type RawOrgNode = {
@@ -93,6 +97,7 @@ type RawOrgNode = {
   readonly last_name: string;
   readonly title?: string | null;
   readonly functional_manager_user_id?: string | null;
+  readonly local_manager_user_id?: string | null;
 };
 
 export async function listOrgTree(
@@ -119,6 +124,7 @@ export async function listOrgTree(
     lastName: raw.last_name,
     title: raw.title ?? undefined,
     functionalManagerUserId: raw.functional_manager_user_id ?? undefined,
+    localManagerUserId: raw.local_manager_user_id ?? undefined,
   }));
 }
 
@@ -140,4 +146,15 @@ export function managementChain(nodes: readonly OrgNode[], userId: string): read
     next = node.functionalManagerUserId;
   }
   return chain;
+}
+
+// Pure: how many other org nodes share the subject's local manager — the pool
+// for "own-team" peer input. No local manager → 0 (solo on the local line).
+export function localTeamPeerCount(nodes: readonly OrgNode[], userId: string): number {
+  const managerId = nodes.find((node) => node.userId === userId)?.localManagerUserId;
+  if (managerId === undefined) {
+    return 0;
+  }
+  return nodes.filter((node) => node.userId !== userId && node.localManagerUserId === managerId)
+    .length;
 }

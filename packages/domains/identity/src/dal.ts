@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import { user } from "@agds-hr/auth/db/schema";
@@ -7,7 +7,7 @@ import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { UserId, type UserRole } from "@agds-hr/shared";
 
 import { impersonationSession, userRelationship, userRole } from "./db/schema.ts";
-import { REPORTS_TO, type DirectoryUser } from "./types.ts";
+import { LOCAL_REPORTS_TO, REPORTS_TO, type DirectoryUser } from "./types.ts";
 
 // Reads are executor-agnostic and carry no audit context; mutations own their
 // transaction and take AuditContext last (docs/new-project-directives.md §8.1).
@@ -52,6 +52,16 @@ export async function hydrateUser(
     .select({ userId: userRelationship.userId })
     .from(userRelationship)
     .where(and(eq(userRelationship.relatedUserId, userId), eq(userRelationship.kind, REPORTS_TO)));
+  const localReportsToRows = await db
+    .select({ relatedUserId: userRelationship.relatedUserId })
+    .from(userRelationship)
+    .where(and(eq(userRelationship.userId, userId), eq(userRelationship.kind, LOCAL_REPORTS_TO)));
+  const localManagesRows = await db
+    .select({ userId: userRelationship.userId })
+    .from(userRelationship)
+    .where(
+      and(eq(userRelationship.relatedUserId, userId), eq(userRelationship.kind, LOCAL_REPORTS_TO)),
+    );
 
   return {
     id: UserId(row.id),
@@ -60,6 +70,8 @@ export async function hydrateUser(
     relationships: {
       reportsTo: reportsToRows.map((edge) => UserId(edge.relatedUserId)),
       manages: managesRows.map((edge) => UserId(edge.userId)),
+      localReportsTo: localReportsToRows.map((edge) => UserId(edge.relatedUserId)),
+      localManages: localManagesRows.map((edge) => UserId(edge.userId)),
     },
     deactivatedAt: row.deactivatedAt,
   };
@@ -78,6 +90,54 @@ export async function readActiveImpersonation(
 }
 
 export type ListUsersFilter = { readonly includeDeactivated?: boolean; readonly limit?: number };
+
+export type ReportingLineEdge = {
+  readonly userId: UserId;
+  readonly managerUserId: UserId;
+  readonly kind: typeof REPORTS_TO | typeof LOCAL_REPORTS_TO;
+};
+
+const SYNCED_REPORTING_LINE_KINDS = [REPORTS_TO, LOCAL_REPORTS_TO] as const;
+
+// Replace Inside-sourced reporting lines wholesale. Inside is the source of
+// truth for both functional (`reports_to`) and local (`local_reports_to`) chains;
+// the sync deletes prior rows of those kinds before inserting the new set.
+export async function syncReportingLines(
+  db: DrizzleDb,
+  edges: readonly ReportingLineEdge[],
+  context: AuditContext,
+): Promise<{ readonly inserted: number; readonly removed: number }> {
+  return db.transaction(async (tx) => {
+    const removed = await tx
+      .delete(userRelationship)
+      .where(inArray(userRelationship.kind, [...SYNCED_REPORTING_LINE_KINDS]))
+      .returning({ id: userRelationship.id });
+    if (edges.length > 0) {
+      await tx.insert(userRelationship).values(
+        edges.map((edge) => ({
+          userId: edge.userId,
+          relatedUserId: edge.managerUserId,
+          kind: edge.kind,
+        })),
+      );
+    }
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "identity",
+      eventType: "identity.reporting_lines.synced",
+      resourceId: context.actorUserId,
+      payload: {
+        inserted: edges.length,
+        removed: removed.length,
+        kinds: [...SYNCED_REPORTING_LINE_KINDS],
+      },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+    return { inserted: edges.length, removed: removed.length };
+  });
+}
 
 // Admin-connection only (reads auth.user.email — see hydrateUser).
 export async function listUsers(

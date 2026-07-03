@@ -17,7 +17,7 @@ const userWith = (roles: readonly UserRole[], id: UserId = SELF): User => ({
   id,
   email: "person@albertschool.com",
   roles,
-  relationships: { reportsTo: [], manages: [] },
+  relationships: { reportsTo: [], manages: [], localReportsTo: [], localManages: [] },
 });
 
 describe("identity policies", () => {

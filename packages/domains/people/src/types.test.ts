@@ -9,15 +9,22 @@ import {
   canSubmitAssessment,
   canSeeAppeal,
   canTransition,
+  EMPLOYMENT_TYPES,
   isAppealCategory,
   isCareerLevel,
   isCareerPath,
+  isEmploymentType,
   isPeerQuotaMet,
   isDecisionComplete,
   isP6Triggered,
+  isReviewParticipationOverride,
   isReviewRating,
   isReviewState,
+  isSalaryBandApplicable,
   meritIncreaseBp,
+  ownTeamPeerQuota,
+  participatesInReview,
+  peerInputQuota,
 } from "./types.ts";
 
 describe("job architecture tuples", () => {
@@ -31,6 +38,36 @@ describe("job architecture tuples", () => {
     expect(isCareerLevel("P5")).toBe(false);
     expect(isCareerPath("manager")).toBe(true);
     expect(isCareerPath("director")).toBe(false);
+  });
+});
+
+describe("employment types", () => {
+  test("guards accept members and reject non-members", () => {
+    expect(isEmploymentType("freelance")).toBe(true);
+    expect(isEmploymentType("contractor")).toBe(false);
+    expect(isReviewParticipationOverride("excluded")).toBe(true);
+    expect(isReviewParticipationOverride("maybe")).toBe(false);
+  });
+
+  test("only salaried employees are band-governed (ADR: derived, not stored)", () => {
+    expect(isSalaryBandApplicable("employee")).toBe(true);
+    for (const type of EMPLOYMENT_TYPES.filter((entry) => entry !== "employee")) {
+      expect(isSalaryBandApplicable(type)).toBe(false);
+    }
+  });
+
+  test("review participation: employee-only by default, everyone else opt-in", () => {
+    expect(participatesInReview("employee", null)).toBe(true);
+    expect(participatesInReview("apprentice", null)).toBe(false);
+    expect(participatesInReview("vie", null)).toBe(false);
+    expect(participatesInReview("intern", null)).toBe(false);
+    expect(participatesInReview("freelance", null)).toBe(false);
+  });
+
+  test("the override wins over the type default, in both directions", () => {
+    expect(participatesInReview("freelance", "included")).toBe(true);
+    expect(participatesInReview("employee", "excluded")).toBe(false);
+    expect(participatesInReview("intern", "included")).toBe(true);
   });
 });
 
@@ -131,26 +168,52 @@ describe("assessment gate", () => {
 });
 
 describe("peer input", () => {
-  test("LT quota needs 2 submitted LT + 2 submitted own-team; declines don't count", () => {
+  test("quota needs 2 submitted cross-team + own-team scaled to local team size; declines don't count", () => {
     const submitted = (kind: "lt" | "team" | "cross") => ({ kind, status: "submitted" as const });
     const declined = (kind: "lt" | "team" | "cross") => ({ kind, status: "declined" as const });
+    const fullTeam = peerInputQuota(2);
     expect(
-      isPeerQuotaMet([submitted("lt"), submitted("lt"), submitted("team"), submitted("team")]),
+      isPeerQuotaMet(
+        [submitted("cross"), submitted("cross"), submitted("team"), submitted("team")],
+        fullTeam,
+      ),
     ).toBe(true);
     expect(
-      isPeerQuotaMet([submitted("lt"), declined("lt"), submitted("team"), submitted("team")]),
+      isPeerQuotaMet(
+        [submitted("cross"), declined("cross"), submitted("team"), submitted("team")],
+        fullTeam,
+      ),
     ).toBe(false);
-    expect(isPeerQuotaMet([])).toBe(false);
-    // cross-team input is optional — it neither helps nor blocks
+    expect(isPeerQuotaMet([], fullTeam)).toBe(false);
+    // LT-tagged input is optional — it neither helps nor blocks
     expect(
-      isPeerQuotaMet([
-        submitted("lt"),
-        submitted("lt"),
-        submitted("team"),
-        submitted("team"),
-        declined("cross"),
-      ]),
+      isPeerQuotaMet(
+        [
+          submitted("cross"),
+          submitted("cross"),
+          submitted("team"),
+          submitted("team"),
+          declined("lt"),
+        ],
+        fullTeam,
+      ),
     ).toBe(true);
+    const soloTeam = peerInputQuota(0);
+    expect(isPeerQuotaMet([submitted("cross"), submitted("cross")], soloTeam)).toBe(true);
+    expect(
+      isPeerQuotaMet([submitted("cross"), submitted("team"), submitted("team")], soloTeam),
+    ).toBe(false);
+    const pairTeam = peerInputQuota(1);
+    expect(
+      isPeerQuotaMet([submitted("cross"), submitted("cross"), submitted("team")], pairTeam),
+    ).toBe(true);
+  });
+
+  test("ownTeamPeerQuota caps at two and scales down for small local teams", () => {
+    expect(ownTeamPeerQuota(0)).toBe(0);
+    expect(ownTeamPeerQuota(1)).toBe(1);
+    expect(ownTeamPeerQuota(2)).toBe(2);
+    expect(ownTeamPeerQuota(5)).toBe(2);
   });
 });
 

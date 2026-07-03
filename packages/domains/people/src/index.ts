@@ -85,7 +85,7 @@ export {
   listPeerRequestsForRequestee,
   submitPeerInput,
 } from "./peer-input.ts";
-export { PEER_QUOTA, isPeerQuotaMet } from "./types.ts";
+export { PEER_CROSS_QUOTA, isPeerQuotaMet, ownTeamPeerQuota, peerInputQuota } from "./types.ts";
 export {
   EVALUATION_DIMENSIONS,
   EVALUATION_DIMENSION_LABELS,

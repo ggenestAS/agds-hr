@@ -10,7 +10,7 @@ const userWith = (roles: readonly UserRole[]): User => ({
   id: UserId("00000000-0000-4000-8000-000000000001"),
   email: "person@albertschool.com",
   roles,
-  relationships: { reportsTo: [], manages: [] },
+  relationships: { reportsTo: [], manages: [], localReportsTo: [], localManages: [] },
 });
 
 afterEach(() => {

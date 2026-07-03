@@ -20,13 +20,35 @@ describe.skipIf(!sentinelSet)("[integration] people employee attributes", () => 
       requestId: RequestId(crypto.randomUUID()),
     };
 
-    await upsertEmployeeByEmail(db, { email, level: "L2", path: "ic" }, ctx);
+    await upsertEmployeeByEmail(
+      db,
+      {
+        email,
+        level: "L2",
+        path: "ic",
+        employmentType: "employee",
+        reviewParticipationOverride: null,
+      },
+      ctx,
+    );
     expect((await getEmployeeByEmail(db, email))?.level).toBe("L2");
 
-    await upsertEmployeeByEmail(db, { email, level: "L3", path: "manager" }, ctx);
+    await upsertEmployeeByEmail(
+      db,
+      {
+        email,
+        level: "L3",
+        path: "manager",
+        employmentType: "freelance",
+        reviewParticipationOverride: "included",
+      },
+      ctx,
+    );
     const updated = await getEmployeeByEmail(db, email);
     expect(updated?.level).toBe("L3");
     expect(updated?.path).toBe("manager");
+    expect(updated?.employmentType).toBe("freelance");
+    expect(updated?.reviewParticipationOverride).toBe("included");
 
     expect((await listEmployeeAttrs(db)).some((attrs) => attrs.email === email)).toBe(true);
   });

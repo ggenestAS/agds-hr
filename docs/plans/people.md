@@ -145,9 +145,9 @@ All 13 views of the imported design are implemented, wired to real data:
 - L — peer input: `peer_request` table (named, one per requestee per case,
   decline-with-reason); `/peer-input` with requestee answer/decline flows and
   the reviewer panel (case chips, quota pills, requestee picker, submitted
-  input — the actor's own case structurally excluded). The LT gate
-  (`isPeerQuotaMet`: 2 LT + 2 own-team SUBMITTED) blocks
-  peer_input → manager_assessment in the advance handler.
+  input — the actor's own case structurally excluded). The peer-input gate
+  (`isPeerQuotaMet`: 2 cross-team + own-team scaled to local team size,
+  SUBMITTED) blocks peer_input → manager_assessment in the advance handler.
 - M — assessment: `assessment` table (per-dimension score/narrative/evidence,
   proposed rating, promo flag, comp TYPE, P6 ack); `/assessment` with the
   evidence-gated submit (pure `canSubmitAssessment`, enforced in the DAL);

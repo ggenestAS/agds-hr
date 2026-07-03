@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { getDbAs } from "@agds-hr/db";
 import { RequestId, UserId } from "@agds-hr/shared";
 
+import { upsertEmployeeByEmail } from "./dal.ts";
 import {
   advanceCase,
   getCaseBySubject,
@@ -41,5 +42,43 @@ describe.skipIf(!sentinelSet)("[integration] review cases", () => {
     expect(advanceCase(db, opened.id, "self_review", ctx)).rejects.toThrow(
       "invalid_review_transition",
     );
+  });
+
+  test("openCase fails closed for non-participants; the override opts them back in", async () => {
+    const db = getDbAs("admin");
+    const actor = UserId(crypto.randomUUID());
+    const ctx = {
+      actorUserId: actor,
+      subjectUserId: actor,
+      requestId: RequestId(crypto.randomUUID()),
+    };
+
+    const excluded = `frl-${crypto.randomUUID()}@albertschool.com`;
+    await upsertEmployeeByEmail(
+      db,
+      {
+        email: excluded,
+        level: "L2",
+        path: "ic",
+        employmentType: "freelance",
+        reviewParticipationOverride: null,
+      },
+      ctx,
+    );
+    expect(openCase(db, excluded, "2026", ctx)).rejects.toThrow("not_in_review_cycle");
+
+    const optedIn = `frl-in-${crypto.randomUUID()}@albertschool.com`;
+    await upsertEmployeeByEmail(
+      db,
+      {
+        email: optedIn,
+        level: "L2",
+        path: "ic",
+        employmentType: "freelance",
+        reviewParticipationOverride: "included",
+      },
+      ctx,
+    );
+    expect((await openCase(db, optedIn, "2026", ctx)).state).toBe("self_review");
   });
 });

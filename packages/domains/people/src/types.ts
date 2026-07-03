@@ -267,15 +267,27 @@ export type PeerKind = (typeof PEER_KINDS)[number];
 export const PEER_REQUEST_STATUSES = ["pending", "submitted", "declined"] as const;
 export type PeerRequestStatus = (typeof PEER_REQUEST_STATUSES)[number];
 
-// The LT peer-input gate (design M5): at least 2 LT peers + 2 own-team
-// reviewers must have SUBMITTED before a peer_input case may advance to the
-// manager assessment. Enforced at the case level by the advance handler.
-export const PEER_QUOTA: Readonly<Partial<Record<PeerKind, number>>> = { lt: 2, team: 2 };
+// The peer-input gate (design M5): 2 cross-team submissions always; own-team
+// submissions scale with local team size (2 when ≥2 local peers, 1 when 1, 0
+// when solo). Enforced at the case level by the advance handler.
+export const PEER_CROSS_QUOTA = 2;
+
+export function ownTeamPeerQuota(localTeamPeerCount: number): number {
+  return Math.min(2, Math.max(0, localTeamPeerCount));
+}
+
+export function peerInputQuota(
+  localTeamPeerCount: number,
+): Readonly<Partial<Record<PeerKind, number>>> {
+  const team = ownTeamPeerQuota(localTeamPeerCount);
+  return team > 0 ? { cross: PEER_CROSS_QUOTA, team } : { cross: PEER_CROSS_QUOTA };
+}
 
 export function isPeerQuotaMet(
   requests: readonly { readonly kind: PeerKind; readonly status: PeerRequestStatus }[],
+  quota: Readonly<Partial<Record<PeerKind, number>>>,
 ): boolean {
-  return Object.entries(PEER_QUOTA).every(([kind, needed]) => {
+  return Object.entries(quota).every(([kind, needed]) => {
     const submitted = requests.filter(
       (request) => request.kind === kind && request.status === "submitted",
     ).length;

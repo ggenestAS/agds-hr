@@ -4,7 +4,12 @@ import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 
 import { employee } from "./db/schema.ts";
-import type { CareerLevel, CareerPath } from "./types.ts";
+import type {
+  CareerLevel,
+  CareerPath,
+  EmploymentType,
+  ReviewParticipationOverride,
+} from "./types.ts";
 
 // agds-hr-native attributes attach to a person by verified school email (the
 // directory roster comes from Inside). Reads are executor-agnostic; the mutation
@@ -13,14 +18,20 @@ export type EmployeeAttrs = {
   readonly email: string;
   readonly level: CareerLevel;
   readonly path: CareerPath;
+  readonly employmentType: EmploymentType;
+  readonly reviewParticipationOverride: ReviewParticipationOverride | null;
+};
+
+const ATTRS_SELECT = {
+  email: employee.email,
+  level: employee.level,
+  path: employee.path,
+  employmentType: employee.employmentType,
+  reviewParticipationOverride: employee.reviewParticipationOverride,
 };
 
 export async function listEmployeeAttrs(db: DrizzleExecutor): Promise<readonly EmployeeAttrs[]> {
-  const rows = await db
-    .select({ email: employee.email, level: employee.level, path: employee.path })
-    .from(employee)
-    .where(isNull(employee.deletedAt));
-  return rows.map((row) => ({ email: row.email, level: row.level, path: row.path }));
+  return db.select(ATTRS_SELECT).from(employee).where(isNull(employee.deletedAt));
 }
 
 export async function getEmployeeByEmail(
@@ -28,17 +39,19 @@ export async function getEmployeeByEmail(
   email: string,
 ): Promise<EmployeeAttrs | undefined> {
   const [row] = await db
-    .select({ email: employee.email, level: employee.level, path: employee.path })
+    .select(ATTRS_SELECT)
     .from(employee)
     .where(and(eq(employee.email, email), isNull(employee.deletedAt)))
     .limit(1);
-  return row === undefined ? undefined : { email: row.email, level: row.level, path: row.path };
+  return row;
 }
 
 export type UpsertEmployeeInput = {
   readonly email: string;
   readonly level: CareerLevel;
   readonly path: CareerPath;
+  readonly employmentType: EmploymentType;
+  readonly reviewParticipationOverride: ReviewParticipationOverride | null;
   readonly insideUserId?: string;
 };
 
@@ -57,12 +70,20 @@ export async function upsertEmployeeByEmail(
         email: input.email,
         level: input.level,
         path: input.path,
+        employmentType: input.employmentType,
+        reviewParticipationOverride: input.reviewParticipationOverride,
         insideUserId: input.insideUserId ?? null,
       })
       .onConflictDoUpdate({
         target: employee.email,
         targetWhere: sql`${employee.deletedAt} is null`,
-        set: { level: input.level, path: input.path, insideUserId: input.insideUserId ?? null },
+        set: {
+          level: input.level,
+          path: input.path,
+          employmentType: input.employmentType,
+          reviewParticipationOverride: input.reviewParticipationOverride,
+          insideUserId: input.insideUserId ?? null,
+        },
       });
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
@@ -70,7 +91,12 @@ export async function upsertEmployeeByEmail(
       domain: "people",
       eventType: "people.employee.attributes_set",
       resourceId: input.email,
-      payload: { level: input.level, path: input.path },
+      payload: {
+        level: input.level,
+        path: input.path,
+        employmentType: input.employmentType,
+        reviewParticipationOverride: input.reviewParticipationOverride,
+      },
       requestId: context.requestId,
       ...(context.ip ? { ip: context.ip } : {}),
     });

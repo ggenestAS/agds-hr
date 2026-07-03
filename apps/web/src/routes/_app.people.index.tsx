@@ -1,6 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { CAREER_LEVEL_META, REVIEW_RATING_LABELS, isReviewRating } from "@agds-hr/people/types";
+import {
+  CAREER_LEVEL_META,
+  EMPLOYMENT_TYPE_LABELS,
+  REVIEW_RATING_LABELS,
+  isReviewRating,
+} from "@agds-hr/people/types";
 
 import { Card, CardContent } from "../components/ui/card.tsx";
 import type { DirectoryEntry } from "../server/people.shared.ts";
@@ -80,7 +85,8 @@ function People() {
                   <th className="px-5 py-3.5 font-semibold">Person</th>
                   <th className="px-5 py-3.5 font-semibold">Level · Path</th>
                   <th className="px-5 py-3.5 font-semibold">Country</th>
-                  <th className="px-5 py-3.5 font-semibold">Reports to</th>
+                  <th className="px-5 py-3.5 font-semibold">Functional manager</th>
+                  <th className="px-5 py-3.5 font-semibold">Local manager</th>
                   <th className="px-5 py-3.5 font-semibold">Rating</th>
                 </tr>
               </thead>
@@ -97,6 +103,9 @@ function People() {
                       </Link>
                       <div className="text-xs text-muted-foreground">
                         {row.title ?? row.email}
+                        {row.employmentType !== undefined &&
+                          row.employmentType !== "employee" &&
+                          ` · ${EMPLOYMENT_TYPE_LABELS[row.employmentType]}`}
                         {!row.active && " · inactive"}
                       </div>
                     </td>
@@ -126,7 +135,8 @@ function People() {
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-3.5">{row.managerName ?? "—"}</td>
+                    <td className="px-5 py-3.5">{row.functionalManagerName ?? "—"}</td>
+                    <td className="px-5 py-3.5">{row.localManagerName ?? "—"}</td>
                     <td className="px-5 py-3.5">
                       {row.rating !== undefined && isReviewRating(row.rating) ? (
                         <span

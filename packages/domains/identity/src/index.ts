@@ -1,6 +1,6 @@
-export { REPORTS_TO } from "./types.ts";
+export { REPORTS_TO, LOCAL_REPORTS_TO } from "./types.ts";
 export type { DirectoryUser } from "./types.ts";
-export type { ListUsersFilter } from "./dal.ts";
+export type { ListUsersFilter, ReportingLineEdge } from "./dal.ts";
 export {
   deactivateUser,
   ensureUserByEmail,
@@ -12,6 +12,7 @@ export {
   revokeRole,
   startImpersonation,
   stopImpersonation,
+  syncReportingLines,
 } from "./dal.ts";
 export {
   canDeactivateUser,

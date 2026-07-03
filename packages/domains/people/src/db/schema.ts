@@ -18,8 +18,10 @@ import {
   APPEAL_STATUSES,
   CAREER_LEVELS,
   CAREER_PATHS,
+  EMPLOYMENT_TYPES,
   PEER_KINDS,
   PEER_REQUEST_STATUSES,
+  REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_STATES,
 } from "../types.ts";
 
@@ -30,6 +32,11 @@ export const peopleSchema = pgSchema("people");
 
 export const careerLevelEnum = peopleSchema.enum("career_level", CAREER_LEVELS);
 export const careerPathEnum = peopleSchema.enum("career_path", CAREER_PATHS);
+export const employmentTypeEnum = peopleSchema.enum("employment_type", EMPLOYMENT_TYPES);
+export const reviewParticipationEnum = peopleSchema.enum(
+  "review_participation",
+  REVIEW_PARTICIPATION_OVERRIDES,
+);
 
 export const employee = peopleSchema.table(
   "employee",
@@ -44,6 +51,14 @@ export const employee = peopleSchema.table(
     userId: uuid("user_id").references(() => user.id, { onDelete: "set null" }),
     level: careerLevelEnum("level").notNull(),
     path: careerPathEnum("path").notNull(),
+    // Employment type drives the DERIVED band/review policies (ADR
+    // 2026-07-03-employment-types-and-review-participation): applicability is
+    // computed from the type, never stored, so it cannot drift. `employee`
+    // default = the dominant population; HR marks the exceptions.
+    employmentType: employmentTypeEnum("employment_type").notNull().default("employee"),
+    // Tri-state review override: null follows the type default. Only ever set
+    // for genuine exceptions (today: freelancers who are still reviewed).
+    reviewParticipationOverride: reviewParticipationEnum("review_participation_override"),
     // Inside is the source for country/role_family on the directory; kept
     // nullable here for the agds-hr-native path.
     country: text("country"),

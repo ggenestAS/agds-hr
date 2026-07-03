@@ -32,7 +32,8 @@ export type DirectoryEntry = {
   readonly title: string | undefined;
   readonly campus: string | undefined;
   readonly country: string | undefined;
-  readonly managerName: string | undefined;
+  readonly functionalManagerName: string | undefined;
+  readonly localManagerName: string | undefined;
   readonly active: boolean;
   readonly level: CareerLevel | undefined;
   readonly path: CareerPath | undefined;
@@ -550,6 +551,7 @@ export type PeerCaseView = {
   readonly subjectEmail: string;
   readonly subjectName: string | undefined;
   readonly state: ReviewState;
+  readonly quota: Readonly<Partial<Record<PeerKind, number>>>;
   readonly quotaMet: boolean;
   readonly requests: readonly PeerRequestView[];
   // The subject's own suggestion from their self-review (sr_peers) — a hint
