@@ -22,23 +22,59 @@ const RATING_BAR: Record<(typeof RATINGS)[number], string> = {
   1: "bg-[var(--color-accent)]",
 };
 
+// The optimized cycle (2026-07-03): budget constraints are set BEFORE reviews
+// begin, calibration happens BEFORE outcomes are communicated, and the annual
+// review conversation carries the confirmed outcome plus next-year objectives.
 const CYCLE_STEPS = [
-  { title: "Mid-year check-in", when: "Jan–Feb", note: "priorities & feedback" },
-  { title: "Self-review", when: "July", note: "input, not the rating" },
-  { title: "Manager review", when: "July", note: "evidence-based assessment" },
-  { title: "Calibration", when: "Aug", note: "CEO, COO & managers" },
-  { title: "Effective", when: "September", note: "raises, bonuses, promotions" },
+  {
+    title: "Mid-year check-in",
+    when: "Jan–Feb",
+    note: "priorities, trajectory, feedback, course correction",
+  },
+  {
+    title: "Budget planning",
+    when: "June",
+    note: "compensation budget, promotion envelope, bonus pool & headcount constraints defined",
+  },
+  {
+    title: "Self-review & peer input",
+    when: "Late June",
+    note: "evidence collection, not ratings",
+  },
+  {
+    title: "Manager review preparation",
+    when: "Early July",
+    note: "evidence-based assessments; proposed rating / level / compensation, subject to calibration",
+  },
+  {
+    title: "Calibration",
+    when: "Early July, after manager preparation",
+    note: "CEO, COO & managers align standards, ratings, levels, promotions & compensation before outcomes are communicated",
+  },
+  {
+    title: "Annual review & objective setting",
+    when: "July–August",
+    note: "final feedback, confirmed rating / level, promotion if relevant, development priorities, next-year objectives & success metrics",
+  },
+  {
+    title: "Effective date",
+    when: "September",
+    note: "raises, bonuses & promotions become effective",
+  },
 ] as const;
 
 // Where each review state sits on the personal timeline (0-based step index).
+// A case in self_review/peer_input sits at step 2 (Self-review & peer input);
+// decision = awaiting sign-off & communication (step 5); delivered cases point
+// at the effective date.
 const STATE_STEP: Record<ReviewState, number> = {
-  self_review: 1,
-  peer_input: 1,
-  manager_assessment: 2,
-  calibration: 3,
-  decision: 3,
-  appeal: 4,
-  closed: 4,
+  self_review: 2,
+  peer_input: 2,
+  manager_assessment: 3,
+  calibration: 4,
+  decision: 5,
+  appeal: 6,
+  closed: 6,
 };
 
 function Overview() {
@@ -47,7 +83,7 @@ function Overview() {
     1,
     RATINGS.reduce((sum, rating) => sum + data.distribution[rating], 0),
   );
-  const activeStep = data.myCase === undefined ? 1 : STATE_STEP[data.myCase.state];
+  const activeStep = data.myCase === undefined ? 2 : STATE_STEP[data.myCase.state];
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -79,8 +115,9 @@ function Overview() {
           <CardHeader>
             <CardTitle>The {data.cycle} cycle</CardTitle>
             <p className="text-sm text-muted-foreground">
-              One annual review in July–August · decisions effective September · mid-year check-in
-              in January.
+              Budget constraints set in June, before reviews begin · calibration before outcomes are
+              communicated · one annual review in July–August · effective September · mid-year
+              check-in in January–February.
             </p>
           </CardHeader>
           <CardContent>

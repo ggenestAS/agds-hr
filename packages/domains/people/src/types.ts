@@ -14,6 +14,54 @@ export type CareerPath = (typeof CAREER_PATHS)[number];
 export const isCareerPath = (value: string): value is CareerPath =>
   (CAREER_PATHS as readonly string[]).includes(value);
 
+// Employment types (2026-07-03-employment-types-and-review-participation.md).
+// A closed set: the contract forms Albert actually hires under. `employee` is
+// salaried CDI/CDD — the default, and the only band-governed type.
+export const EMPLOYMENT_TYPES = ["employee", "apprentice", "vie", "intern", "freelance"] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+export const isEmploymentType = (value: string): value is EmploymentType =>
+  (EMPLOYMENT_TYPES as readonly string[]).includes(value);
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  employee: "Employee (CDI/CDD)",
+  apprentice: "Apprentice",
+  vie: "VIE",
+  intern: "Intern",
+  freelance: "Freelance",
+};
+
+// Per-person review-participation override. `null` (no override) follows the
+// type default. Named after the policy it controls, not a population: today the
+// convention is that it is only set for freelancers, but the mechanism is
+// population-agnostic (ADR).
+export const REVIEW_PARTICIPATION_OVERRIDES = ["included", "excluded"] as const;
+export type ReviewParticipationOverride = (typeof REVIEW_PARTICIPATION_OVERRIDES)[number];
+export const isReviewParticipationOverride = (
+  value: string,
+): value is ReviewParticipationOverride =>
+  (REVIEW_PARTICIPATION_OVERRIDES as readonly string[]).includes(value);
+
+// Derived policy, not a stored column (it cannot drift from the type): only
+// salaried employees are band-governed. Apprentices, VIE, interns, and
+// freelancers sit outside the bands (freelancers invoice day rates).
+export function isSalaryBandApplicable(type: EmploymentType): boolean {
+  return type === "employee";
+}
+
+// Review-cycle participation: employees by default; everyone else is opt-in
+// via the explicit override. Fail closed — a wrongly-skipped review is visible
+// and recoverable; non-participants polluting managers' review queues erode
+// trust in the cycle (ADR).
+export function participatesInReview(
+  type: EmploymentType,
+  override: ReviewParticipationOverride | null,
+): boolean {
+  if (override !== null) {
+    return override === "included";
+  }
+  return type === "employee";
+}
+
 // Display metadata from the imported design: each level's name and its one-line
 // "test" question, and the four rating labels. Pure presentation — the codes
 // (L1..L4, ratings 1..4) stay the stored values.
@@ -99,8 +147,12 @@ export const REVIEW_RATING_LABELS: Record<ReviewRating, string> = {
   1: "Not at level",
 };
 
-// The single active review cycle (the design's 2026 cycle: one annual review in
-// July–August, decisions effective September, mid-year check-in in January).
+// The single active review cycle. The optimized 2026 shape: mid-year check-in
+// Jan–Feb; budget planning in June (comp budget, promotion envelope, bonus
+// pool, headcount — BEFORE reviews begin); self-review & peer input late June;
+// manager review preparation early July; calibration early July (before any
+// outcome is communicated); annual review & objective setting July–August;
+// effective September.
 export const REVIEW_CURRENT_CYCLE = "2026";
 
 export type ReviewCase = {
