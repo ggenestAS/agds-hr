@@ -321,6 +321,32 @@ export type AssessCaseSummary = {
   readonly state: ReviewState;
 };
 
+// Decision & sign-off (design M8): both founders must sign — two distinct,
+// authenticated confirmations — before the decision summary is delivered.
+export type SignQueueEntry = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly level: CareerLevel | undefined;
+  readonly path: CareerPath | undefined;
+  readonly state: ReviewState;
+  readonly rating: number | undefined;
+  readonly signoffs: readonly string[];
+  readonly signedByMe: boolean;
+  readonly decidedAt: string | undefined;
+  readonly appealUntil: string | undefined;
+  readonly p6Triggered: boolean;
+  readonly compRecType: string;
+  readonly promoProposed: boolean;
+  readonly rationale: string;
+};
+
+export type SignPageView = {
+  readonly canSign: boolean;
+  readonly canViewComp: boolean;
+  readonly queue: readonly SignQueueEntry[];
+};
+
 // The Audit log surface (design P9): append-only trail, leadership-read-only.
 export type AuditLogRow = {
   readonly id: string;

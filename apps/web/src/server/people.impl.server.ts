@@ -72,6 +72,7 @@ import type {
   PersonDetail,
   SelfReviewPayloadInput,
   SelfReviewView,
+  SignPageView,
   SetCompInput,
   SetEmployeeAttrsInput,
 } from "./people.shared.ts";
@@ -651,6 +652,72 @@ export async function assessSubmitHandler(input: AssessmentSaveInput): Promise<{
     );
   }
   return { ok: true };
+}
+
+// Decision & sign-off (design M8). The queue is every case at calibration or
+// later; each entry carries its sign-off emails, the assessment's proposal
+// (rating, comp TYPE, rationale), and the delivery/appeal markers. Comp
+// AMOUNTS stay behind the audited compFn read — the queue never leaks them.
+export async function signQueueHandler(): Promise<SignPageView> {
+  const session = await requireSession("people.review.open");
+  const adminDb = getDbAs("admin");
+  const [cases, admins, users] = await Promise.all([
+    listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    listUsers(adminDb),
+  ]);
+  const nameByEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      `${admin.firstName} ${admin.lastName}`.trim(),
+    ]),
+  );
+  const emailById = new Map(users.map((entry) => [entry.id, entry.email]));
+
+  const inScope = cases.filter(
+    (entry) =>
+      entry.state === "calibration" ||
+      entry.state === "decision" ||
+      entry.state === "appeal" ||
+      entry.state === "closed" ||
+      entry.decided,
+  );
+
+  const queue = await Promise.all(
+    inScope.map(async (entry) => {
+      const [reviewCase, signoffs, attrs, assessment] = await Promise.all([
+        getCaseById(adminDb, entry.caseId),
+        getSignoffs(adminDb, entry.caseId),
+        getEmployeeByEmail(adminDb, entry.subjectEmail.toLowerCase()),
+        getAssessmentByCase(adminDb, entry.caseId),
+      ]);
+      return {
+        caseId: entry.caseId,
+        subjectEmail: entry.subjectEmail,
+        subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
+        level: attrs?.level,
+        path: attrs?.path,
+        state: entry.state,
+        rating: entry.rating,
+        signoffs: signoffs.map(
+          (signoff) => emailById.get(signoff.founderUserId) ?? signoff.founderUserId,
+        ),
+        signedByMe: signoffs.some((signoff) => signoff.founderUserId === session.actor.id),
+        decidedAt: reviewCase?.decidedAt?.toISOString(),
+        appealUntil: reviewCase?.appealUntil?.toISOString(),
+        p6Triggered: reviewCase?.p6Triggered ?? false,
+        compRecType: assessment?.compRec ?? "",
+        promoProposed: assessment?.promoProposed ?? false,
+        rationale: assessment?.narrative ?? "",
+      };
+    }),
+  );
+
+  return {
+    canSign: can(session.subject, "people.decision.sign").allow,
+    canViewComp: can(session.subject, "people.comp.read").allow,
+    queue,
+  };
 }
 
 // The Audit log surface (P9): the append-only trail, newest first, with actor

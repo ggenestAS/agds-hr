@@ -198,3 +198,8 @@ export const assessSubmitFn = createServerFn({ method: "POST" })
     const { assessSubmitHandler } = await import("./people.impl.server.ts");
     return assessSubmitHandler(data);
   });
+
+export const signQueueFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { signQueueHandler } = await import("./people.impl.server.ts");
+  return signQueueHandler();
+});
