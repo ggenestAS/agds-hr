@@ -39,6 +39,7 @@ import type {
   CalibrationSummary,
   CompView,
   DirectoryEntry,
+  OverviewData,
   PersonDetail,
   SetCompInput,
   SetEmployeeAttrsInput,
@@ -275,6 +276,84 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
     }
   }
   return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+}
+
+// The Overview surface (design): reviewers get stat tiles, the calibrated
+// rating distribution, and the needs-a-decision list; everyone gets their own
+// case status. One handler behind the directory-read gate, with the reviewer
+// extras keyed off the review-open policy.
+export async function overviewHandler(): Promise<OverviewData> {
+  const session = await requireSession("people.directory.read");
+  const adminDb = getDbAs("admin");
+  const isReviewer = can(session.subject, "people.review.open").allow;
+
+  const [cases, admins, myCase] = await Promise.all([
+    listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    getCaseBySubject(adminDb, session.actor.email.toLowerCase(), REVIEW_CURRENT_CYCLE),
+  ]);
+
+  const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let delivered = 0;
+  const needsDecision: OverviewData["needsDecision"][number][] = [];
+  const byEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      { userId: admin.userId, name: `${admin.firstName} ${admin.lastName}`.trim() },
+    ]),
+  );
+  for (const entry of cases) {
+    if (entry.rating !== undefined) {
+      distribution[entry.rating] += 1;
+    }
+    if (entry.decided) {
+      delivered += 1;
+    }
+    if ((entry.state === "calibration" || entry.state === "decision") && !entry.decided) {
+      const roster = byEmail.get(entry.subjectEmail.toLowerCase());
+      needsDecision.push({
+        subjectEmail: entry.subjectEmail,
+        name: roster?.name,
+        userId: roster?.userId,
+        rating: entry.rating,
+      });
+    }
+  }
+
+  const openAppeals = isReviewer
+    ? (await listAppeals(adminDb)).filter((appeal) => appeal.status === "open").length
+    : 0;
+
+  return {
+    cycle: REVIEW_CURRENT_CYCLE,
+    isReviewer,
+    stats: isReviewer
+      ? [
+          { label: "People in scope", value: String(admins.length), sub: "Albert Inside roster" },
+          {
+            label: "Review cases",
+            value: `${cases.length}/${admins.length || cases.length}`,
+            sub: `${cases.length - delivered} in progress`,
+          },
+          {
+            label: "Decisions delivered",
+            value: String(delivered),
+            sub: "dual founder sign-off",
+          },
+          { label: "Open appeals", value: String(openAppeals), sub: "30-day window" },
+        ]
+      : [],
+    distribution,
+    needsDecision,
+    myCase:
+      myCase === undefined
+        ? undefined
+        : {
+            state: myCase.state,
+            decidedAt: myCase.decidedAt?.toISOString(),
+            appealUntil: myCase.appealUntil?.toISOString(),
+          },
+  };
 }
 
 // Appeals: the appellant may appeal their OWN delivered decision within the

@@ -23,6 +23,7 @@ function AppLayout() {
   const impersonating = session.subject.id !== session.actor.id;
   return (
     <Frame
+      user={{ email: session.actor.email, roles: session.subject.roles }}
       header={
         <div className="flex items-center gap-3 text-sm">
           <span className="text-muted-foreground">{session.actor.email}</span>

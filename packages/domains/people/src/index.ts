@@ -1,4 +1,11 @@
-export { CAREER_LEVELS, CAREER_PATHS, isCareerLevel, isCareerPath } from "./types.ts";
+export {
+  CAREER_LEVELS,
+  CAREER_LEVEL_META,
+  CAREER_PATHS,
+  isCareerLevel,
+  isCareerPath,
+  REVIEW_RATING_LABELS,
+} from "./types.ts";
 export type { CareerLevel, CareerPath } from "./types.ts";
 export {
   REVIEW_STATES,

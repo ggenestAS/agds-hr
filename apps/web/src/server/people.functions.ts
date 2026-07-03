@@ -97,3 +97,8 @@ export const resolveAppealFn = createServerFn({ method: "POST" })
     const { resolveAppealHandler } = await import("./people.impl.server.ts");
     return resolveAppealHandler(data);
   });
+
+export const overviewFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { overviewHandler } = await import("./people.impl.server.ts");
+  return overviewHandler();
+});

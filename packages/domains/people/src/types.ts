@@ -14,6 +14,16 @@ export type CareerPath = (typeof CAREER_PATHS)[number];
 export const isCareerPath = (value: string): value is CareerPath =>
   (CAREER_PATHS as readonly string[]).includes(value);
 
+// Display metadata from the imported design: each level's name and its one-line
+// "test" question, and the four rating labels. Pure presentation — the codes
+// (L1..L4, ratings 1..4) stay the stored values.
+export const CAREER_LEVEL_META: Record<CareerLevel, { name: string; test: string }> = {
+  L1: { name: "Contributor", test: "Can deliver well with guidance?" },
+  L2: { name: "Owner", test: "Can be trusted end-to-end?" },
+  L3: { name: "Lead", test: "Improves the system, not just tasks?" },
+  L4: { name: "Head / Principal", test: "Builds capability that lets Albert scale?" },
+};
+
 // The annual-review case state machine (the design's flow). A case moves forward
 // through the stages; a delivered decision may be appealed. Rich stage gates
 // (LT peer-input quota, evidence-gated assessment, dual-founder sign-off, the
@@ -80,6 +90,14 @@ export const REVIEW_RATINGS = [1, 2, 3, 4] as const;
 export type ReviewRating = (typeof REVIEW_RATINGS)[number];
 export const isReviewRating = (value: number): value is ReviewRating =>
   (REVIEW_RATINGS as readonly number[]).includes(value);
+
+// Rating display labels from the design (4 Exceptional … 1 Not at level).
+export const REVIEW_RATING_LABELS: Record<ReviewRating, string> = {
+  4: "Exceptional",
+  3: "Strong",
+  2: "Inconsistent",
+  1: "Not at level",
+};
 
 // The single active review cycle (the design's 2026 cycle: one annual review in
 // July–August, decisions effective September, mid-year check-in in January).

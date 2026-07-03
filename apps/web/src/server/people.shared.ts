@@ -130,6 +130,32 @@ export type PersonDetail = {
   readonly canAppeal: boolean;
 };
 
+// The Overview surface (design): stat tiles + rating distribution + attention
+// list for reviewers; everyone gets the cycle timeline and their own status.
+export type OverviewData = {
+  readonly cycle: string;
+  readonly isReviewer: boolean;
+  readonly stats: readonly {
+    readonly label: string;
+    readonly value: string;
+    readonly sub: string;
+  }[];
+  readonly distribution: Readonly<Record<1 | 2 | 3 | 4, number>>;
+  readonly needsDecision: readonly {
+    readonly subjectEmail: string;
+    readonly name: string | undefined;
+    readonly userId: string | undefined;
+    readonly rating: number | undefined;
+  }[];
+  readonly myCase:
+    | {
+        readonly state: ReviewState;
+        readonly decidedAt: string | undefined;
+        readonly appealUntil: string | undefined;
+      }
+    | undefined;
+};
+
 export type CalibrationSummary = {
   readonly cycle: string;
   readonly distribution: Readonly<Record<1 | 2 | 3 | 4, number>>;

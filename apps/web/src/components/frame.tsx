@@ -7,16 +7,38 @@ import { useTheme } from "../lib/use-theme.ts";
 import type { ThemePreference } from "../lib/theme.ts";
 import { devLogoutFn } from "../server/dev-login.functions.ts";
 
-// The authenticated frame (docs/new-project-directives.md §9.4): collapsible nav
-// rail + compact page-header bar wrapping exactly one content shape. Navigation
-// is real <Link> anchors (enforced by check:nav). The body never scrolls — the
-// content pane does.
-const NAV_ITEMS = [
-  { to: "/people", label: "People" },
-  { to: "/calibration", label: "Calibration" },
-  { to: "/appeals", label: "Appeals" },
-  { to: "/dashboard", label: "Dashboard" },
-] as const;
+// The authenticated frame (docs/new-project-directives.md §9.4), restyled to the
+// imported design: dark ink sidebar with grouped, role-filtered navigation
+// (Review cycle / Compensation / Governance). Navigation is real <Link> anchors
+// (enforced by check:nav). The body never scrolls — the content pane does.
+
+// Which product roles see which nav item, mirroring the design's role views
+// (leadership = admin/founder/developer; managers add the review-flow surfaces;
+// everyone gets the cycle basics).
+const LEADERSHIP = ["admin", "founder", "developer"] as const;
+const REVIEWERS = ["manager", ...LEADERSHIP] as const;
+const EVERYONE = ["staff", ...REVIEWERS] as const;
+
+type NavEntry = {
+  readonly to: "/dashboard" | "/people" | "/calibration" | "/appeals";
+  readonly label: string;
+  readonly roles: readonly string[];
+};
+
+const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly NavEntry[] }[] = [
+  {
+    header: "Review cycle",
+    items: [
+      { to: "/dashboard", label: "Overview", roles: EVERYONE },
+      { to: "/people", label: "People", roles: EVERYONE },
+      { to: "/calibration", label: "Calibration", roles: REVIEWERS },
+    ],
+  },
+  {
+    header: "Governance",
+    items: [{ to: "/appeals", label: "Appeals", roles: LEADERSHIP }],
+  },
+];
 
 const THEME_CYCLE: readonly ThemePreference[] = ["system", "light", "dark"];
 const THEME_LABEL: Record<ThemePreference, string> = {
@@ -25,7 +47,29 @@ const THEME_LABEL: Record<ThemePreference, string> = {
   dark: "Dark",
 };
 
-export function Frame({ header, children }: { header?: ReactNode; children: ReactNode }) {
+export type FrameUser = {
+  readonly email: string;
+  readonly roles: readonly string[];
+};
+
+const initials = (email: string): string => {
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._-]+/).filter((part) => part.length > 0);
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+};
+
+export function Frame({
+  user,
+  header,
+  children,
+}: {
+  user: FrameUser;
+  header?: ReactNode;
+  children: ReactNode;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const { preference, setPreference } = useTheme();
 
@@ -40,46 +84,77 @@ export function Frame({ header, children }: { header?: ReactNode; children: Reac
     window.location.href = "/sign-in";
   };
 
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    header: group.header,
+    items: group.items.filter((item) => item.roles.some((role) => user.roles.includes(role))),
+  })).filter((group) => group.items.length > 0);
+
   return (
     <div className="flex h-dvh overflow-hidden">
       <aside
         className={cn(
-          "flex flex-col border-r border-border bg-bone transition-[width] duration-200",
+          "flex flex-col bg-ink-900 text-white transition-[width] duration-200",
           collapsed ? "w-16" : "w-60",
         )}
       >
-        <div className="flex h-14 items-center gap-2 px-4">
+        <div className="flex h-14 items-center gap-2.5 border-b border-white/10 px-4">
           <span className="inline-block size-3 shrink-0 rounded-full bg-primary" />
           {!collapsed && (
-            <span className="font-display text-sm font-semibold tracking-tight">Albert People</span>
+            <span className="font-display text-sm font-semibold tracking-tight text-white">
+              Albert <span className="text-white/60">People</span>
+            </span>
           )}
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="rounded-[10px] px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-[rgba(233,75,60,0.08)]"
-              activeProps={{ className: "bg-[rgba(233,75,60,0.14)] text-foreground" }}
-            >
-              {collapsed ? item.label.charAt(0) : item.label}
-            </Link>
+        <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
+          {visibleGroups.map((group) => (
+            <div key={group.header} className="flex flex-col gap-0.5">
+              {!collapsed && (
+                <div className="px-3 pb-1 pt-4 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/35">
+                  {group.header}
+                </div>
+              )}
+              {group.items.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="rounded-[10px] px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/5"
+                  activeProps={{ className: "bg-[rgba(233,75,60,0.16)] text-white" }}
+                >
+                  {collapsed ? item.label.charAt(0) : item.label}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
 
-        <div className="flex flex-col gap-1 border-t border-border p-2">
+        <div className="flex flex-col gap-1 border-t border-white/10 p-2">
+          {!collapsed && (
+            <div className="flex items-center gap-2.5 px-2 py-2">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                {initials(user.email)}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-white">
+                  {user.email}
+                </span>
+                <span className="block text-[11px] text-white/50">
+                  {user.roles.join(", ") || "no role"}
+                </span>
+              </span>
+            </div>
+          )}
           <button
             type="button"
             onClick={nextTheme}
-            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-white/50 transition-colors hover:bg-white/5"
           >
             {collapsed ? THEME_LABEL[preference].charAt(0) : `Theme: ${THEME_LABEL[preference]}`}
           </button>
           <button
             type="button"
             onClick={() => setCollapsed((value) => !value)}
-            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-white/50 transition-colors hover:bg-white/5"
           >
             {collapsed ? "»" : "« Collapse"}
           </button>
@@ -88,7 +163,7 @@ export function Frame({ header, children }: { header?: ReactNode; children: Reac
             onClick={() => {
               void signOut();
             }}
-            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+            className="rounded-[10px] px-3 py-2 text-left text-xs font-medium text-white/50 transition-colors hover:bg-white/5"
           >
             {collapsed ? "⎋" : "Sign out"}
           </button>

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { REVIEW_RATING_LABELS } from "@agds-hr/people/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { CalibrationSummary } from "../server/people.shared.ts";
@@ -12,12 +13,7 @@ export const Route = createFileRoute("/_app/calibration")({
 });
 
 const RATINGS = [1, 2, 3, 4] as const;
-const RATING_LABEL: Record<(typeof RATINGS)[number], string> = {
-  1: "Below",
-  2: "Developing",
-  3: "Strong",
-  4: "Exceptional",
-};
+const RATING_LABEL: Record<(typeof RATINGS)[number], string> = REVIEW_RATING_LABELS;
 
 function Calibration() {
   const summary: CalibrationSummary = Route.useLoaderData();
