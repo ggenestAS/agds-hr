@@ -11,6 +11,8 @@
       "@agds-hr/auth/db/schema": ["./packages/auth/src/db/schema.ts"],
       "@agds-hr/identity": ["./packages/domains/identity/src/index.ts"],
       "@agds-hr/identity/db/schema": ["./packages/domains/identity/src/db/schema.ts"],
+      "@agds-hr/notifications": ["./packages/domains/notifications/src/index.ts"],
+      "@agds-hr/notifications/db/schema": ["./packages/domains/notifications/src/db/schema.ts"],
       "@agds-hr/people": ["./packages/domains/people/src/index.ts"],
       "@agds-hr/people/types": ["./packages/domains/people/src/types.ts"],
       "@agds-hr/people/db/schema": ["./packages/domains/people/src/db/schema.ts"],

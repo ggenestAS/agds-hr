@@ -93,6 +93,16 @@
         "drizzle-orm": "beta",
       },
     },
+    "packages/domains/notifications": {
+      "name": "@agds-hr/notifications",
+      "version": "0.0.0",
+      "dependencies": {
+        "@agds-hr/audit": "workspace:*",
+        "@agds-hr/db": "workspace:*",
+        "@agds-hr/shared": "workspace:*",
+        "drizzle-orm": "beta",
+      },
+    },
     "packages/domains/people": {
       "name": "@agds-hr/people",
       "version": "0.0.0",
@@ -138,6 +148,8 @@
     "@agds-hr/identity": ["@agds-hr/identity@workspace:packages/domains/identity"],
 
     "@agds-hr/inside": ["@agds-hr/inside@workspace:packages/integrations/inside"],
+
+    "@agds-hr/notifications": ["@agds-hr/notifications@workspace:packages/domains/notifications"],
 
     "@agds-hr/people": ["@agds-hr/people@workspace:packages/domains/people"],
 
