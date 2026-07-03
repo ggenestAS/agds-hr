@@ -111,6 +111,11 @@ export const overviewFn = createServerFn({ method: "GET" }).handler(async () => 
   return overviewHandler();
 });
 
+export const navHintsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { navHintsHandler } = await import("./people.impl.server.ts");
+  return navHintsHandler();
+});
+
 export const bandsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { bandsHandler } = await import("./people.impl.server.ts");
   return bandsHandler();

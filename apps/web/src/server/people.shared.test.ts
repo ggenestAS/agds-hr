@@ -13,6 +13,7 @@ import {
   formatSelfReviewRole,
   kpiRowsInUse,
   objectiveRowsInUse,
+  peerTabBadges,
   selfReviewSubmitIssues,
   stampSelfReviewHeader,
 } from "./people.shared.ts";
@@ -158,5 +159,28 @@ describe("stampSelfReviewHeader", () => {
     expect(stamped.sr_name).toBe("Ada Lovelace");
     expect(stamped.sr_period).toBe("Sep 2025 – Aug 2026");
     expect(stamped.o1_obj).toBe("Own the admissions funnel");
+  });
+});
+
+describe("peerTabBadges", () => {
+  test("give tab counts pending requests; team tab counts proposed on reports", () => {
+    const badges = peerTabBadges({
+      requestsForYou: [{ status: "pending" }, { status: "submitted" }, { status: "proposed" }],
+      cases: [
+        { requests: [{ status: "proposed" }, { status: "submitted" }] },
+        { requests: [{ status: "pending" }] },
+      ],
+      isReviewer: true,
+    });
+    expect(badges).toEqual({ mine: 0, give: 1, team: 1 });
+  });
+
+  test("non-reviewers only see the give tab badge", () => {
+    const badges = peerTabBadges({
+      requestsForYou: [{ status: "pending" }],
+      cases: [{ requests: [{ status: "proposed" }] }],
+      isReviewer: false,
+    });
+    expect(badges).toEqual({ mine: 0, give: 1, team: 0 });
   });
 });

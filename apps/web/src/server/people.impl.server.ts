@@ -40,7 +40,6 @@ import {
   getAssessmentByCase,
   getPeerRequestById,
   getSelfReviewByCase,
-  listSelfReviewsByCases,
   approvePeerRequest,
   isPeerQuotaMet,
   proposePeerRequests,
@@ -75,6 +74,7 @@ import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/s
 
 import {
   formatSelfReviewRole,
+  peerInputNavAction,
   selfReviewSubmitIssues,
   stampSelfReviewHeader,
 } from "./people.shared.ts";
@@ -95,6 +95,7 @@ import type {
   GivenAsManagerView,
   GivenAsPeerView,
   MyPeerCaseView,
+  NavHints,
   OverviewData,
   PeerCaseView,
   PeerPageView,
@@ -878,10 +879,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
         (leadership || managed.all.has(entry.subjectEmail.toLowerCase())),
     );
     const caseIds = inScope.map((entry) => entry.caseId);
-    const [allRequests, allSelfReviews] = await Promise.all([
-      listPeerRequestsForCases(adminDb, caseIds),
-      listSelfReviewsByCases(adminDb, caseIds),
-    ]);
+    const allRequests = await listPeerRequestsForCases(adminDb, caseIds);
     const requestsByCase = new Map<string, (typeof allRequests)[number][]>();
     for (const request of allRequests) {
       const bucket = requestsByCase.get(request.caseId);
@@ -891,12 +889,9 @@ export async function peerPageHandler(): Promise<PeerPageView> {
         bucket.push(request);
       }
     }
-    const selfReviewByCase = new Map(allSelfReviews.map((entry) => [entry.caseId, entry]));
 
     cases = inScope.map((entry) => {
       const requests = requestsByCase.get(entry.caseId) ?? [];
-      const selfReview = selfReviewByCase.get(entry.caseId);
-      const peerSuggestions = (selfReview?.payload["sr_peers"] ?? "").trim();
       const quota = resolvePeerInputQuota(entry.subjectEmail, orgNodes, userIdByEmail);
       return {
         caseId: entry.caseId,
@@ -915,7 +910,6 @@ export async function peerPageHandler(): Promise<PeerPageView> {
           submittedAt: request.submittedAt?.toISOString(),
           input: request.input,
         })),
-        peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
         teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
         direct: managed.direct.has(entry.subjectEmail.toLowerCase()),
       };
@@ -1475,6 +1469,55 @@ export async function setBandHandler(input: SetBandInput): Promise<{ ok: true }>
     auditContext(session),
   );
   return { ok: true };
+}
+
+// Frame nav hints — mirrors the Overview "Your review is at …" status and the
+// /peer-input tab badges so the sidebar can nudge without loading full payloads.
+export async function navHintsHandler(): Promise<NavHints> {
+  const session = await requireSession("people.directory.read");
+  const adminDb = getDbAs("admin");
+  const actorEmail = session.actor.email.toLowerCase();
+  const effectiveEmail = session.subject.email.toLowerCase();
+  const isReviewer = can(session.subject, "people.peer.request").allow;
+  const leadership = isLeadership(session.subject.roles);
+
+  const teamProposalsPromise: Promise<number> = isReviewer
+    ? (async () => {
+        const managed = leadership
+          ? undefined
+          : await managedEmailSets(adminDb, session.subject.id);
+        const allCases = await listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE);
+        const inScope = allCases.filter(
+          (entry) =>
+            !entry.decided &&
+            (entry.state === "self_review" || entry.state === "peer_input") &&
+            entry.subjectEmail.toLowerCase() !== effectiveEmail &&
+            (leadership || (managed?.all.has(entry.subjectEmail.toLowerCase()) ?? false)),
+        );
+        if (inScope.length === 0) {
+          return 0;
+        }
+        const requests = await listPeerRequestsForCases(
+          adminDb,
+          inScope.map((entry) => entry.caseId),
+        );
+        return requests.filter((request) => request.status === "proposed").length;
+      })()
+    : Promise.resolve(0);
+
+  const [myCase, forYou, teamProposals] = await Promise.all([
+    getCaseBySubject(adminDb, actorEmail, REVIEW_CURRENT_CYCLE),
+    listPeerRequestsForRequestee(adminDb, effectiveEmail),
+    teamProposalsPromise,
+  ]);
+
+  return {
+    selfReviewAction:
+      myCase !== undefined && myCase.state === "self_review" && myCase.decidedAt === undefined,
+    peerInputAction:
+      peerInputNavAction({ requestsForYou: forYou, cases: [], isReviewer: false }) ||
+      teamProposals > 0,
+  };
 }
 
 // The Overview surface: the cycle timeline + the viewer's own case status.

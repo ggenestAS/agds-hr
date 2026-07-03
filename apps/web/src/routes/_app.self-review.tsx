@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { FormRoutePending } from "../components/route-pending/shapes.tsx";
@@ -232,7 +232,7 @@ function SelfReviewPage() {
   // Progress counts only the fields currently in play (visible rows), so
   // adding a row lowers the percentage instead of the denominator lying.
   const activeKeys = useMemo(() => {
-    const keys: SelfReviewKey[] = ["sr_peers"];
+    const keys: SelfReviewKey[] = [];
     SELF_REVIEW_OBJECTIVE_ROWS.slice(0, objectiveCount).forEach((row) => {
       keys.push(row.obj, row.target, row.result);
     });
@@ -440,24 +440,14 @@ function SelfReviewPage() {
         </div>
       </div>
 
-      <div className={sectionCls}>
-        <div className="flex items-baseline gap-2.5">
-          <p className={eyebrowCls}>Peer input</p>
-          <span className="text-[11px] font-semibold text-ink-300">optional</span>
-        </div>
-        <h3 className="font-display text-lg font-semibold">Suggest your peer reviewers</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Name colleagues who saw your work firsthand this year — especially cross-team. Your
-          manager decides the final list; suggestions inform it.
+      <div className="rounded-[14px] border border-dashed border-border px-5 py-4">
+        <p className="text-sm text-muted-foreground">
+          Want to suggest who reviews you? Propose reviewers on the{" "}
+          <Link to="/peer-input" className="font-semibold text-foreground underline">
+            Peer input
+          </Link>{" "}
+          page — your manager decides the final list.
         </p>
-        <div className="mt-3.5">
-          {field(
-            "sr_peers",
-            "Suggested peer reviewers",
-            "e.g. Nadia Haddad (budget cycle), Diego Ferrer (student success handoffs)",
-            { textarea: true },
-          )}
-        </div>
       </div>
 
       <div className={sectionCls}>

@@ -183,17 +183,6 @@ export function SelfReviewReadView({ payload }: { payload: SelfReviewPayload }) 
           <ReadField label="Fairness concern" value={model.fairness} highlight />
         </section>
       )}
-
-      {model.peerSuggestions !== undefined && (
-        <section className="rounded-[14px] border border-dashed border-border px-4 py-4">
-          <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-            Suggested peer reviewers
-          </p>
-          <p className="mt-1 text-[13.5px] leading-relaxed text-foreground">
-            {model.peerSuggestions}
-          </p>
-        </section>
-      )}
     </div>
   );
 }

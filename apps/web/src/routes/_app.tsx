@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Frame } from "../components/frame.tsx";
 import { NavigationProgress } from "../components/navigation-progress.tsx";
+import { navHintsFn } from "../server/people.functions.ts";
 import { fetchSessionFn } from "../server/session.functions.ts";
 import { impersonateStopFn } from "../server/impersonation.functions.ts";
 
@@ -18,11 +19,13 @@ export const Route = createFileRoute("/_app")({
     }
     return { session };
   },
+  loader: () => navHintsFn(),
   component: AppLayout,
 });
 
 function AppLayout() {
   const { session } = Route.useRouteContext();
+  const navHints = Route.useLoaderData();
   const impersonating = session.subject.id !== session.actor.id;
   const [stopping, setStopping] = useState(false);
   return (
@@ -30,6 +33,7 @@ function AppLayout() {
       <NavigationProgress />
       <Frame
         user={{ email: session.actor.email, roles: session.subject.roles }}
+        navHints={navHints}
         header={
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{session.actor.email}</span>

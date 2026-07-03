@@ -322,10 +322,6 @@ export const SELF_REVIEW_KEYS = [
   "e_direction",
   "e_support",
   "f_fair",
-  // Suggested peer reviewers: the subject proposes, the manager decides
-  // (selection authority stays with the reviewer; information comes from the
-  // person with the most of it).
-  "sr_peers",
 ] as const;
 export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
 
@@ -449,7 +445,6 @@ export function selfReviewEntries(
   push("Role direction", "e_direction");
   push("Support needed", "e_support");
   push("Compensation fairness", "f_fair");
-  push("Suggested peer reviewers", "sr_peers");
   return entries;
 }
 
@@ -488,7 +483,6 @@ export type SelfReviewReadModel = {
   readonly reflection: readonly SelfReviewFieldRead[];
   readonly development: readonly SelfReviewFieldRead[];
   readonly fairness: string | undefined;
-  readonly peerSuggestions: string | undefined;
 };
 
 const SELF_REVIEW_REFLECTION_READ: readonly {
@@ -570,7 +564,6 @@ export function projectSelfReviewReadModel(
     reflection,
     development,
     fairness: readField(payload, "f_fair"),
-    peerSuggestions: readField(payload, "sr_peers"),
   };
 }
 
@@ -581,8 +574,7 @@ export function selfReviewReadModelHasContent(model: SelfReviewReadModel): boole
     model.contextNote !== undefined ||
     model.reflection.length > 0 ||
     model.development.length > 0 ||
-    model.fairness !== undefined ||
-    model.peerSuggestions !== undefined
+    model.fairness !== undefined
   );
 }
 
@@ -806,9 +798,6 @@ export type PeerCaseView = {
   readonly quota: Readonly<Partial<Record<PeerKind, number>>>;
   readonly quotaMet: boolean;
   readonly requests: readonly PeerRequestView[];
-  // The subject's own suggestion from their self-review (sr_peers) — a hint
-  // for the reviewer, who decides the final list.
-  readonly peerSuggestions: string | undefined;
   // The subject's local-team neighborhood (same local manager, their local
   // reports, their local manager) — used to auto-classify a picked colleague
   // as Own team vs Cross-team.
@@ -1009,6 +998,40 @@ export type OverviewData = {
       }
     | undefined;
 };
+
+// Sidebar affordances — minimal case snapshot for the authenticated frame.
+export type NavHints = {
+  readonly selfReviewAction: boolean;
+  readonly peerInputAction: boolean;
+};
+
+export type PeerInputTab = "mine" | "give" | "team";
+
+// Tab badge counts on /peer-input — shared with the frame nav hint so the
+// sidebar dot stays in sync with in-page tabs.
+export function peerTabBadges(input: {
+  readonly requestsForYou: readonly { readonly status: PeerRequestStatus }[];
+  readonly cases: readonly {
+    readonly requests: readonly { readonly status: PeerRequestStatus }[];
+  }[];
+  readonly isReviewer: boolean;
+}): Record<PeerInputTab, number> {
+  const visibleForYou = input.requestsForYou.filter((request) => request.status !== "proposed");
+  const pendingForYou = visibleForYou.filter((request) => request.status === "pending").length;
+  const teamProposals = input.isReviewer
+    ? input.cases.reduce(
+        (sum, entry) =>
+          sum + entry.requests.filter((request) => request.status === "proposed").length,
+        0,
+      )
+    : 0;
+  return { mine: 0, give: pendingForYou, team: teamProposals };
+}
+
+export function peerInputNavAction(input: Parameters<typeof peerTabBadges>[0]): boolean {
+  const badges = peerTabBadges(input);
+  return badges.give > 0 || badges.team > 0;
+}
 
 export type CalibrationPerson = {
   readonly subjectEmail: string;

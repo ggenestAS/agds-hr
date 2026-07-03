@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 
 import { authClient } from "../lib/auth-client.ts";
@@ -6,6 +6,7 @@ import { cn } from "../lib/cn.ts";
 import { useTheme } from "../lib/use-theme.ts";
 import type { ThemePreference } from "../lib/theme.ts";
 import { devLogoutFn } from "../server/dev-login.functions.ts";
+import type { NavHints } from "../server/people.shared.ts";
 
 // The authenticated frame (docs/new-project-directives.md §9.4), restyled to the
 // imported design: dark ink sidebar with grouped, role-filtered navigation
@@ -93,14 +94,17 @@ const initials = (email: string): string => {
 
 export function Frame({
   user,
+  navHints,
   header,
   children,
 }: {
   user: FrameUser;
+  navHints: NavHints;
   header?: ReactNode;
   children: ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { preference, setPreference } = useTheme();
 
   const nextTheme = () =>
@@ -149,16 +153,38 @@ export function Frame({
                   {group.header}
                 </div>
               )}
-              {group.items.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className="rounded-[10px] px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/5"
-                  activeProps={{ className: "bg-[rgba(233,75,60,0.16)] text-white" }}
-                >
-                  {collapsed ? item.label.charAt(0) : item.label}
-                </Link>
-              ))}
+              {group.items.map((item) => {
+                const showNavBadge =
+                  !pathname.startsWith(item.to) &&
+                  ((item.to === "/self-review" && navHints.selfReviewAction) ||
+                    (item.to === "/peer-input" && navHints.peerInputAction));
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={cn(
+                      "relative rounded-[10px] px-3 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/5",
+                      !collapsed && showNavBadge && "flex items-center justify-between gap-2",
+                    )}
+                    activeProps={{ className: "bg-[rgba(233,75,60,0.16)] text-white" }}
+                  >
+                    {collapsed ? item.label.charAt(0) : item.label}
+                    {showNavBadge && (
+                      <span
+                        className={cn(
+                          "size-2 shrink-0 rounded-full bg-primary",
+                          collapsed && "absolute right-2 top-2",
+                        )}
+                        aria-label={
+                          item.to === "/self-review"
+                            ? "Self-review in progress"
+                            : "Peer input action needed"
+                        }
+                      />
+                    )}
+                  </Link>
+                );
+              })}
             </div>
           ))}
         </nav>

@@ -6,6 +6,7 @@ import { StackedRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { PeerCaseView, PeerPageView, PeerApproverKind } from "../server/people.shared.ts";
+import { peerTabBadges } from "../server/people.shared.ts";
 import {
   peerApproveFn,
   peerPageFn,
@@ -252,10 +253,8 @@ function PeerInputPage() {
   const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
   const pendingForYou = visibleForYou.filter((request) => request.status === "pending");
   const answeredForYou = visibleForYou.filter((request) => request.status === "submitted");
-  const teamProposals = data.cases.reduce(
-    (sum, entry) => sum + entry.requests.filter((request) => request.status === "proposed").length,
-    0,
-  );
+  const tabBadge = peerTabBadges(data);
+  const teamProposals = tabBadge.team;
 
   // Land where the work is: unanswered requests first, then team proposals
   // awaiting your call, otherwise your own reviewers.
@@ -280,11 +279,6 @@ function PeerInputPage() {
   const selectedCase =
     data.cases.find((entry) => entry.caseId === selectedCaseId) ?? directCases[0] ?? data.cases[0];
   const tabs: readonly PeerTab[] = data.isReviewer ? ["mine", "give", "team"] : ["mine", "give"];
-  const tabBadge: Record<PeerTab, number> = {
-    mine: 0,
-    give: pendingForYou.length,
-    team: teamProposals,
-  };
 
   return (
     <div className="mx-auto max-w-4xl p-6">
@@ -543,18 +537,6 @@ function PeerInputPage() {
                     <div className="rounded-[14px] bg-cream px-4 py-3.5">
                       <QuotaBar caseView={selectedCase} />
                     </div>
-
-                    {selectedCase.peerSuggestions !== undefined && (
-                      <div className="rounded-[14px] border border-dashed border-border px-4 py-3">
-                        <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                          Suggested by {selectedCase.subjectName ?? "the subject"} — you decide the
-                          final list
-                        </p>
-                        <p className="mt-1 text-[13px] leading-relaxed text-foreground">
-                          {selectedCase.peerSuggestions}
-                        </p>
-                      </div>
-                    )}
 
                     {selectedCase.requests.length > 0 && (
                       <div className="divide-y divide-border">
