@@ -680,6 +680,10 @@ export type PeerCaseView = {
   // reports, their local manager) — used to auto-classify a picked colleague
   // as Own team vs Cross-team.
   readonly teamEmails: readonly string[];
+  // Direct report of the viewer (either line, one hop) — indirect reports are
+  // shown separately, since their peer setup is normally the direct manager's
+  // call.
+  readonly direct: boolean;
 };
 
 // The viewer's OWN case on the peer page (improve-ux plan): status only — a

@@ -866,6 +866,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
           })),
           peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
           teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
+          direct: managed.direct.has(entry.subjectEmail.toLowerCase()),
         };
       }),
     );

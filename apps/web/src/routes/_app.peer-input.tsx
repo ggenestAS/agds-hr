@@ -246,7 +246,12 @@ function PeerInputPage() {
     }
   };
 
-  const selectedCase = data.cases.find((entry) => entry.caseId === selectedCaseId) ?? data.cases[0];
+  // Direct reports first: they are this manager's call; indirect ones are
+  // normally handled by the direct manager (same split as the assessment page).
+  const directCases = data.cases.filter((entry) => entry.direct);
+  const indirectCases = data.cases.filter((entry) => !entry.direct);
+  const selectedCase =
+    data.cases.find((entry) => entry.caseId === selectedCaseId) ?? directCases[0] ?? data.cases[0];
   const tabs: readonly PeerTab[] = data.isReviewer ? ["mine", "give", "team"] : ["mine", "give"];
   const tabBadge: Record<PeerTab, number> = {
     mine: 0,
@@ -431,44 +436,69 @@ function PeerInputPage() {
               </p>
             ) : (
               <>
-                <div className="flex flex-wrap gap-2">
-                  {data.cases.map((entry) => {
-                    const proposals = entry.requests.filter(
-                      (request) => request.status === "proposed",
-                    ).length;
-                    const active = entry.caseId === selectedCase?.caseId;
-                    return (
-                      <button
-                        key={entry.caseId}
-                        type="button"
-                        onClick={() => setSelectedCaseId(entry.caseId)}
-                        className={
-                          active
-                            ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
-                            : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
-                        }
-                      >
-                        <span
-                          className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
-                            active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
-                          }`}
-                        >
-                          {initials(entry.subjectName ?? entry.subjectEmail)}
-                        </span>
-                        {entry.subjectName ?? entry.subjectEmail}
-                        {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
-                        {proposals > 0 && (
-                          <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
-                            {proposals}
+                {(
+                  [
+                    ["Direct reports", directCases, undefined],
+                    ["Indirect reports", indirectCases, "normally handled by their direct manager"],
+                  ] as const
+                ).map(([label, group, hint]) =>
+                  group.length === 0 ? null : (
+                    <div key={label}>
+                      <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {label}
+                        {hint !== undefined && (
+                          <span className="ml-1.5 font-medium normal-case tracking-normal">
+                            · {hint}
                           </span>
                         )}
-                      </button>
-                    );
-                  })}
-                </div>
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {group.map((entry) => {
+                          const proposals = entry.requests.filter(
+                            (request) => request.status === "proposed",
+                          ).length;
+                          const active = entry.caseId === selectedCase?.caseId;
+                          return (
+                            <button
+                              key={entry.caseId}
+                              type="button"
+                              onClick={() => setSelectedCaseId(entry.caseId)}
+                              className={
+                                active
+                                  ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
+                                  : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                              }
+                            >
+                              <span
+                                className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                                  active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
+                                }`}
+                              >
+                                {initials(entry.subjectName ?? entry.subjectEmail)}
+                              </span>
+                              {entry.subjectName ?? entry.subjectEmail}
+                              {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
+                              {proposals > 0 && (
+                                <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
+                                  {proposals}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ),
+                )}
 
                 {selectedCase !== undefined && (
                   <>
+                    {!selectedCase.direct && (
+                      <p className="rounded-[10px] bg-[var(--color-blush)] px-3 py-2 text-xs text-[var(--color-accent-dk)]">
+                        Indirect report — you can act here, but their direct manager normally owns
+                        the reviewer list.
+                      </p>
+                    )}
                     <div className="rounded-[14px] bg-cream px-4 py-3.5">
                       <QuotaBar caseView={selectedCase} />
                     </div>
