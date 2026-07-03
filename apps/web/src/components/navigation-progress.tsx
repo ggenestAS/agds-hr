@@ -1,18 +1,25 @@
 import { useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { cn } from "../lib/cn.ts";
 
 // Thin indeterminate bar for the in-between (§9.1): covers the sub-150ms
 // window where the old page is still on screen and no route skeleton has
-// appeared yet, so the click visibly registered. Comparing location.href with
-// resolvedLocation.href limits it to client-side navigations — it never shows
-// during initial SSR hydration.
+// appeared yet, so the click visibly registered.
 export function NavigationProgress() {
-  const navigating = useRouterState({
+  const routerNavigating = useRouterState({
     select: (state) =>
       (state.isLoading || state.status === "pending") &&
       state.location.href !== state.resolvedLocation?.href,
   });
+  // Off until mounted: streaming SSR can render mid-navigation (status
+  // "pending"), which would ship an animating bar whose attributes hydration
+  // never patches back off — a red line running forever over a loaded page.
+  // Server and first client render both say "off"; real client-side
+  // navigations drive it from there.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const navigating = mounted && routerNavigating;
 
   return (
     <div
