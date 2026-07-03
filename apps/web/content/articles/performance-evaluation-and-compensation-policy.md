@@ -74,7 +74,7 @@ principles above. This is not a guaranteed individual entitlement — it flows
 through performance and scope — but the envelope is real and scales with
 Albert's growth. If Albert does well, the people who drove that should feel it.
 
-Transparency is an objective, but it must be *earned* by the quality of the
+Transparency is an objective, but it must be _earned_ by the quality of the
 underlying system. Publishing uncalibrated salary bands would create the
 appearance of fairness without the substance.
 
@@ -95,7 +95,7 @@ neither is superior.
 - Requires regular direction or prioritisation support.
 - Builds functional competence.
 
-> Core test: *Can this person deliver well with guidance?*
+> Core test: _Can this person deliver well with guidance?_
 
 **Level 2 — Owner.** Trusted to manage a domain, project, or recurring
 responsibility end-to-end.
@@ -106,7 +106,7 @@ responsibility end-to-end.
 - Coordinates with others when needed.
 - Improves execution quality over time.
 
-> Core test: *Can this person be trusted end-to-end on an important topic?*
+> Core test: _Can this person be trusted end-to-end on an important topic?_
 
 **Level 3 — Lead.** Owns a significant function, system, or strategic
 workstream and improves how the organisation operates, not only their own
@@ -119,32 +119,32 @@ work. Progresses via management or IC path. Expectations for both paths:
 - Makes others more effective.
 - Improves the system, not just their own output.
 
-*Management path examples:* leads a team; sets team priorities; develops
+_Management path examples:_ leads a team; sets team priorities; develops
 people; manages performance; builds repeatable team rituals and processes.
-*IC path examples:* owns a critical domain without necessarily managing a
+_IC path examples:_ owns a critical domain without necessarily managing a
 team; becomes a reference point for expertise, judgment, or execution;
 solves difficult cross-functional problems; builds tools, processes,
 methods, or knowledge that raise organisational performance.
 
-> Core test: *Does this person improve the system, not just execute tasks?*
+> Core test: _Does this person improve the system, not just execute tasks?_
 
 **Level 4 — Head / Principal.** Owns a major function, strategic area, or
 critical organisational system; responsible for outcomes, operating model,
 and long-term direction. Managerial or IC.
 
-*Level 4 manager (may be a Head of function):* defines strategy for their
+_Level 4 manager (may be a Head of function):_ defines strategy for their
 area; builds and manages a high-performing team; makes strong
 prioritisation decisions; owns outcomes, not only activity; represents
 Albert with maturity internally and externally; creates scalable systems
-and management routines. *Level 4 IC (may be Principal, Senior Lead, or
-equivalent):* owns a critical domain with institution-level impact; sets
+and management routines. _Level 4 IC (may be Principal, Senior Lead, or
+equivalent):_ owns a critical domain with institution-level impact; sets
 standards used by others; solves ambiguous, high-stakes problems;
 influences strategy without relying on hierarchical authority; creates
 systems, methods, partnerships, or expertise that materially improve
 Albert; acts as a reference point for judgment across the organisation.
 
-> Core test: *Does this person build the team, system, standard, or
-> strategic capability that allows Albert to scale?*
+> Core test: _Does this person build the team, system, standard, or
+> strategic capability that allows Albert to scale?_
 
 **Titles** should reflect level, scope, and path. A person should not need
 to become a manager to grow in level, compensation, or recognition if their
@@ -375,9 +375,9 @@ members, and other managers where appropriate. Its purpose: compare ratings
 across teams; challenge inflated or overly harsh ratings; check consistency
 by level; identify internal equity issues; review compensation exceptions;
 and reduce bias linked to visibility, personality, negotiation style,
-gender, age, tenure, or proximity to leadership. Calibration asks: *compared
+gender, age, tenure, or proximity to leadership. Calibration asks: _compared
 with others at the same level and similar scope, did this person create
-more, equal, or less value?* Final compensation and promotion decisions are
+more, equal, or less value?_ Final compensation and promotion decisions are
 made through calibration, with **final sign-off by CEO and COO**.
 
 ### Evaluation of leadership team members

@@ -4,7 +4,7 @@ pre-commit:
   parallel: true
   commands:
     format:
-      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,md,mdx,yml,yaml,css}"
       run: bunx oxfmt {staged_files}
       stage_fixed: true
     lint-staged:
