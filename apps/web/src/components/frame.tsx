@@ -111,9 +111,14 @@ export function Frame({
     window.location.href = "/sign-in";
   };
 
+  // An authenticated user with no explicit grants is the baseline staff
+  // experience — policies already treat them that way (directory read etc.),
+  // so the nav does too. Matters for freshly-provisioned users and for
+  // founders impersonating roster members who have never signed in.
+  const effectiveRoles = user.roles.length > 0 ? user.roles : ["staff"];
   const visibleGroups = NAV_GROUPS.map((group) => ({
     header: group.header,
-    items: group.items.filter((item) => item.roles.some((role) => user.roles.includes(role))),
+    items: group.items.filter((item) => item.roles.some((role) => effectiveRoles.includes(role))),
   })).filter((group) => group.items.length > 0);
 
   return (

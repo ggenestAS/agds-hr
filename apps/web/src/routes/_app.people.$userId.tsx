@@ -4,12 +4,23 @@ import {
   CAREER_LEVELS,
   CAREER_LEVEL_META,
   CAREER_PATHS,
+  EMPLOYMENT_TYPES,
+  EMPLOYMENT_TYPE_LABELS,
   EVALUATION_DIMENSIONS,
   EVALUATION_DIMENSION_LABELS,
+  REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_RATING_LABELS,
   isReviewRating,
+  isSalaryBandApplicable,
 } from "@agds-hr/people/types";
-import type { AppealCategory, CareerLevel, CareerPath, ReviewState } from "@agds-hr/people/types";
+import type {
+  AppealCategory,
+  CareerLevel,
+  CareerPath,
+  EmploymentType,
+  ReviewParticipationOverride,
+  ReviewState,
+} from "@agds-hr/people/types";
 import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
@@ -25,6 +36,7 @@ import {
   setRatingFn,
   signDecisionFn,
 } from "../server/people.functions.ts";
+import { impersonateStartFn } from "../server/impersonation.functions.ts";
 
 // The employee record (design): dark hero + tabs — Evaluation (job
 // architecture, assessed dimensions), Review (state machine controls,
@@ -80,6 +92,10 @@ function PersonDetailPage() {
   const [tab, setTab] = useState<Tab>("Evaluation");
   const [level, setLevel] = useState<CareerLevel>(person.level ?? "L1");
   const [path, setPath] = useState<CareerPath>(person.path ?? "ic");
+  const [employmentType, setEmploymentType] = useState<EmploymentType>(person.employmentType);
+  const [reviewOverride, setReviewOverride] = useState<ReviewParticipationOverride | null>(
+    person.reviewParticipationOverride,
+  );
   const [busy, setBusy] = useState(false);
   const [comp, setComp] = useState<CompView | null>(null);
   const [appealCategory, setAppealCategory] = useState<AppealCategory>("rating");
@@ -142,11 +158,38 @@ function PersonDetailPage() {
                 ? `${person.level} · ${CAREER_LEVEL_META[person.level].name}${person.path !== undefined ? ` · ${PATH_LABEL[person.path]}` : ""}`
                 : "Level unassigned"}
             </span>
+            {person.employmentType !== "employee" && (
+              <span>
+                {EMPLOYMENT_TYPE_LABELS[person.employmentType]}
+                {!person.inReviewCycle && " · outside the review cycle"}
+                {!isSalaryBandApplicable(person.employmentType) && " · outside salary bands"}
+              </span>
+            )}
             {person.country !== undefined && <span>{person.country}</span>}
             {person.managers[0] !== undefined && <span>Reports to {person.managers[0].name}</span>}
             {person.campus !== undefined && <span>{person.campus}</span>}
           </div>
         </div>
+        {person.canImpersonate && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void impersonateStartFn({ data: { email: person.email } })
+                .then(() => {
+                  // Full navigation: the whole app must re-resolve the session
+                  // as the impersonated subject.
+                  window.location.assign("/dashboard");
+                })
+                .catch(() => setBusy(false));
+            }}
+            className="shrink-0 self-start rounded-full border border-white/25 px-4 py-1.5 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10"
+            title="See the product exactly as this person sees it — recorded in the audit trail"
+          >
+            View as {person.name.split(" ")[0]} →
+          </button>
+        )}
       </div>
 
       {/* tabs */}
@@ -246,13 +289,56 @@ function PersonDetailPage() {
                       ))}
                     </select>
                   </label>
+                  <label className="text-xs">
+                    Employment
+                    <select
+                      value={employmentType}
+                      onChange={(event) => setEmploymentType(event.target.value as EmploymentType)}
+                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                    >
+                      {EMPLOYMENT_TYPES.map((value) => (
+                        <option key={value} value={value}>
+                          {EMPLOYMENT_TYPE_LABELS[value]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs">
+                    Review participation
+                    <select
+                      value={reviewOverride ?? ""}
+                      onChange={(event) =>
+                        setReviewOverride(
+                          event.target.value === ""
+                            ? null
+                            : (event.target.value as ReviewParticipationOverride),
+                        )
+                      }
+                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                    >
+                      <option value="">Type default</option>
+                      {REVIEW_PARTICIPATION_OVERRIDES.map((value) => (
+                        <option key={value} value={value}>
+                          {value === "included" ? "Included" : "Excluded"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <Button
                     type="button"
                     size="sm"
                     disabled={busy}
                     onClick={() => {
                       void run(() =>
-                        setEmployeeAttrsFn({ data: { email: person.email, level, path } }),
+                        setEmployeeAttrsFn({
+                          data: {
+                            email: person.email,
+                            level,
+                            path,
+                            employmentType,
+                            reviewParticipationOverride: reviewOverride,
+                          },
+                        }),
                       );
                     }}
                   >
@@ -362,8 +448,16 @@ function PersonDetailPage() {
             <CardContent className="space-y-3 text-sm">
               {reviewCase === undefined ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">No review case for this cycle.</span>
-                  {person.canReview && (
+                  <span className="text-muted-foreground">
+                    {person.inReviewCycle
+                      ? "No review case for this cycle."
+                      : `Not in the review cycle — ${EMPLOYMENT_TYPE_LABELS[person.employmentType]}${
+                          person.reviewParticipationOverride === "excluded"
+                            ? ", explicitly excluded"
+                            : ""
+                        }. Opt in via the review-participation flag.`}
+                  </span>
+                  {person.canReview && person.inReviewCycle && (
                     <Button
                       type="button"
                       size="sm"
@@ -672,6 +766,12 @@ function PersonDetailPage() {
             <CardTitle>Compensation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {!isSalaryBandApplicable(person.employmentType) && (
+              <p className="rounded-[10px] bg-cream px-3 py-2 text-xs text-muted-foreground">
+                Outside salary bands — {EMPLOYMENT_TYPE_LABELS[person.employmentType]} contracts are
+                not band-governed.
+              </p>
+            )}
             {reviewCase === undefined ? (
               <span className="text-muted-foreground">
                 Compensation is recorded against the review case — none for this cycle yet.

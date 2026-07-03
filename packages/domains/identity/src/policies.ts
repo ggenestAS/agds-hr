@@ -24,12 +24,16 @@ export function canGrantRole(user: User): PolicyDecision {
   return isDeveloper(user) ? ALLOW : DENY("developer_required");
 }
 
+// Founders (CEO/COO) may view the product as any staff member — impersonation
+// is how they verify what a person actually sees (decisions, appeals, comp
+// visibility). Every start/stop is audited, and the impersonated session is
+// visibly marked in the frame. Developer is the platform superuser.
 export function canStartImpersonation(
   user: User,
   resource: { readonly targetUserId: UserId },
 ): PolicyDecision {
-  if (!isDeveloper(user)) {
-    return DENY("developer_required");
+  if (!isDeveloper(user) && !user.roles.includes("founder")) {
+    return DENY("founder_or_developer_required");
   }
   if (user.id === resource.targetUserId) {
     return DENY("cannot_impersonate_self");

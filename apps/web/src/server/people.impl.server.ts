@@ -1,7 +1,7 @@
 import { listEvents } from "@agds-hr/audit";
 import { can } from "@agds-hr/auth";
 import { getDbAs } from "@agds-hr/db";
-import { listUsers } from "@agds-hr/identity";
+import { canStartImpersonation, listUsers } from "@agds-hr/identity";
 import {
   isInsideConfigured,
   listAdminDirectory,
@@ -35,6 +35,7 @@ import {
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
   openCase,
+  participatesInReview,
   reopenSelfReview,
   saveAssessment,
   submitAssessment,
@@ -53,7 +54,7 @@ import {
 import type { AssessmentDraft } from "@agds-hr/people";
 import { CAREER_LEVELS } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
-import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
+import { ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
 import type {
   AppealsPageView,
@@ -97,6 +98,7 @@ const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   active: admin.active,
   level: undefined,
   path: undefined,
+  employmentType: undefined,
   rating: undefined,
 });
 
@@ -118,6 +120,7 @@ export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]>
       ...toEntry(admin),
       level: assigned?.level,
       path: assigned?.path,
+      employmentType: assigned?.employmentType,
       rating: ratings.get(admin.email.toLowerCase()),
     };
   });
@@ -178,6 +181,21 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     alreadyFiled: filedAppeal !== undefined,
   });
 
+  // Absent employee record = the default `employee` type (participating,
+  // band-governed) — the gate only bites once HR marks an exception.
+  const employmentType = attrs?.employmentType ?? "employee";
+  const reviewParticipationOverride = attrs?.reviewParticipationOverride ?? null;
+
+  // "View as" affordance: founders/developer, never on your own record, never
+  // while already impersonating (no chaining). Display-only — the start
+  // handler re-asserts the policy against the target's real auth id.
+  const canImpersonate =
+    !isSubjectPerson &&
+    session.actor.id === session.subject.id &&
+    canStartImpersonation(session.subject, {
+      targetUserId: UserId("00000000-0000-4000-8000-00000000ffff"),
+    }).allow;
+
   return {
     userId: admin.userId,
     name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -188,6 +206,9 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     active: admin.active,
     level: attrs?.level,
     path: attrs?.path,
+    employmentType,
+    reviewParticipationOverride,
+    inReviewCycle: participatesInReview(employmentType, reviewParticipationOverride),
     managers,
     reviewCase:
       reviewCase === undefined
@@ -207,6 +228,7 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     canSign: can(session.subject, "people.decision.sign").allow,
     canViewComp: can(session.subject, "people.comp.read").allow,
     canManageComp: can(session.subject, "people.comp.manage").allow,
+    canImpersonate,
     appeal:
       appeal === undefined
         ? undefined
@@ -246,7 +268,13 @@ export async function setEmployeeAttrsHandler(input: SetEmployeeAttrsInput): Pro
   const session = await requireSession("people.employee.manage");
   await upsertEmployeeByEmail(
     getDbAs("admin"),
-    { email: input.email.toLowerCase(), level: input.level, path: input.path },
+    {
+      email: input.email.toLowerCase(),
+      level: input.level,
+      path: input.path,
+      employmentType: input.employmentType,
+      reviewParticipationOverride: input.reviewParticipationOverride,
+    },
     auditContext(session),
   );
   return { ok: true };

@@ -2,17 +2,21 @@ import {
   APPEAL_CATEGORIES,
   CAREER_LEVELS,
   CAREER_PATHS,
+  EMPLOYMENT_TYPES,
   EVALUATION_DIMENSIONS,
   PEER_KINDS,
+  REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_STATES,
 } from "@agds-hr/people/types";
 import type {
   AppealCategory,
   CareerLevel,
   CareerPath,
+  EmploymentType,
   EvaluationDimension,
   PeerKind,
   PeerRequestStatus,
+  ReviewParticipationOverride,
   ReviewState,
 } from "@agds-hr/people/types";
 import { z } from "zod";
@@ -31,6 +35,8 @@ export type DirectoryEntry = {
   readonly active: boolean;
   readonly level: CareerLevel | undefined;
   readonly path: CareerPath | undefined;
+  // Undefined when no employee record exists (reads as the `employee` default).
+  readonly employmentType: EmploymentType | undefined;
   readonly rating: number | undefined;
 };
 
@@ -38,6 +44,8 @@ export const setEmployeeAttrsSchema = z.object({
   email: z.string().email(),
   level: z.enum(CAREER_LEVELS),
   path: z.enum(CAREER_PATHS),
+  employmentType: z.enum(EMPLOYMENT_TYPES),
+  reviewParticipationOverride: z.enum(REVIEW_PARTICIPATION_OVERRIDES).nullable(),
 });
 export type SetEmployeeAttrsInput = z.infer<typeof setEmployeeAttrsSchema>;
 
@@ -140,6 +148,12 @@ export type PersonDetail = {
   readonly active: boolean;
   readonly level: CareerLevel | undefined;
   readonly path: CareerPath | undefined;
+  // Employment type + override drive the DERIVED band/review applicability;
+  // `inReviewCycle` is the participatesInReview output (absent record =
+  // `employee` defaults).
+  readonly employmentType: EmploymentType;
+  readonly reviewParticipationOverride: ReviewParticipationOverride | null;
+  readonly inReviewCycle: boolean;
   readonly managers: readonly ManagerRef[];
   readonly reviewCase: ReviewCaseView | undefined;
   readonly canEditAttrs: boolean;
@@ -147,6 +161,7 @@ export type PersonDetail = {
   readonly canSign: boolean;
   readonly canViewComp: boolean;
   readonly canManageComp: boolean;
+  readonly canImpersonate: boolean;
   readonly appeal: AppealView | undefined;
   readonly canAppeal: boolean;
   // The record tabs (design): the subject's self-review is visible to the

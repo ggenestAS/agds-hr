@@ -37,11 +37,12 @@ describe("identity policies", () => {
     expect(canGrantRole(userWith(["developer"])).allow).toBe(true);
   });
 
-  test("impersonation requires developer and forbids targeting self", () => {
+  test("impersonation is founder/developer only and forbids targeting self", () => {
     expect(canStartImpersonation(userWith(["staff"]), { targetUserId: OTHER })).toEqual({
       allow: false,
-      reason: "developer_required",
+      reason: "founder_or_developer_required",
     });
+    expect(canStartImpersonation(userWith(["admin"]), { targetUserId: OTHER }).allow).toBe(false);
     expect(canStartImpersonation(userWith(["developer"]), { targetUserId: SELF })).toEqual({
       allow: false,
       reason: "cannot_impersonate_self",
@@ -49,5 +50,7 @@ describe("identity policies", () => {
     expect(canStartImpersonation(userWith(["developer"]), { targetUserId: OTHER }).allow).toBe(
       true,
     );
+    expect(canStartImpersonation(userWith(["founder"]), { targetUserId: OTHER }).allow).toBe(true);
+    expect(canStartImpersonation(userWith(["founder"]), { targetUserId: SELF }).allow).toBe(false);
   });
 });
