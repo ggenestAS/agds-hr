@@ -156,7 +156,9 @@ export const REVIEW_RATING_LABELS: Record<ReviewRating, string> = {
 export const REVIEW_CURRENT_CYCLE = "2026";
 // Human-readable window for the active cycle — stamped on self-reviews from
 // server truth, never collected from the subject (cyclePeriod is the code).
-export const REVIEW_CYCLE_PERIOD_LABEL = "Sep 2025 – Aug 2026";
+// The reviewed period runs July -> June (annual review lands July-August, for
+// the year just closed each June).
+export const REVIEW_CYCLE_PERIOD_LABEL = "Jul 2025 – Jun 2026";
 
 export type ReviewCase = {
   readonly id: string;
