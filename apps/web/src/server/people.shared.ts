@@ -264,6 +264,63 @@ export type PeerPageView = {
   }[];
 };
 
+// The manager assessment (design M6): evidence-based, per-dimension.
+const assessmentDimSchema = z.object({
+  score: z.number().int().min(1).max(4),
+  narrative: z.string().max(4000),
+  evidence: z.string().max(4000),
+});
+
+export const assessmentSaveSchema = z.object({
+  caseId: z.string().min(1),
+  dims: z.partialRecord(z.enum(EVALUATION_DIMENSIONS), assessmentDimSchema),
+  narrative: z.string().max(8000),
+  proposedRating: z.number().int().min(1).max(4).optional(),
+  promoProposed: z.boolean(),
+  compRec: z.string().max(200),
+  p6Acknowledged: z.boolean(),
+});
+export type AssessmentSaveInput = z.infer<typeof assessmentSaveSchema>;
+
+export type AssessmentView = {
+  readonly dims: Readonly<
+    Partial<
+      Record<
+        EvaluationDimension,
+        { readonly score: number; readonly narrative: string; readonly evidence: string }
+      >
+    >
+  >;
+  readonly narrative: string;
+  readonly proposedRating: number | undefined;
+  readonly promoProposed: boolean;
+  readonly compRec: string;
+  readonly p6Acknowledged: boolean;
+  readonly submittedAt: string | undefined;
+};
+
+export type AssessCaseDetail = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly state: ReviewState;
+  readonly level: CareerLevel | undefined;
+  readonly path: CareerPath | undefined;
+  readonly selfReview: Readonly<Partial<Record<SelfReviewKey, string>>>;
+  readonly selfReviewSubmittedAt: string | undefined;
+  readonly peerSubmitted: number;
+  readonly peerDeclined: number;
+  readonly priorRating: number | undefined;
+  readonly assessment: AssessmentView | undefined;
+};
+
+export type AssessCaseSummary = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly state: ReviewState;
+};
+
 // The Audit log surface (design P9): append-only trail, leadership-read-only.
 export type AuditLogRow = {
   readonly id: string;

@@ -6,6 +6,7 @@ import {
   CAREER_LEVELS,
   CAREER_PATHS,
   canFileAppealNow,
+  canSubmitAssessment,
   canSeeAppeal,
   canTransition,
   isAppealCategory,
@@ -89,6 +90,43 @@ describe("compensation", () => {
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(4, 90));
     expect(meritIncreaseBp(4, 10)).toBeGreaterThan(meritIncreaseBp(3, 10));
     expect(meritIncreaseBp(1, 10)).toBe(0);
+  });
+});
+
+describe("assessment gate", () => {
+  const dim = (narrative: string, evidence: string) => ({ score: 3 as const, narrative, evidence });
+  const fullDims = {
+    impact: dim("n", "e"),
+    ownership: dim("n", "e"),
+    quality: dim("n", "e"),
+    collaboration: dim("n", "e"),
+    culture: dim("n", "e"),
+  };
+
+  test("complete dims + rating submits; missing evidence blocks", () => {
+    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 3, p6Acknowledged: false })).toBe(
+      true,
+    );
+    expect(
+      canSubmitAssessment({
+        dims: { ...fullDims, quality: dim("n", "  ") },
+        proposedRating: 3,
+        p6Acknowledged: false,
+      }),
+    ).toBe(false);
+    expect(canSubmitAssessment({ dims: {}, proposedRating: 3, p6Acknowledged: false })).toBe(false);
+    expect(
+      canSubmitAssessment({ dims: fullDims, proposedRating: undefined, p6Acknowledged: false }),
+    ).toBe(false);
+  });
+
+  test("a low rating requires the P6 acknowledgment", () => {
+    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 2, p6Acknowledged: false })).toBe(
+      false,
+    );
+    expect(canSubmitAssessment({ dims: fullDims, proposedRating: 2, p6Acknowledged: true })).toBe(
+      true,
+    );
   });
 });
 

@@ -56,6 +56,8 @@ export {
   saveSelfReview,
   submitSelfReview,
 } from "./self-review.ts";
+export type { AssessmentDraft } from "./assessment.ts";
+export { getAssessmentByCase, saveAssessment, submitAssessment } from "./assessment.ts";
 export type { PeerRequestForRequestee } from "./peer-input.ts";
 export {
   createPeerRequests,

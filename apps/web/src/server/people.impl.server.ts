@@ -29,12 +29,15 @@ import {
   listDecisionSummaries,
   listEmployeeAttrs,
   listRatingsForCycle,
+  getAssessmentByCase,
   getSelfReviewByCase,
   isPeerQuotaMet,
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
   openCase,
   reopenSelfReview,
+  saveAssessment,
+  submitAssessment,
   submitPeerInput,
   resolveAppeal,
   saveSelfReview,
@@ -46,11 +49,15 @@ import {
   upsertCompRecommendation,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
+import type { AssessmentDraft } from "@agds-hr/people";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
 import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
 
 import type {
   AppealView,
+  AssessCaseDetail,
+  AssessCaseSummary,
+  AssessmentSaveInput,
   AuditLogRow,
   BandsView,
   CalibrationSummary,
@@ -536,6 +543,113 @@ export async function peerDeclineHandler(input: {
     input.reason,
     auditContext(session),
   );
+  return { ok: true };
+}
+
+// Assessment handlers (design M6). The reviewer's own case is excluded — no
+// one assesses themselves. Submitting writes the case rating (audited) so the
+// proposal lands in calibration.
+export async function assessListHandler(): Promise<readonly AssessCaseSummary[]> {
+  const session = await requireSession("people.assessment.write");
+  const adminDb = getDbAs("admin");
+  const actorEmail = session.actor.email.toLowerCase();
+  const [cases, admins] = await Promise.all([
+    listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+  ]);
+  const nameByEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      `${admin.firstName} ${admin.lastName}`.trim(),
+    ]),
+  );
+  return cases
+    .filter((entry) => !entry.decided && entry.subjectEmail.toLowerCase() !== actorEmail)
+    .map((entry) => ({
+      caseId: entry.caseId,
+      subjectEmail: entry.subjectEmail,
+      subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
+      state: entry.state,
+    }));
+}
+
+export async function assessDetailHandler(caseId: string): Promise<AssessCaseDetail> {
+  const session = await requireSession("people.assessment.write");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await getCaseById(adminDb, caseId);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review case", caseId);
+  }
+  if (reviewCase.subjectEmail.toLowerCase() === session.actor.email.toLowerCase()) {
+    throw new ForbiddenError("people.assessment.write", "own_review");
+  }
+  const [attrs, selfReview, peerRequests, existing, admins] = await Promise.all([
+    getEmployeeByEmail(adminDb, reviewCase.subjectEmail.toLowerCase()),
+    getSelfReviewByCase(adminDb, caseId),
+    listPeerRequestsForCase(adminDb, caseId),
+    getAssessmentByCase(adminDb, caseId),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+  ]);
+  const roster = admins.find(
+    (admin) => admin.email.toLowerCase() === reviewCase.subjectEmail.toLowerCase(),
+  );
+  return {
+    caseId,
+    subjectEmail: reviewCase.subjectEmail,
+    subjectName: roster === undefined ? undefined : `${roster.firstName} ${roster.lastName}`.trim(),
+    state: reviewCase.state,
+    level: attrs?.level,
+    path: attrs?.path,
+    selfReview: (selfReview?.payload ?? {}) as AssessCaseDetail["selfReview"],
+    selfReviewSubmittedAt: selfReview?.submittedAt?.toISOString(),
+    peerSubmitted: peerRequests.filter((request) => request.status === "submitted").length,
+    peerDeclined: peerRequests.filter((request) => request.status === "declined").length,
+    priorRating: reviewCase.rating,
+    assessment:
+      existing === undefined
+        ? undefined
+        : {
+            dims: existing.dims,
+            narrative: existing.narrative,
+            proposedRating: existing.proposedRating,
+            promoProposed: existing.promoProposed,
+            compRec: existing.compRec,
+            p6Acknowledged: existing.p6Acknowledged,
+            submittedAt: existing.submittedAt?.toISOString(),
+          },
+  };
+}
+
+const toDraft = (input: AssessmentSaveInput): AssessmentDraft => ({
+  dims: Object.fromEntries(
+    Object.entries(input.dims).filter(([, value]) => value !== undefined),
+  ) as AssessmentDraft["dims"],
+  narrative: input.narrative,
+  proposedRating:
+    input.proposedRating === undefined ? undefined : (input.proposedRating as ReviewRating),
+  promoProposed: input.promoProposed,
+  compRec: input.compRec,
+  p6Acknowledged: input.p6Acknowledged,
+});
+
+export async function assessSaveHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.assessment.write");
+  await saveAssessment(getDbAs("admin"), input.caseId, toDraft(input), auditContext(session));
+  return { ok: true };
+}
+
+export async function assessSubmitHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.assessment.write");
+  const adminDb = getDbAs("admin");
+  await submitAssessment(adminDb, input.caseId, toDraft(input), auditContext(session));
+  if (input.proposedRating !== undefined) {
+    await setCaseRating(
+      adminDb,
+      input.caseId,
+      input.proposedRating as ReviewRating,
+      auditContext(session),
+    );
+  }
   return { ok: true };
 }
 

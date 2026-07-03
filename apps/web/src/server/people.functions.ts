@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import {
   advanceReviewSchema,
+  assessmentSaveSchema,
   compReadSchema,
   fileAppealSchema,
   openReviewSchema,
@@ -170,4 +171,30 @@ export const peerDeclineFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { peerDeclineHandler } = await import("./people.impl.server.ts");
     return peerDeclineHandler(data);
+  });
+
+export const assessListFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { assessListHandler } = await import("./people.impl.server.ts");
+  return assessListHandler();
+});
+
+export const assessDetailFn = createServerFn({ method: "GET" })
+  .validator((caseId: string) => caseId)
+  .handler(async ({ data }) => {
+    const { assessDetailHandler } = await import("./people.impl.server.ts");
+    return assessDetailHandler(data);
+  });
+
+export const assessSaveFn = createServerFn({ method: "POST" })
+  .validator(assessmentSaveSchema)
+  .handler(async ({ data }) => {
+    const { assessSaveHandler } = await import("./people.impl.server.ts");
+    return assessSaveHandler(data);
+  });
+
+export const assessSubmitFn = createServerFn({ method: "POST" })
+  .validator(assessmentSaveSchema)
+  .handler(async ({ data }) => {
+    const { assessSubmitHandler } = await import("./people.impl.server.ts");
+    return assessSubmitHandler(data);
   });
