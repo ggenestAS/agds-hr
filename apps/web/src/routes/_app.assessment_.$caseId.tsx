@@ -20,8 +20,9 @@ import { selfReviewEntries } from "../server/people.shared.ts";
 import { assessDetailFn, assessSaveFn, assessSubmitFn } from "../server/people.functions.ts";
 
 // The dedicated assessment page (one case = one page, like the peer answer
-// form): evidence panels — self-review, level expectations, peer input — next
-// to the manager assessment form. Reached from the /assessment list.
+// form), split into three tabs: the manager's own assessment form, the
+// subject's self-review, and the submitted peer input. "Copy as .md" exports
+// all three as one Markdown document.
 export const Route = createFileRoute("/_app/assessment_/$caseId")({
   loader: ({ params }) => assessDetailFn({ data: params.caseId }),
   pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
@@ -140,6 +141,102 @@ const KIND_LABEL: Record<PeerKind, string> = {
   cross: "Cross-team",
 };
 
+const ratingLabel = (score: number | undefined): string =>
+  score !== undefined && isReviewRating(score) ? `${score} · ${REVIEW_RATING_LABELS[score]}` : "—";
+
+// The full case as one Markdown document — manager assessment (current draft,
+// so unsaved edits are included), self-review, and peer input.
+const buildMarkdown = (detail: AssessCaseDetail, draft: Draft): string => {
+  const name = detail.subjectName ?? detail.subjectEmail;
+  const lines: string[] = [`# Review — ${name}`];
+  const meta = [
+    detail.level !== undefined
+      ? `${detail.level} · ${CAREER_LEVEL_META[detail.level].name}`
+      : undefined,
+    detail.path !== undefined ? (detail.path === "ic" ? "IC path" : "Management") : undefined,
+    `case state: ${detail.state.replace(/_/g, " ")}`,
+  ].filter((part): part is string => part !== undefined);
+  lines.push(meta.join(" · "), "");
+
+  const assessedAt = detail.assessment?.submittedAt;
+  lines.push(
+    `## Manager assessment${
+      assessedAt !== undefined
+        ? ` — submitted ${new Date(assessedAt).toLocaleDateString()}`
+        : " — draft"
+    }`,
+    "",
+  );
+  for (const dimension of EVALUATION_DIMENSIONS) {
+    const entry = draft.dims[dimension];
+    if (
+      entry.score === undefined &&
+      entry.narrative.trim() === "" &&
+      entry.evidence.trim() === ""
+    ) {
+      continue;
+    }
+    lines.push(`### ${EVALUATION_DIMENSION_LABELS[dimension]} — ${ratingLabel(entry.score)}`, "");
+    if (entry.narrative.trim() !== "") {
+      lines.push(entry.narrative.trim(), "");
+    }
+    if (entry.evidence.trim() !== "") {
+      lines.push(`Evidence: ${entry.evidence.trim()}`, "");
+    }
+  }
+  if (draft.narrative.trim() !== "") {
+    lines.push("**Overall narrative**", "", draft.narrative.trim(), "");
+  }
+  lines.push(`Proposed rating: ${ratingLabel(draft.proposedRating)}`);
+  lines.push(`Promotion proposed: ${draft.promoProposed ? "yes" : "no"}`);
+  if (draft.compRec.trim() !== "") {
+    lines.push(`Compensation recommendation: ${draft.compRec.trim()}`);
+  }
+  lines.push("");
+
+  lines.push(
+    `## Self-review${
+      detail.selfReviewSubmittedAt !== undefined
+        ? ` — submitted ${new Date(detail.selfReviewSubmittedAt).toLocaleDateString()}`
+        : " — not submitted"
+    }`,
+    "",
+  );
+  const entries = selfReviewEntries(detail.selfReview);
+  if (entries.length === 0) {
+    lines.push("No content.", "");
+  }
+  for (const entry of entries) {
+    lines.push(`**${entry.label}**`, "", entry.value, "");
+  }
+
+  lines.push(`## Peer input — ${detail.peers.length} submitted`, "");
+  if (detail.peers.length === 0) {
+    lines.push("None yet.", "");
+  }
+  for (const peer of detail.peers) {
+    lines.push(
+      `### From ${peer.requesteeName ?? peer.requesteeEmail} · ${KIND_LABEL[peer.kind]}`,
+      "",
+    );
+    for (const dimension of EVALUATION_DIMENSIONS) {
+      const value = (peer.input[dimension] ?? "").trim();
+      if (value !== "") {
+        lines.push(`**${EVALUATION_DIMENSION_LABELS[dimension]}** — ${value}`, "");
+      }
+    }
+  }
+  return lines.join("\n");
+};
+
+type AssessTab = "yours" | "self" | "peers";
+
+const TAB_LABEL: Record<AssessTab, string> = {
+  yours: "Your assessment",
+  self: "Self-review",
+  peers: "Peer input",
+};
+
 function AssessCasePage() {
   const detail: AssessCaseDetail = Route.useLoaderData();
   const router = useRouter();
@@ -147,12 +244,10 @@ function AssessCasePage() {
   const [draft, setDraft] = useState<Draft>(() => draftFromDetail(detail));
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  // Evidence panels open by default when they have content — the page's whole
-  // premise is assessing against evidence, so don't hide it behind a click.
-  const selfEntries = selfReviewEntries(detail.selfReview);
-  const [showSelf, setShowSelf] = useState(selfEntries.length > 0);
-  const [showPeers, setShowPeers] = useState(detail.peers.length > 0);
+  const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<AssessTab>("yours");
 
+  const selfEntries = selfReviewEntries(detail.selfReview);
   const submitted = detail.assessment?.submittedAt !== undefined;
   const lowRating = draft.proposedRating !== undefined && draft.proposedRating <= 2;
   const complete = isComplete(draft);
@@ -208,6 +303,13 @@ function AssessCasePage() {
       dims: { ...prev.dims, [dimension]: { ...prev.dims[dimension], ...patch } },
     }));
 
+  const copyMarkdown = () => {
+    void navigator.clipboard.writeText(buildMarkdown(detail, draft)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   const selfMissing = detail.selfReviewSubmittedAt === undefined;
   const noPeerInput = detail.peers.length === 0;
 
@@ -262,364 +364,399 @@ function AssessCasePage() {
         </div>
       )}
 
-      <div className="mt-5 grid items-start gap-5 lg:grid-cols-[0.85fr_1.15fr]">
-        <div className="flex flex-col gap-4">
-          <Card>
-            <CardContent className="pt-5 text-sm">
-              <div className="mb-2.5 flex items-baseline justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                  Self-review · input, not rating
-                  {selfMissing && " · not yet submitted"}
-                </p>
-                {selfEntries.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
-                    onClick={() => setShowSelf((value) => !value)}
-                  >
-                    {showSelf ? "Hide" : "Show"}
-                  </button>
-                )}
-              </div>
-              {selfEntries.length === 0 ? (
-                <p className="text-muted-foreground">No self-review content yet.</p>
-              ) : (
-                showSelf && (
+      <div className="mb-6 mt-5 flex items-center gap-6 border-b border-border">
+        {(["yours", "self", "peers"] as const).map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            onClick={() => setTab(entry)}
+            className={
+              entry === tab
+                ? "-mb-px flex items-center gap-2 border-b-2 border-[var(--color-accent)] pb-3 text-sm font-semibold"
+                : "-mb-px flex items-center gap-2 border-b-2 border-transparent pb-3 text-sm font-semibold text-ink-300 hover:text-ink-500"
+            }
+          >
+            {TAB_LABEL[entry]}
+            {entry === "yours" && !submitted && (
+              <span className="rounded-full bg-bone px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums text-ink-500">
+                {doneCount}/{EVALUATION_DIMENSIONS.length}
+              </span>
+            )}
+            {entry === "peers" && detail.peers.length > 0 && (
+              <span className="rounded-full bg-bone px-1.5 py-0.5 text-[10px] font-bold leading-none tabular-nums text-ink-500">
+                {detail.peers.length}
+              </span>
+            )}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={copyMarkdown}
+          className="-mb-px ml-auto pb-3 text-xs font-semibold text-muted-foreground hover:text-foreground"
+        >
+          {copied ? "Copied ✓" : "Copy as .md"}
+        </button>
+      </div>
+
+      {/* ---- Your assessment: the form, with level expectations alongside ---- */}
+      {tab === "yours" && (
+        <div className="grid items-start gap-5 lg:grid-cols-[0.7fr_1.3fr]">
+          <div className="flex flex-col gap-4">
+            {detail.level !== undefined && (
+              <Card>
+                <CardContent className="pt-5 text-sm">
+                  <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Level expectations
+                  </p>
                   <div className="space-y-2.5">
-                    {selfEntries.map((entry) => (
-                      <div key={entry.label}>
-                        <p className="text-[12.5px] font-semibold">{entry.label}</p>
-                        <p className="text-[13px] leading-relaxed text-ink-700">{entry.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-5 text-sm">
-              <div className="mb-2.5 flex items-baseline justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                  Peer input · named, not shown to the subject
-                </p>
-                {detail.peers.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
-                    onClick={() => setShowPeers((value) => !value)}
-                  >
-                    {showPeers ? "Hide" : "Show"}
-                  </button>
-                )}
-              </div>
-              {detail.peers.length === 0 ? (
-                <p className="text-muted-foreground">No submitted peer input yet.</p>
-              ) : (
-                showPeers && (
-                  <div className="space-y-4">
-                    {detail.peers.map((peer) => (
-                      <div key={peer.requesteeEmail}>
-                        <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                          From {peer.requesteeName ?? peer.requesteeEmail} · {KIND_LABEL[peer.kind]}
-                        </p>
-                        <div className="space-y-2">
-                          {EVALUATION_DIMENSIONS.filter(
-                            (dimension) => (peer.input[dimension] ?? "") !== "",
-                          ).map((dimension) => (
-                            <div key={dimension}>
-                              <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                                {EVALUATION_DIMENSION_LABELS[dimension]}
-                              </p>
-                              <p className="text-[13px] leading-relaxed text-ink-700">
-                                {peer.input[dimension]}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
-
-          {detail.level !== undefined && (
-            <Card>
-              <CardContent className="pt-5 text-sm">
-                <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                  Level expectations
-                </p>
-                <div className="space-y-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <span className="shrink-0 rounded-lg bg-cream px-2 py-0.5 text-xs font-bold">
-                      Now
-                    </span>
-                    <span className="text-[13px] leading-relaxed text-ink-700">
-                      {CAREER_LEVEL_META[detail.level].test}
-                    </span>
-                  </div>
-                  {detail.level !== "L4" && (
                     <div className="flex items-start gap-2.5">
-                      <span className="shrink-0 rounded-lg bg-bone px-2 py-0.5 text-xs font-bold text-ink-300">
-                        {CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]}
+                      <span className="shrink-0 rounded-lg bg-cream px-2 py-0.5 text-xs font-bold">
+                        Now
                       </span>
-                      <span className="text-[13px] leading-relaxed text-muted-foreground">
-                        {
-                          CAREER_LEVEL_META[CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]!]
-                            .test
-                        }
+                      <span className="text-[13px] leading-relaxed text-ink-700">
+                        {CAREER_LEVEL_META[detail.level].test}
                       </span>
                     </div>
-                  )}
+                    {detail.level !== "L4" && (
+                      <div className="flex items-start gap-2.5">
+                        <span className="shrink-0 rounded-lg bg-bone px-2 py-0.5 text-xs font-bold text-ink-300">
+                          {CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]}
+                        </span>
+                        <span className="text-[13px] leading-relaxed text-muted-foreground">
+                          {
+                            CAREER_LEVEL_META[
+                              CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]!
+                            ].test
+                          }
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardContent className="space-y-2.5 pt-5 text-sm">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-muted-foreground">Peer input</span>
+                  <span className="font-semibold tabular-nums">
+                    {detail.peerSubmitted} submitted
+                    {detail.peerDeclined > 0 && ` · ${detail.peerDeclined} declined`}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-muted-foreground">Current case rating</span>
+                  <span className="font-semibold tabular-nums">
+                    {detail.priorRating !== undefined && isReviewRating(detail.priorRating)
+                      ? `${detail.priorRating} · ${REVIEW_RATING_LABELS[detail.priorRating]}`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-muted-foreground">Case state</span>
+                  <span className="font-semibold">{detail.state.replace(/_/g, " ")}</span>
                 </div>
               </CardContent>
             </Card>
-          )}
+          </div>
 
           <Card>
-            <CardContent className="space-y-2.5 pt-5 text-sm">
+            <CardHeader>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Peer input</span>
-                <span className="font-semibold tabular-nums">
-                  {detail.peerSubmitted} submitted
-                  {detail.peerDeclined > 0 && ` · ${detail.peerDeclined} declined`}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Current case rating</span>
-                <span className="font-semibold tabular-nums">
-                  {detail.priorRating !== undefined && isReviewRating(detail.priorRating)
-                    ? `${detail.priorRating} · ${REVIEW_RATING_LABELS[detail.priorRating]}`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="text-muted-foreground">Case state</span>
-                <span className="font-semibold">{detail.state.replace(/_/g, " ")}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <div className="flex items-baseline justify-between gap-3">
-              <CardTitle>Your assessment</CardTitle>
-              {!submitted && (
-                <span
-                  className={
-                    doneCount === EVALUATION_DIMENSIONS.length
-                      ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-[#1e7a46]"
-                      : "rounded-full bg-bone px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-ink-500"
-                  }
-                >
-                  {doneCount}/{EVALUATION_DIMENSIONS.length} dimensions
-                </span>
-              )}
-            </div>
-            {submitted ? (
-              <p className="text-sm font-semibold text-[#1e7a46]">
-                Submitted{" "}
-                {detail.assessment?.submittedAt !== undefined &&
-                  new Date(detail.assessment.submittedAt).toLocaleDateString()}{" "}
-                — read-only.
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Evidence-based only: every dimension needs a score, a narrative, and at least one
-                linked artefact, metric, or concrete moment.
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {EVALUATION_DIMENSIONS.map((dimension) => {
-              const entry = draft.dims[dimension];
-              const done = isDimDone(entry);
-              return (
-                <div key={dimension} className="rounded-[14px] border border-border p-4">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-1.5 text-[13.5px] font-bold">
-                      {EVALUATION_DIMENSION_LABELS[dimension]}
-                      {done && !submitted && <span className="text-[#1e7a46]">✓</span>}
-                    </span>
-                    <select
-                      value={entry.score ?? ""}
-                      disabled={submitted}
-                      onChange={(event) =>
-                        setDim(dimension, {
-                          score: event.target.value === "" ? undefined : Number(event.target.value),
-                        })
-                      }
-                      className="rounded-[10px] border border-border bg-card px-2 py-1 text-xs"
-                    >
-                      <option value="">score…</option>
-                      {[1, 2, 3, 4].map((score) => (
-                        <option key={score} value={score}>
-                          {score} · {REVIEW_RATING_LABELS[score as ReviewRating]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <textarea
-                    rows={2}
-                    maxLength={4000}
-                    placeholder="Narrative — what happened, against level expectations"
-                    value={entry.narrative}
-                    disabled={submitted}
-                    onChange={(event) => setDim(dimension, { narrative: event.target.value })}
-                    className={inputCls}
-                  />
-                  <input
-                    maxLength={4000}
-                    placeholder="Evidence — a linked artefact, metric, or concrete moment (required)"
-                    value={entry.evidence}
-                    disabled={submitted}
-                    onChange={(event) => setDim(dimension, { evidence: event.target.value })}
-                    className={`${inputCls} mt-2`}
-                  />
-                </div>
-              );
-            })}
-
-            <div>
-              <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-700">
-                Overall narrative
-              </label>
-              <textarea
-                rows={3}
-                maxLength={8000}
-                placeholder="The proposal to calibration, in plain words"
-                value={draft.narrative}
-                disabled={submitted}
-                onChange={(event) => update((prev) => ({ ...prev, narrative: event.target.value }))}
-                className={inputCls}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4">
-              <label className="text-xs">
-                <span className="mb-1 block font-semibold text-ink-700">Proposed rating</span>
-                <select
-                  value={draft.proposedRating ?? ""}
-                  disabled={submitted}
-                  onChange={(event) =>
-                    update((prev) => ({
-                      ...prev,
-                      proposedRating:
-                        event.target.value === "" ? undefined : Number(event.target.value),
-                    }))
-                  }
-                  className="rounded-[10px] border border-border bg-card px-2 py-1.5"
-                >
-                  <option value="">—</option>
-                  {[1, 2, 3, 4].map((rating) => (
-                    <option key={rating} value={rating}>
-                      {rating} · {REVIEW_RATING_LABELS[rating as ReviewRating]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-[13px] font-medium">
-                <input
-                  type="checkbox"
-                  checked={draft.promoProposed}
-                  disabled={submitted}
-                  onChange={(event) =>
-                    update((prev) => ({ ...prev, promoProposed: event.target.checked }))
-                  }
-                />
-                Promotion proposed
-              </label>
-              <label className="min-w-40 flex-1 text-xs">
-                <span className="mb-1 block font-semibold text-ink-700">
-                  Compensation recommendation (type only)
-                </span>
-                <input
-                  maxLength={200}
-                  placeholder='e.g. "+4% + bonus" — amounts are set by Admins at sign-off'
-                  value={draft.compRec}
-                  disabled={submitted}
-                  onChange={(event) => update((prev) => ({ ...prev, compRec: event.target.value }))}
-                  className={inputCls}
-                />
-              </label>
-            </div>
-
-            {lowRating && (
-              <div className="flex items-start gap-3 rounded-xl border border-[rgba(233,75,60,0.28)] bg-[#fbf1ee] px-4 py-3">
-                <span className="shrink-0 rounded-md bg-[var(--color-blush)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-dk)]">
-                  Improvement plan
-                </span>
-                <label className="flex items-start gap-2 text-[12.5px] leading-relaxed text-[#8a3325]">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5"
-                    checked={draft.p6Acknowledged}
-                    disabled={submitted}
-                    onChange={(event) =>
-                      update((prev) => ({ ...prev, p6Acknowledged: event.target.checked }))
+                <CardTitle>Your assessment</CardTitle>
+                {!submitted && (
+                  <span
+                    className={
+                      doneCount === EVALUATION_DIMENSIONS.length
+                        ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-[#1e7a46]"
+                        : "rounded-full bg-bone px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-ink-500"
                     }
-                  />
-                  A rating of 1 or 2 starts an improvement plan for this person. Please confirm you
-                  understand before submitting.
-                </label>
-              </div>
-            )}
-
-            {!submitted && (
-              <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
-                {savedAt !== null && (
-                  <span className="mr-auto text-xs text-muted-foreground">
-                    Draft saved at {savedAt} ✓
+                  >
+                    {doneCount}/{EVALUATION_DIMENSIONS.length} dimensions
                   </span>
                 )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    void run(async () => {
-                      await assessSaveFn({ data: toPayload(detail.caseId, draft) });
-                      setSavedAt(new Date().toLocaleTimeString([], { timeStyle: "short" }));
-                    });
-                  }}
-                >
-                  Save draft
-                </Button>
-                <div className="text-right">
+              </div>
+              {submitted ? (
+                <p className="text-sm font-semibold text-[#1e7a46]">
+                  Submitted{" "}
+                  {detail.assessment?.submittedAt !== undefined &&
+                    new Date(detail.assessment.submittedAt).toLocaleDateString()}{" "}
+                  — read-only.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Evidence-based only: every dimension needs a score, a narrative, and at least one
+                  linked artefact, metric, or concrete moment.
+                </p>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              {EVALUATION_DIMENSIONS.map((dimension) => {
+                const entry = draft.dims[dimension];
+                const done = isDimDone(entry);
+                return (
+                  <div key={dimension} className="rounded-[14px] border border-border p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 text-[13.5px] font-bold">
+                        {EVALUATION_DIMENSION_LABELS[dimension]}
+                        {done && !submitted && <span className="text-[#1e7a46]">✓</span>}
+                      </span>
+                      <select
+                        value={entry.score ?? ""}
+                        disabled={submitted}
+                        onChange={(event) =>
+                          setDim(dimension, {
+                            score:
+                              event.target.value === "" ? undefined : Number(event.target.value),
+                          })
+                        }
+                        className="rounded-[10px] border border-border bg-card px-2 py-1 text-xs"
+                      >
+                        <option value="">score…</option>
+                        {[1, 2, 3, 4].map((score) => (
+                          <option key={score} value={score}>
+                            {score} · {REVIEW_RATING_LABELS[score as ReviewRating]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <textarea
+                      rows={2}
+                      maxLength={4000}
+                      placeholder="Narrative — what happened, against level expectations"
+                      value={entry.narrative}
+                      disabled={submitted}
+                      onChange={(event) => setDim(dimension, { narrative: event.target.value })}
+                      className={inputCls}
+                    />
+                    <input
+                      maxLength={4000}
+                      placeholder="Evidence — a linked artefact, metric, or concrete moment (required)"
+                      value={entry.evidence}
+                      disabled={submitted}
+                      onChange={(event) => setDim(dimension, { evidence: event.target.value })}
+                      className={`${inputCls} mt-2`}
+                    />
+                  </div>
+                );
+              })}
+
+              <div>
+                <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-700">
+                  Overall narrative
+                </label>
+                <textarea
+                  rows={3}
+                  maxLength={8000}
+                  placeholder="The proposal to calibration, in plain words"
+                  value={draft.narrative}
+                  disabled={submitted}
+                  onChange={(event) =>
+                    update((prev) => ({ ...prev, narrative: event.target.value }))
+                  }
+                  className={inputCls}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4">
+                <label className="text-xs">
+                  <span className="mb-1 block font-semibold text-ink-700">Proposed rating</span>
+                  <select
+                    value={draft.proposedRating ?? ""}
+                    disabled={submitted}
+                    onChange={(event) =>
+                      update((prev) => ({
+                        ...prev,
+                        proposedRating:
+                          event.target.value === "" ? undefined : Number(event.target.value),
+                      }))
+                    }
+                    className="rounded-[10px] border border-border bg-card px-2 py-1.5"
+                  >
+                    <option value="">—</option>
+                    {[1, 2, 3, 4].map((rating) => (
+                      <option key={rating} value={rating}>
+                        {rating} · {REVIEW_RATING_LABELS[rating as ReviewRating]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-[13px] font-medium">
+                  <input
+                    type="checkbox"
+                    checked={draft.promoProposed}
+                    disabled={submitted}
+                    onChange={(event) =>
+                      update((prev) => ({ ...prev, promoProposed: event.target.checked }))
+                    }
+                  />
+                  Promotion proposed
+                </label>
+                <label className="min-w-40 flex-1 text-xs">
+                  <span className="mb-1 block font-semibold text-ink-700">
+                    Compensation recommendation (type only)
+                  </span>
+                  <input
+                    maxLength={200}
+                    placeholder='e.g. "+4% + bonus" — amounts are set by Admins at sign-off'
+                    value={draft.compRec}
+                    disabled={submitted}
+                    onChange={(event) =>
+                      update((prev) => ({ ...prev, compRec: event.target.value }))
+                    }
+                    className={inputCls}
+                  />
+                </label>
+              </div>
+
+              {lowRating && (
+                <div className="flex items-start gap-3 rounded-xl border border-[rgba(233,75,60,0.28)] bg-[#fbf1ee] px-4 py-3">
+                  <span className="shrink-0 rounded-md bg-[var(--color-blush)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-dk)]">
+                    Improvement plan
+                  </span>
+                  <label className="flex items-start gap-2 text-[12.5px] leading-relaxed text-[#8a3325]">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={draft.p6Acknowledged}
+                      disabled={submitted}
+                      onChange={(event) =>
+                        update((prev) => ({ ...prev, p6Acknowledged: event.target.checked }))
+                      }
+                    />
+                    A rating of 1 or 2 starts an improvement plan for this person. Please confirm
+                    you understand before submitting.
+                  </label>
+                </div>
+              )}
+
+              {!submitted && (
+                <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+                  {savedAt !== null && (
+                    <span className="mr-auto text-xs text-muted-foreground">
+                      Draft saved at {savedAt} ✓
+                    </span>
+                  )}
                   <Button
                     type="button"
                     size="sm"
-                    disabled={busy || !complete}
+                    variant="secondary"
+                    disabled={busy}
                     onClick={() => {
                       void run(async () => {
-                        await assessSubmitFn({ data: toPayload(detail.caseId, draft) });
-                        try {
-                          localStorage.removeItem(storageKey);
-                        } catch {
-                          // best-effort cleanup
-                        }
+                        await assessSaveFn({ data: toPayload(detail.caseId, draft) });
+                        setSavedAt(new Date().toLocaleTimeString([], { timeStyle: "short" }));
                       });
                     }}
                   >
-                    Submit assessment
+                    Save draft
                   </Button>
-                  {!complete && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Enabled once every dimension has a score, narrative & evidence
-                      {lowRating && " and the improvement plan is acknowledged"}
-                    </p>
-                  )}
+                  <div className="text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy || !complete}
+                      onClick={() => {
+                        void run(async () => {
+                          await assessSubmitFn({ data: toPayload(detail.caseId, draft) });
+                          try {
+                            localStorage.removeItem(storageKey);
+                          } catch {
+                            // best-effort cleanup
+                          }
+                        });
+                      }}
+                    >
+                      Submit assessment
+                    </Button>
+                    {!complete && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        Enabled once every dimension has a score, narrative & evidence
+                        {lowRating && " and the improvement plan is acknowledged"}
+                      </p>
+                    )}
+                  </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ---- Self-review: the subject's own words, input not rating ---- */}
+      {tab === "self" && (
+        <Card className="mx-auto max-w-3xl">
+          <CardHeader>
+            <CardTitle>Self-review</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Input, not rating — {detail.subjectName ?? detail.subjectEmail}'s own words.
+              {detail.selfReviewSubmittedAt !== undefined
+                ? ` Submitted ${new Date(detail.selfReviewSubmittedAt).toLocaleDateString()}.`
+                : " Not yet submitted."}
+            </p>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {selfEntries.length === 0 ? (
+              <p className="text-muted-foreground">No self-review content yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {selfEntries.map((entry) => (
+                  <div key={entry.label}>
+                    <p className="text-[12.5px] font-semibold">{entry.label}</p>
+                    <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-700">
+                      {entry.value}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
+      )}
+
+      {/* ---- Peer input: named, never shown to the subject ---- */}
+      {tab === "peers" && (
+        <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          {detail.peers.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                No submitted peer input yet.
+              </CardContent>
+            </Card>
+          ) : (
+            detail.peers.map((peer) => (
+              <Card key={peer.requesteeEmail}>
+                <CardHeader>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <CardTitle>{peer.requesteeName ?? peer.requesteeEmail}</CardTitle>
+                    <span className="rounded-full bg-bone px-2.5 py-0.5 text-[11px] font-bold text-ink-500">
+                      {KIND_LABEL[peer.kind]}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Named, never shown to {detail.subjectName ?? "the subject"}.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {EVALUATION_DIMENSIONS.filter(
+                    (dimension) => (peer.input[dimension] ?? "") !== "",
+                  ).map((dimension) => (
+                    <div key={dimension}>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                        {EVALUATION_DIMENSION_LABELS[dimension]}
+                      </p>
+                      <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-700">
+                        {peer.input[dimension]}
+                      </p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
