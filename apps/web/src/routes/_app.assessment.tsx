@@ -129,11 +129,15 @@ const isComplete = (draft: Draft): boolean => {
 };
 
 // Self-review keys worth surfacing to the assessing manager, with labels.
+// Objectives are dynamic (2–6); empty slots filter out below.
 const SELF_HIGHLIGHTS: readonly { key: string; label: string }[] = [
   { key: "sr_peers", label: "Suggested peer reviewers (you decide)" },
   { key: "o1_result", label: "Objective 1 · result" },
   { key: "o2_result", label: "Objective 2 · result" },
   { key: "o3_result", label: "Objective 3 · result" },
+  { key: "o4_result", label: "Objective 4 · result" },
+  { key: "o5_result", label: "Objective 5 · result" },
+  { key: "o6_result", label: "Objective 6 · result" },
   { key: "d_proud", label: "Most proud of" },
   { key: "d_short", label: "Fell short" },
   { key: "d_feedback", label: "Feedback received" },

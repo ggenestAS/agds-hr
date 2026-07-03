@@ -202,6 +202,13 @@ export type SetBandInput = z.infer<typeof setBandSchema>;
 
 // The self-review form (design): sections A–F, all free text. A closed key set
 // so the payload stays a validated string map rather than arbitrary JSON.
+// Objectives and KPIs are dynamic rows over pre-allocated key slots: the form
+// shows 2–6 objectives and 0–5 KPIs; unused slots simply stay empty.
+export const SELF_REVIEW_OBJECTIVES_MIN = 2;
+export const SELF_REVIEW_OBJECTIVES_MAX = 6;
+export const SELF_REVIEW_KPIS_MIN = 0;
+export const SELF_REVIEW_KPIS_MAX = 5;
+
 export const SELF_REVIEW_KEYS = [
   "sr_name",
   "sr_role",
@@ -216,6 +223,15 @@ export const SELF_REVIEW_KEYS = [
   "o3_obj",
   "o3_target",
   "o3_result",
+  "o4_obj",
+  "o4_target",
+  "o4_result",
+  "o5_obj",
+  "o5_target",
+  "o5_result",
+  "o6_obj",
+  "o6_target",
+  "o6_result",
   "k1_name",
   "k1_target",
   "k1_actual",
@@ -224,6 +240,18 @@ export const SELF_REVIEW_KEYS = [
   "k2_target",
   "k2_actual",
   "k2_reading",
+  "k3_name",
+  "k3_target",
+  "k3_actual",
+  "k3_reading",
+  "k4_name",
+  "k4_target",
+  "k4_actual",
+  "k4_reading",
+  "k5_name",
+  "k5_target",
+  "k5_actual",
+  "k5_reading",
   "c_context",
   "d_proud",
   "d_short",
@@ -241,10 +269,180 @@ export const SELF_REVIEW_KEYS = [
 ] as const;
 export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
 
+// Row-slot views over the flat key set, in display order.
+export const SELF_REVIEW_OBJECTIVE_ROWS = [
+  { obj: "o1_obj", target: "o1_target", result: "o1_result" },
+  { obj: "o2_obj", target: "o2_target", result: "o2_result" },
+  { obj: "o3_obj", target: "o3_target", result: "o3_result" },
+  { obj: "o4_obj", target: "o4_target", result: "o4_result" },
+  { obj: "o5_obj", target: "o5_target", result: "o5_result" },
+  { obj: "o6_obj", target: "o6_target", result: "o6_result" },
+] as const satisfies readonly {
+  obj: SelfReviewKey;
+  target: SelfReviewKey;
+  result: SelfReviewKey;
+}[];
+
+export const SELF_REVIEW_KPI_ROWS = [
+  { name: "k1_name", target: "k1_target", actual: "k1_actual", reading: "k1_reading" },
+  { name: "k2_name", target: "k2_target", actual: "k2_actual", reading: "k2_reading" },
+  { name: "k3_name", target: "k3_target", actual: "k3_actual", reading: "k3_reading" },
+  { name: "k4_name", target: "k4_target", actual: "k4_actual", reading: "k4_reading" },
+  { name: "k5_name", target: "k5_target", actual: "k5_actual", reading: "k5_reading" },
+] as const satisfies readonly {
+  name: SelfReviewKey;
+  target: SelfReviewKey;
+  actual: SelfReviewKey;
+  reading: SelfReviewKey;
+}[];
+
 export const selfReviewPayloadSchema = z.object({
   payload: z.partialRecord(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
 });
 export type SelfReviewPayloadInput = z.infer<typeof selfReviewPayloadSchema>;
+
+export type SelfReviewPayload = Readonly<Partial<Record<SelfReviewKey, string>>>;
+
+// Word-count guidance for the long-form fields (displayed live in the form and
+// enforced at submit for FILLED fields). Bounds keep answers substantive
+// without inviting padding: short inputs (names, targets, numbers) carry none.
+export type WordBounds = { readonly min: number; readonly max: number };
+
+const OBJECTIVE_RESULT_BOUNDS: WordBounds = { min: 20, max: 120 };
+const KPI_READING_BOUNDS: WordBounds = { min: 15, max: 80 };
+
+export const SELF_REVIEW_WORD_BOUNDS: Readonly<Partial<Record<SelfReviewKey, WordBounds>>> = {
+  o1_result: OBJECTIVE_RESULT_BOUNDS,
+  o2_result: OBJECTIVE_RESULT_BOUNDS,
+  o3_result: OBJECTIVE_RESULT_BOUNDS,
+  o4_result: OBJECTIVE_RESULT_BOUNDS,
+  o5_result: OBJECTIVE_RESULT_BOUNDS,
+  o6_result: OBJECTIVE_RESULT_BOUNDS,
+  k1_reading: KPI_READING_BOUNDS,
+  k2_reading: KPI_READING_BOUNDS,
+  k3_reading: KPI_READING_BOUNDS,
+  k4_reading: KPI_READING_BOUNDS,
+  k5_reading: KPI_READING_BOUNDS,
+  c_context: { min: 10, max: 120 },
+  d_proud: { min: 30, max: 150 },
+  d_short: { min: 30, max: 150 },
+  d_feedback: { min: 20, max: 150 },
+  d_others: { min: 20, max: 150 },
+  e_skills: { min: 10, max: 80 },
+  e_scope: { min: 10, max: 80 },
+  e_direction: { min: 10, max: 80 },
+  e_support: { min: 10, max: 80 },
+  f_fair: { min: 20, max: 150 },
+};
+
+// Human names for the bounded fields, used in submit-gate issue messages.
+const SELF_REVIEW_FIELD_NAMES: Readonly<Partial<Record<SelfReviewKey, string>>> = {
+  o1_result: "Objective 1 · result",
+  o2_result: "Objective 2 · result",
+  o3_result: "Objective 3 · result",
+  o4_result: "Objective 4 · result",
+  o5_result: "Objective 5 · result",
+  o6_result: "Objective 6 · result",
+  k1_reading: "KPI 1 · reading",
+  k2_reading: "KPI 2 · reading",
+  k3_reading: "KPI 3 · reading",
+  k4_reading: "KPI 4 · reading",
+  k5_reading: "KPI 5 · reading",
+  c_context: "Context on the year",
+  d_proud: "Most proud of",
+  d_short: "Where you fell short",
+  d_feedback: "Feedback received",
+  d_others: "Making others effective",
+  e_skills: "Skills to build",
+  e_scope: "Scope to take on",
+  e_direction: "Role direction",
+  e_support: "Support needed",
+  f_fair: "Fairness concern",
+};
+
+export function countWords(text: string): number {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+}
+
+const hasContent = (value: string | undefined): value is string =>
+  value !== undefined && value.trim().length > 0;
+
+// Highest 1-based row index carrying any content — how many rows the form
+// must show to display an existing payload. 0 when the section is empty.
+export function objectiveRowsInUse(payload: SelfReviewPayload): number {
+  let used = 0;
+  SELF_REVIEW_OBJECTIVE_ROWS.forEach((row, index) => {
+    if ([payload[row.obj], payload[row.target], payload[row.result]].some(hasContent)) {
+      used = index + 1;
+    }
+  });
+  return used;
+}
+
+export function kpiRowsInUse(payload: SelfReviewPayload): number {
+  let used = 0;
+  SELF_REVIEW_KPI_ROWS.forEach((row, index) => {
+    const values = [payload[row.name], payload[row.target], payload[row.actual]];
+    if (values.some(hasContent) || hasContent(payload[row.reading])) {
+      used = index + 1;
+    }
+  });
+  return used;
+}
+
+// The submit gate, pure and shared: the form disables "Send to manager" on any
+// issue, and the server re-checks before accepting a submit (fail closed —
+// the client gate is a courtesy, the server gate is the rule). Draft saves are
+// never gated: an incomplete draft is a normal state.
+export function selfReviewSubmitIssues(payload: SelfReviewPayload): readonly string[] {
+  const issues: string[] = [];
+
+  let completeObjectives = 0;
+  SELF_REVIEW_OBJECTIVE_ROWS.forEach((row, index) => {
+    const parts = [payload[row.obj], payload[row.target], payload[row.result]];
+    if (!parts.some(hasContent)) {
+      return;
+    }
+    if (parts.every(hasContent)) {
+      completeObjectives += 1;
+    } else {
+      issues.push(
+        `Objective ${index + 1} is only partly filled — complete all three fields or clear it`,
+      );
+    }
+  });
+  if (completeObjectives < SELF_REVIEW_OBJECTIVES_MIN) {
+    issues.push(
+      `At least ${SELF_REVIEW_OBJECTIVES_MIN} complete objectives are required — ${completeObjectives} so far`,
+    );
+  }
+
+  SELF_REVIEW_KPI_ROWS.forEach((row, index) => {
+    const core = [payload[row.name], payload[row.target], payload[row.actual]];
+    const touched = core.some(hasContent) || hasContent(payload[row.reading]);
+    if (touched && !core.every(hasContent)) {
+      issues.push(`KPI ${index + 1} needs a name, a target, and an actual — or clear it`);
+    }
+  });
+
+  for (const key of SELF_REVIEW_KEYS) {
+    const bounds = SELF_REVIEW_WORD_BOUNDS[key];
+    const value = payload[key];
+    if (bounds === undefined || !hasContent(value)) {
+      continue;
+    }
+    const words = countWords(value);
+    const name = SELF_REVIEW_FIELD_NAMES[key] ?? key;
+    if (words < bounds.min) {
+      issues.push(`${name}: ${words} ${words === 1 ? "word" : "words"} — aim for ${bounds.min}+`);
+    } else if (words > bounds.max) {
+      issues.push(`${name}: ${words} words — keep it under ${bounds.max}`);
+    }
+  }
+
+  return issues;
+}
 
 export type SelfReviewView = {
   readonly caseId: string | undefined;

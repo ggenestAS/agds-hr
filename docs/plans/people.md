@@ -133,6 +133,13 @@ All 13 views of the imported design are implemented, wired to real data:
   `submitted_at`), audited save/submit/reopen; `/self-review` form (sections
   A–F, local draft autosave, send-to-manager). Ownership is structural: the
   case is looked up by the actor's email and auto-opened on first save.
+  Objectives and KPIs are dynamic rows over pre-allocated key slots (2–6
+  objectives, 0–5 KPIs, add/remove in the form); every long-form field carries
+  a displayed min–max word target and a what-and-why help line. The submit
+  gate (`selfReviewSubmitIssues`, pure and shared) enforces the minimum
+  complete objectives, no half-filled rows, and word bounds on filled fields —
+  the form disables Send on any issue and the server re-checks (fail closed);
+  draft saves are never gated.
 - L — peer input: `peer_request` table (named, one per requestee per case,
   decline-with-reason); `/peer-input` with requestee answer/decline flows and
   the reviewer panel (case chips, quota pills, requestee picker, submitted
@@ -151,12 +158,22 @@ All 13 views of the imported design are implemented, wired to real data:
 - P — directory (country chips, ladder names, rating chips), calibration
   grouped by level, and `/appeals` as one surface (own appeal + windowed submit
   form for everyone; HR queue + written resolution for Admins).
+- Q — employment types + review participation
+  ([ADR](../decisions/2026-07-03-employment-types-and-review-participation.md)).
+  `employment_type` enum on `employee` (`employee` default; apprentice / VIE /
+  intern / freelance) with two DERIVED policies: `isSalaryBandApplicable`
+  (employee only) and `participatesInReview` (employee default + tri-state
+  `review_participation_override` for exceptions — today, reviewed
+  freelancers). `openCase` fails closed (`not_in_review_cycle`) for
+  non-participants; HR admins edit type + override on the person page; the
+  directory and person hero show non-employee types and their band/review
+  status.
 
 Remaining: seed band figures and canonical ladder names if they differ from the
-design's; surface band-position + merit suggestion once people have role_family
-+ bands (helpers exist);
-wire the `lt_member` role (deferred) into calibration authority if the design
-calls for it.
+design's; surface band-position and merit suggestion once people have
+role_family and bands (helpers exist — gate the math on
+`isSalaryBandApplicable`, ADR); wire the `lt_member` role (deferred) into
+calibration authority if the design calls for it.
 
 ## Open questions
 

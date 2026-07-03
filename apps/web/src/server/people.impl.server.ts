@@ -54,8 +54,9 @@ import {
 import type { AssessmentDraft } from "@agds-hr/people";
 import { CAREER_LEVELS } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
-import { ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
+import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
+import { selfReviewSubmitIssues } from "./people.shared.ts";
 import type {
   AppealsPageView,
   AppealView,
@@ -503,6 +504,13 @@ export async function selfReviewSubmitHandler(
   const existing = await getSelfReviewByCase(adminDb, reviewCase.id);
   if (existing?.submittedAt !== undefined) {
     throw new ForbiddenError("people.selfreview.write", "already_submitted");
+  }
+  // The submit gate re-runs server-side (fail closed): min complete objectives,
+  // no half-filled rows, word bounds on filled fields — same pure helper the
+  // form uses to disable the button.
+  const issues = selfReviewSubmitIssues(input.payload);
+  if (issues.length > 0) {
+    throw new ConflictError(`self_review_requirements_not_met (${issues.join("; ")})`);
   }
   await submitSelfReview(
     adminDb,
