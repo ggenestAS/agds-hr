@@ -110,8 +110,51 @@ and appeals surfaces are later slices.
   queue (resolve with a recorded resolution); mutations audited
   (`people.appeal.filed` / `people.appeal.resolved`).
 
-Remaining: seed band figures / country coefficients and canonical ladder names;
-surface band-position + merit suggestion in the comp card once bands are seeded;
+### Design import (Albert People.dc.html, slices H–P)
+
+All 13 views of the imported design are implemented, wired to real data:
+
+- H — shell + Overview: ink-900 grouped sidebar (Review cycle /
+  Compensation / Governance, role-filtered); `/dashboard` Overview with stat
+  tiles, the 2026 cycle timeline keyed to the viewer's own case, rating
+  distribution (reviewers) or personal status (staff), needs-a-decision list.
+  Design display metadata pinned in types: `CAREER_LEVEL_META`
+  (Contributor/Owner/Lead/Head + level tests) and `REVIEW_RATING_LABELS`
+  (Exceptional/Strong/Inconsistent/Not at level).
+- I — `/compensation` (merit matrix from `MERIT_MATRIX_BP`, should-NOT-drive-pay,
+  bonus rules) and `/bands` (bands + coefficients + phased transparency);
+  `listBands`/`listCountryCoefficients`; coefficients seeded by migration
+  (FR 1.00 / ES 0.85 / IT 0.92 / CH 1.35 in basis points).
+- J — `/audit` (append-only trail behind the new `audit.log.read` policy;
+  reading the log is not itself audited) and `/documentation` (delivered
+  decisions with amounts + rationale; the whole page is ONE audited comp read
+  via `listDecisionSummaries`).
+- K — self-review: `self_review` table (validated string-map payload,
+  `submitted_at`), audited save/submit/reopen; `/self-review` form (sections
+  A–F, local draft autosave, send-to-manager). Ownership is structural: the
+  case is looked up by the actor's email and auto-opened on first save.
+- L — peer input: `peer_request` table (named, one per requestee per case,
+  decline-with-reason); `/peer-input` with requestee answer/decline flows and
+  the reviewer panel (case chips, quota pills, requestee picker, submitted
+  input — the actor's own case structurally excluded). The LT gate
+  (`isPeerQuotaMet`: 2 LT + 2 own-team SUBMITTED) blocks
+  peer_input → manager_assessment in the advance handler.
+- M — assessment: `assessment` table (per-dimension score/narrative/evidence,
+  proposed rating, promo flag, comp TYPE, P6 ack); `/assessment` with the
+  evidence-gated submit (pure `canSubmitAssessment`, enforced in the DAL);
+  submitting writes the case rating.
+- N — `/sign-off`: decision queue with per-founder pills + decision-summary
+  panel; comp amounts stay behind the audited `compFn` read.
+- O — employee record: dark hero + tabs (Evaluation with the job-architecture
+  ladder and assessed dimensions; Review with the state controls, self-review,
+  assessment proposal, appeal; Compensation; History timeline).
+- P — directory (country chips, ladder names, rating chips), calibration
+  grouped by level, and `/appeals` as one surface (own appeal + windowed submit
+  form for everyone; HR queue + written resolution for Admins).
+
+Remaining: seed band figures and canonical ladder names if they differ from the
+design's; surface band-position + merit suggestion once people have role_family
++ bands (helpers exist);
 wire the `lt_member` role (deferred) into calibration authority if the design
 calls for it.
 
