@@ -72,6 +72,7 @@
       "name": "@agds-hr/audit",
       "version": "0.0.0",
       "dependencies": {
+        "@agds-hr/auth": "workspace:*",
         "@agds-hr/db": "workspace:*",
         "@agds-hr/shared": "workspace:*",
         "drizzle-orm": "beta",

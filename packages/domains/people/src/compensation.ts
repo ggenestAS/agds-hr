@@ -1,10 +1,11 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 
-import { band, compRecommendation, countryCoefficient } from "./db/schema.ts";
-import type { Band, CareerLevel, CompRecommendation } from "./types.ts";
+import { band, compRecommendation, countryCoefficient, reviewCase } from "./db/schema.ts";
+import type { Band, CareerLevel, CompRecommendation, ReviewRating } from "./types.ts";
+import { isReviewRating } from "./types.ts";
 
 // Band reference lookup — internal config, not a person's comp, so a normal read.
 export async function getBand(
@@ -102,6 +103,71 @@ export async function getCompRecommendation(
       effectiveDate: row.effectiveDate ?? undefined,
       rationale: row.rationale ?? undefined,
     };
+  });
+}
+
+// The Documentation surface (design): every delivered decision with its comp
+// recommendation and rationale. One audited read for the whole page — the
+// audit event carries the cycle, in the same transaction as the select
+// (fail-closed, like getCompRecommendation).
+export type DecisionSummary = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly rating: ReviewRating | undefined;
+  readonly decidedAt: Date;
+  readonly comp: CompRecommendation | undefined;
+};
+
+export async function listDecisionSummaries(
+  db: DrizzleDb,
+  cyclePeriod: string,
+  context: AuditContext,
+): Promise<readonly DecisionSummary[]> {
+  return db.transaction(async (tx) => {
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.comp.viewed",
+      resourceId: `cycle:${cyclePeriod}`,
+      payload: { surface: "documentation" },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+    const rows = await tx
+      .select({
+        caseId: reviewCase.id,
+        subjectEmail: reviewCase.subjectEmail,
+        rating: reviewCase.rating,
+        decidedAt: reviewCase.decidedAt,
+        currentBaseEur: compRecommendation.currentBaseEur,
+        increaseEur: compRecommendation.increaseEur,
+        bonusEur: compRecommendation.bonusEur,
+        newBaseEur: compRecommendation.newBaseEur,
+        effectiveDate: compRecommendation.effectiveDate,
+        rationale: compRecommendation.rationale,
+      })
+      .from(reviewCase)
+      .leftJoin(compRecommendation, eq(compRecommendation.caseId, reviewCase.id))
+      .where(and(eq(reviewCase.cyclePeriod, cyclePeriod), isNotNull(reviewCase.decidedAt)))
+      .orderBy(desc(reviewCase.decidedAt));
+    return rows.map((row) => ({
+      caseId: row.caseId,
+      subjectEmail: row.subjectEmail,
+      rating: row.rating !== null && isReviewRating(row.rating) ? row.rating : undefined,
+      decidedAt: row.decidedAt!,
+      comp:
+        row.currentBaseEur === null
+          ? undefined
+          : {
+              currentBaseEur: row.currentBaseEur,
+              increaseEur: row.increaseEur!,
+              bonusEur: row.bonusEur!,
+              newBaseEur: row.newBaseEur!,
+              effectiveDate: row.effectiveDate ?? undefined,
+              rationale: row.rationale ?? undefined,
+            },
+    }));
   });
 }
 

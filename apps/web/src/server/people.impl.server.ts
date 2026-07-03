@@ -1,5 +1,7 @@
+import { listEvents } from "@agds-hr/audit";
 import { can } from "@agds-hr/auth";
 import { getDbAs } from "@agds-hr/db";
+import { listUsers } from "@agds-hr/identity";
 import {
   isInsideConfigured,
   listAdminDirectory,
@@ -22,6 +24,7 @@ import {
   getSignoffs,
   listAppeals,
   listCasesForCycle,
+  listDecisionSummaries,
   listEmployeeAttrs,
   listRatingsForCycle,
   openCase,
@@ -38,9 +41,11 @@ import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
 
 import type {
   AppealView,
+  AuditLogRow,
   BandsView,
   CalibrationSummary,
   CompView,
+  DecisionDoc,
   DirectoryEntry,
   OverviewData,
   PersonDetail,
@@ -279,6 +284,92 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
     }
   }
   return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+}
+
+// The Audit log surface (P9): the append-only trail, newest first, with actor
+// and subject resolved to emails. Leadership-read-only via audit.log.read;
+// reading the log is a governance read, not a comp read, so it is not itself
+// audited (the design's P9 queries would drown in their own echoes).
+export async function auditLogHandler(): Promise<readonly AuditLogRow[]> {
+  await requireSession("audit.log.read");
+  const adminDb = getDbAs("admin");
+  const [events, users] = await Promise.all([
+    listEvents(adminDb, { limit: 200 }),
+    listUsers(adminDb),
+  ]);
+  const emailById = new Map(users.map((entry) => [entry.id, entry.email]));
+  return events.map((event) => ({
+    id: event.id,
+    when: event.createdAt.toISOString(),
+    actor: emailById.get(event.actorUserId) ?? event.actorUserId,
+    subject: emailById.get(event.subjectUserId) ?? event.subjectUserId,
+    eventType: event.eventType,
+    resourceId: event.resourceId ?? undefined,
+    category: event.eventType.endsWith(".viewed")
+      ? "Read"
+      : event.eventType.includes("decision") || event.eventType.includes("signoff")
+        ? "Sign-off"
+        : "Write",
+  }));
+}
+
+// The Documentation surface: every delivered decision with its documented
+// amounts and rationale. The whole read is one audited comp read (fail-closed
+// in the DAL). Undocumented decisions surface loudly rather than being hidden.
+export async function decisionsHandler(): Promise<readonly DecisionDoc[]> {
+  const session = await requireSession("people.comp.read");
+  const adminDb = getDbAs("admin");
+  const [summaries, admins] = await Promise.all([
+    listDecisionSummaries(adminDb, REVIEW_CURRENT_CYCLE, auditContext(session)),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+  ]);
+  const byEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      { userId: admin.userId, name: `${admin.firstName} ${admin.lastName}`.trim() },
+    ]),
+  );
+  return summaries.map((summary) => {
+    const roster = byEmail.get(summary.subjectEmail.toLowerCase());
+    const comp = summary.comp;
+    const increasePct =
+      comp !== undefined && comp.currentBaseEur > 0
+        ? Math.round((comp.increaseEur / comp.currentBaseEur) * 100)
+        : 0;
+    const tag: DecisionDoc["tag"] =
+      comp === undefined
+        ? "Undocumented"
+        : comp.bonusEur > 0
+          ? "Bonus"
+          : increasePct >= 10
+            ? "Promotion-scale raise"
+            : comp.increaseEur > 0
+              ? "Merit"
+              : "No raise";
+    const amount =
+      comp === undefined
+        ? "—"
+        : comp.increaseEur === 0 && comp.bonusEur === 0
+          ? "No change"
+          : [
+              comp.increaseEur > 0 ? `+${increasePct}%` : undefined,
+              comp.bonusEur > 0 ? `€${comp.bonusEur.toLocaleString("en-US")} bonus` : undefined,
+            ]
+              .filter(Boolean)
+              .join(" + ");
+    return {
+      caseId: summary.caseId,
+      subjectEmail: summary.subjectEmail,
+      name: roster?.name,
+      userId: roster?.userId,
+      rating: summary.rating,
+      decidedAt: summary.decidedAt.toISOString(),
+      tag,
+      amount,
+      rationale: comp?.rationale,
+      effectiveDate: comp?.effectiveDate,
+    };
+  });
 }
 
 // Salary bands + country coefficients (design: "Internal — used by CEO, COO &

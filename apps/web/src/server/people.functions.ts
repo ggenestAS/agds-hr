@@ -107,3 +107,13 @@ export const bandsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { bandsHandler } = await import("./people.impl.server.ts");
   return bandsHandler();
 });
+
+export const auditLogFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { auditLogHandler } = await import("./people.impl.server.ts");
+  return auditLogHandler();
+});
+
+export const decisionsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { decisionsHandler } = await import("./people.impl.server.ts");
+  return decisionsHandler();
+});

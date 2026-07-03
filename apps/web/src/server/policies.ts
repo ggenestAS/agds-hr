@@ -1,3 +1,4 @@
+import { canReadAuditLog } from "@agds-hr/audit";
 import { isPolicyRegistered, POLICY_BOOTSTRAP_PROBE, registerPolicy } from "@agds-hr/auth";
 import {
   canDeactivateUser,
@@ -53,4 +54,5 @@ export function registerPolicies(): void {
   registerPolicy("people.comp.manage", (user) => canManageComp(user));
   registerPolicy("people.appeal.file", (user) => canFileAppeal(user));
   registerPolicy("people.appeal.manage", (user) => canManageAppeals(user));
+  registerPolicy("audit.log.read", (user) => canReadAuditLog(user));
 }

@@ -143,6 +143,32 @@ export type BandsView = {
   readonly coefficients: readonly { readonly country: string; readonly coefficientBp: number }[];
 };
 
+// The Audit log surface (design P9): append-only trail, leadership-read-only.
+export type AuditLogRow = {
+  readonly id: string;
+  readonly when: string;
+  readonly actor: string;
+  readonly subject: string;
+  readonly eventType: string;
+  readonly resourceId: string | undefined;
+  readonly category: "Read" | "Sign-off" | "Write";
+};
+
+// The Documentation surface (design): every delivered decision, documented —
+// rating, amounts, rationale. Reading this page is itself an audited comp read.
+export type DecisionDoc = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly name: string | undefined;
+  readonly userId: string | undefined;
+  readonly rating: number | undefined;
+  readonly decidedAt: string;
+  readonly tag: "Promotion-scale raise" | "Bonus" | "Merit" | "No raise" | "Undocumented";
+  readonly amount: string;
+  readonly rationale: string | undefined;
+  readonly effectiveDate: string | undefined;
+};
+
 // The Overview surface (design): stat tiles + rating distribution + attention
 // list for reviewers; everyone gets the cycle timeline and their own status.
 export type OverviewData = {
