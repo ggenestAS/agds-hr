@@ -1,9 +1,14 @@
 import { getDbAs } from "@agds-hr/db";
 import { ensureUserByEmail, grantRole, listUsers, revokeRole } from "@agds-hr/identity";
-import { isInsideConfigured, listAdminDirectory } from "@agds-hr/inside";
+import { isInsideConfigured, listAdminDirectory, listOrgTree } from "@agds-hr/inside";
 import { UserId, type UserRole } from "@agds-hr/shared";
 
-import type { GrantRoleInput, RevokeRoleInput, RolesPageView } from "./roles.shared.ts";
+import type {
+  GrantRoleInput,
+  OrgManagerSuggestion,
+  RevokeRoleInput,
+  RolesPageView,
+} from "./roles.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
 
 type MergedRow = {
@@ -22,9 +27,10 @@ type MergedRow = {
 export async function rolesPageHandler(): Promise<RolesPageView> {
   await requireSession("identity.role.grant");
   const adminDb = getDbAs("admin");
-  const [users, admins] = await Promise.all([
+  const [users, admins, orgNodes] = await Promise.all([
     listUsers(adminDb, { limit: 500 }),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
   ]);
 
   const byEmail = new Map<string, MergedRow>();
@@ -59,7 +65,46 @@ export async function rolesPageHandler(): Promise<RolesPageView> {
       return left.name.localeCompare(right.name);
     });
 
-  return { assignments };
+  // Infer candidates from the SAME org tree that drives the People
+  // directory's "Reports to" column: anyone who is another node's
+  // functional manager has at least one direct report, and is a plausible
+  // reviewer — but this is a suggestion, not a grant. A person with reports
+  // in Inside's hierarchy but no product role yet is exactly who the review
+  // cycle needs `manager` authority for (opening cases, peer input,
+  // assessment) and doesn't have it.
+  const directReportCounts = new Map<string, number>();
+  for (const node of orgNodes) {
+    if (node.functionalManagerUserId !== undefined) {
+      directReportCounts.set(
+        node.functionalManagerUserId,
+        (directReportCounts.get(node.functionalManagerUserId) ?? 0) + 1,
+      );
+    }
+  }
+  const adminByUserId = new Map(admins.map((admin) => [admin.userId, admin]));
+  const orgManagerSuggestions: OrgManagerSuggestion[] = [];
+  for (const [managerUserId, directReports] of directReportCounts) {
+    const admin = adminByUserId.get(managerUserId);
+    if (admin === undefined) {
+      continue;
+    }
+    const existing = byEmail.get(admin.email.toLowerCase());
+    if (existing !== undefined && existing.roles.length > 0) {
+      continue; // already has a product role — not a gap
+    }
+    orgManagerSuggestions.push({
+      email: admin.email.toLowerCase(),
+      name: `${admin.firstName} ${admin.lastName}`.trim(),
+      title: admin.title,
+      directReports,
+    });
+  }
+  orgManagerSuggestions.sort(
+    (left, right) =>
+      right.directReports - left.directReports || left.name.localeCompare(right.name),
+  );
+
+  return { assignments, orgManagerSuggestions };
 }
 
 export async function grantRoleHandler(input: GrantRoleInput): Promise<{ ok: true }> {

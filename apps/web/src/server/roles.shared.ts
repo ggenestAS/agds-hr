@@ -34,6 +34,18 @@ export type RoleAssignment = {
   readonly roles: readonly UserRole[];
 };
 
+// Inferred from Albert Inside's org tree (the same reporting-line data behind
+// the People directory's "Reports to" column): anyone who is someone else's
+// functional manager, but who holds no product role yet. A candidate, not a
+// grant — HR still decides which of these should actually run reviews.
+export type OrgManagerSuggestion = {
+  readonly email: string;
+  readonly name: string;
+  readonly title: string | undefined;
+  readonly directReports: number;
+};
+
 export type RolesPageView = {
   readonly assignments: readonly RoleAssignment[];
+  readonly orgManagerSuggestions: readonly OrgManagerSuggestion[];
 };

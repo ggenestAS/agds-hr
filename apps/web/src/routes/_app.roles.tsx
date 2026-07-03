@@ -103,6 +103,70 @@ function Roles() {
         ))}
       </div>
 
+      {data.orgManagerSuggestions.length > 0 && (
+        <Card className="mt-5" variant="warning">
+          <CardHeader>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <CardTitle>Suggested from the org chart</CardTitle>
+              <Button
+                type="button"
+                size="sm"
+                disabled={busyKey !== null}
+                onClick={() => {
+                  void run("bulk-org-managers", () =>
+                    Promise.all(
+                      data.orgManagerSuggestions.map((suggestion) =>
+                        grantRoleFn({ data: { email: suggestion.email, role: "manager" } }),
+                      ),
+                    ),
+                  );
+                }}
+              >
+                Grant Manager to all {data.orgManagerSuggestions.length}
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Inferred from Albert Inside's reporting chain — the same data behind the People
+              directory's "Reports to" column. Each of these has at least one direct report but no
+              product role yet, so they can't open cases, request peer input, or run assessments for
+              the people who report to them. Review the list; grant what's right.
+            </p>
+          </CardHeader>
+          <CardContent className="divide-y divide-border">
+            {data.orgManagerSuggestions.map((suggestion) => (
+              <div key={suggestion.email} className="flex items-center gap-3 py-2.5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-semibold">
+                    {suggestion.name}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {suggestion.email}
+                    {suggestion.title !== undefined && ` · ${suggestion.title}`}
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {suggestion.directReports} direct{" "}
+                  {suggestion.directReports === 1 ? "report" : "reports"}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={busyKey !== null}
+                  onClick={() => {
+                    void run(`org:${suggestion.email}`, () =>
+                      grantRoleFn({ data: { email: suggestion.email, role: "manager" } }),
+                    );
+                  }}
+                >
+                  Grant Manager
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mt-5">
         <CardHeader>
           <CardTitle>Grant a role</CardTitle>
