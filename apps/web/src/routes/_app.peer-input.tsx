@@ -121,7 +121,7 @@ function QuotaBar({ caseView }: { caseView: PeerCaseView }) {
             : "text-xs text-muted-foreground"
         }
       >
-        {caseView.quotaMet ? "Quota met ✓" : "assessment unlocks when the quota clears"}
+        {caseView.quotaMet ? "All input received ✓" : "the assessment opens once all input is in"}
       </span>
     </div>
   );
@@ -208,11 +208,33 @@ function AddPeerComposer({
   );
 }
 
+type PeerTab = "mine" | "give" | "team";
+
+const TAB_LABEL: Record<PeerTab, string> = {
+  mine: "My reviewers",
+  give: "Reviews I give",
+  team: "My team",
+};
+
 function PeerInputPage() {
   const data: PeerPageView = Route.useLoaderData();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+
+  const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
+  const pendingForYou = visibleForYou.filter((request) => request.status === "pending");
+  const answeredForYou = visibleForYou.filter((request) => request.status === "submitted");
+  const teamProposals = data.cases.reduce(
+    (sum, entry) => sum + entry.requests.filter((request) => request.status === "proposed").length,
+    0,
+  );
+
+  // Land where the work is: unanswered requests first, then team proposals
+  // awaiting your call, otherwise your own reviewers.
+  const [tab, setTab] = useState<PeerTab>(() =>
+    pendingForYou.length > 0 ? "give" : data.isReviewer && teamProposals > 0 ? "team" : "mine",
+  );
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -225,328 +247,346 @@ function PeerInputPage() {
   };
 
   const selectedCase = data.cases.find((entry) => entry.caseId === selectedCaseId) ?? data.cases[0];
-  const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
-  const pendingForYou = visibleForYou.filter((request) => request.status === "pending");
-  const answeredForYou = visibleForYou.filter((request) => request.status === "submitted");
+  const tabs: readonly PeerTab[] = data.isReviewer ? ["mine", "give", "team"] : ["mine", "give"];
+  const tabBadge: Record<PeerTab, number> = {
+    mine: 0,
+    give: pendingForYou.length,
+    team: teamProposals,
+  };
 
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Named input · P3
+        Review cycle
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Peer input</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
-        All input is <strong>named</strong> — never anonymous, never shown to the person being
-        reviewed. You can suggest who reviews you; your manager decides. A case cannot advance to
-        the manager assessment until the peer quota is met.
+        Peer input is <strong>named</strong>, never anonymous — and it is never shown to the person
+        it describes. You can suggest who reviews you; your manager makes the final call.
       </p>
 
-      <div className="mt-6 grid items-start gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="flex flex-col gap-5">
-          {/* ---- Requests addressed to the viewer ---- */}
-          <Card className={pendingForYou.length > 0 ? "border-[var(--color-accent)]/40" : ""}>
-            <CardHeader>
-              <div className="flex items-baseline justify-between gap-3">
-                <CardTitle>Requests for you</CardTitle>
-                {visibleForYou.length > 0 && (
-                  <span className="text-xs tabular-nums text-muted-foreground">
-                    {pendingForYou.length} to answer · {answeredForYou.length} submitted
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                About 10 minutes each. Visible to the reviewer and the founders — never to the
-                person it describes.
-              </p>
-            </CardHeader>
-            <CardContent className="text-sm">
-              {visibleForYou.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No peer-input requests right now. When a manager names you as a reviewer, the
-                  request lands here.
-                </p>
-              ) : (
-                <div className="divide-y divide-border">
-                  {visibleForYou.map((request) => (
-                    <div key={request.id} className="flex items-center gap-3 py-3">
-                      <Avatar name={request.subjectName ?? request.subjectEmail} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-semibold">
-                          {request.subjectName ?? request.subjectEmail}
+      {/* tabs */}
+      <div className="mb-6 mt-5 flex gap-6 border-b border-border">
+        {tabs.map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            onClick={() => setTab(entry)}
+            className={
+              entry === tab
+                ? "-mb-px flex items-center gap-2 border-b-2 border-[var(--color-accent)] pb-3 text-sm font-semibold"
+                : "-mb-px flex items-center gap-2 border-b-2 border-transparent pb-3 text-sm font-semibold text-ink-300 hover:text-ink-500"
+            }
+          >
+            {TAB_LABEL[entry]}
+            {tabBadge[entry] > 0 && (
+              <span className="rounded-full bg-[var(--color-accent)] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+                {tabBadge[entry]}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ---- My reviewers: the viewer's own case ---- */}
+      {tab === "mine" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Who reviews you</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {data.myCase.canPropose
+                ? "Suggest colleagues who saw your work firsthand — your manager approves the final list."
+                : "Where each of your reviewers stands. Their input is never shown to you."}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {!data.myCase.inReviewCycle ? (
+              <p className="text-muted-foreground">You are not in the review cycle.</p>
+            ) : (
+              <>
+                {data.myCase.requests.length > 0 && (
+                  <div className="divide-y divide-border">
+                    {data.myCase.requests.map((request) => (
+                      <div key={request.requesteeEmail} className="flex items-center gap-3 py-2.5">
+                        <Avatar name={request.requesteeName ?? request.requesteeEmail} size={8} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13.5px] font-semibold">
+                            {request.requesteeName ?? request.requesteeEmail}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {KIND_LABEL[request.kind]}
+                          </span>
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {request.subjectTitle !== undefined && `${request.subjectTitle} · `}
-                          you as {KIND_LABEL[request.kind]}
-                          {request.status === "declined" &&
-                            request.declineReason !== undefined &&
-                            ` · declined — ${request.declineReason}`}
-                          {request.status === "submitted" &&
-                            request.submittedAt !== undefined &&
-                            ` · sent ${new Date(request.submittedAt).toLocaleDateString()}`}
-                        </span>
-                      </span>
-                      {request.status === "pending" ? (
-                        <Link
-                          to="/peer-input/$requestId"
-                          params={{ requestId: request.id }}
-                          className="shrink-0 rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-accent-dk)]"
-                        >
-                          Answer →
-                        </Link>
-                      ) : (
                         <StatusPill status={request.status} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ---- The viewer's own case ---- */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Your peer reviewers</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {data.myCase.canPropose
-                  ? "Suggest colleagues who saw your work firsthand — your manager approves the final list."
-                  : "Who's reviewing you, and where each one stands. Content is never shown to you."}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              {!data.myCase.inReviewCycle ? (
-                <p className="text-muted-foreground">You are not in the review cycle.</p>
-              ) : (
-                <>
-                  {data.myCase.requests.length > 0 && (
-                    <div className="divide-y divide-border">
-                      {data.myCase.requests.map((request) => (
-                        <div
-                          key={request.requesteeEmail}
-                          className="flex items-center gap-3 py-2.5"
-                        >
-                          <Avatar name={request.requesteeName ?? request.requesteeEmail} size={8} />
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13.5px] font-semibold">
-                              {request.requesteeName ?? request.requesteeEmail}
-                            </span>
-                            <span className="block text-xs text-muted-foreground">
-                              {KIND_LABEL[request.kind]}
-                            </span>
-                          </span>
-                          <StatusPill status={request.status} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {data.myCase.canPropose && (
-                    <div
-                      className={
-                        data.myCase.requests.length > 0 ? "border-t border-border pt-4" : ""
-                      }
-                    >
-                      <AddPeerComposer
-                        directory={data.directory}
-                        excludeEmails={data.myCase.requests.map(
-                          (request) => request.requesteeEmail,
-                        )}
-                        teamEmails={data.myCase.teamEmails}
-                        actionLabel="Propose"
-                        busy={busy}
-                        onAdd={(email, kind) => {
-                          void run(() => peerProposeFn({ data: { requests: [{ email, kind }] } }));
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {!data.myCase.canPropose && data.myCase.requests.length === 0 && (
-                    <p className="text-muted-foreground">
-                      No peer reviews about you yet
-                      {data.myCase.hasManagerSet ? "" : " — your manager sets the list"}.
-                    </p>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ---- Reviewer panel ---- */}
-        {data.isReviewer && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Request peer input</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Your reports' cases: approve or reject their proposals, add reviewers who saw the
-                work firsthand, and watch the quota fill.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              {data.cases.length === 0 ? (
-                <p className="text-muted-foreground">
-                  No open cases from your reports in the self-review or peer-input stages.
-                </p>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {data.cases.map((entry) => {
-                      const proposals = entry.requests.filter(
-                        (request) => request.status === "proposed",
-                      ).length;
-                      const active = entry.caseId === selectedCase?.caseId;
-                      return (
-                        <button
-                          key={entry.caseId}
-                          type="button"
-                          onClick={() => setSelectedCaseId(entry.caseId)}
-                          className={
-                            active
-                              ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
-                              : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
-                          }
-                        >
-                          <span
-                            className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
-                              active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
-                            }`}
-                          >
-                            {initials(entry.subjectName ?? entry.subjectEmail)}
-                          </span>
-                          {entry.subjectName ?? entry.subjectEmail}
-                          {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
-                          {proposals > 0 && (
-                            <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
-                              {proposals}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedCase !== undefined && (
-                    <>
-                      <div className="rounded-[14px] bg-cream px-4 py-3.5">
-                        <QuotaBar caseView={selectedCase} />
                       </div>
+                    ))}
+                  </div>
+                )}
 
-                      {selectedCase.peerSuggestions !== undefined && (
-                        <div className="rounded-[14px] border border-dashed border-border px-4 py-3">
-                          <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                            Suggested by {selectedCase.subjectName ?? "the subject"} — you decide
-                            the final list
-                          </p>
-                          <p className="mt-1 text-[13px] leading-relaxed text-ink-700">
-                            {selectedCase.peerSuggestions}
-                          </p>
-                        </div>
-                      )}
+                {data.myCase.canPropose && (
+                  <div
+                    className={data.myCase.requests.length > 0 ? "border-t border-border pt-4" : ""}
+                  >
+                    <AddPeerComposer
+                      directory={data.directory}
+                      excludeEmails={data.myCase.requests.map((request) => request.requesteeEmail)}
+                      teamEmails={data.myCase.teamEmails}
+                      actionLabel="Propose"
+                      busy={busy}
+                      onAdd={(email, kind) => {
+                        void run(() => peerProposeFn({ data: { requests: [{ email, kind }] } }));
+                      }}
+                    />
+                  </div>
+                )}
 
-                      {selectedCase.requests.length > 0 && (
-                        <div className="divide-y divide-border">
-                          {selectedCase.requests.map((request) => (
-                            <div key={request.id} className="flex items-center gap-3 py-2.5">
-                              <Avatar
-                                name={request.requesteeName ?? request.requesteeEmail}
-                                size={8}
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-[13.5px] font-semibold">
-                                  {request.requesteeName ?? request.requesteeEmail}
-                                </span>
-                                <span className="block truncate text-xs text-muted-foreground">
-                                  {KIND_LABEL[request.kind]}
-                                  {request.status === "declined" &&
-                                    request.declineReason !== undefined &&
-                                    ` · ${request.declineReason}`}
-                                </span>
+                {!data.myCase.canPropose && data.myCase.requests.length === 0 && (
+                  <p className="text-muted-foreground">
+                    No peer reviews about you yet
+                    {data.myCase.hasManagerSet ? "" : " — your manager sets the list"}.
+                  </p>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ---- Reviews I give: requests addressed to the viewer ---- */}
+      {tab === "give" && (
+        <Card className={pendingForYou.length > 0 ? "border-[var(--color-accent)]/40" : ""}>
+          <CardHeader>
+            <div className="flex items-baseline justify-between gap-3">
+              <CardTitle>Your input on colleagues</CardTitle>
+              {visibleForYou.length > 0 && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {pendingForYou.length} to answer · {answeredForYou.length} submitted
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              About 10 minutes each. Visible to the reviewer and the founders — never to the person
+              it describes.
+            </p>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {visibleForYou.length === 0 ? (
+              <p className="text-muted-foreground">
+                No peer-input requests right now. When a manager names you as a reviewer, the
+                request lands here.
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {visibleForYou.map((request) => (
+                  <div key={request.id} className="flex items-center gap-3 py-3">
+                    <Avatar name={request.subjectName ?? request.subjectEmail} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold">
+                        {request.subjectName ?? request.subjectEmail}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {request.subjectTitle !== undefined && `${request.subjectTitle} · `}
+                        you as {KIND_LABEL[request.kind]}
+                        {request.status === "declined" &&
+                          request.declineReason !== undefined &&
+                          ` · declined — ${request.declineReason}`}
+                        {request.status === "submitted" &&
+                          request.submittedAt !== undefined &&
+                          ` · sent ${new Date(request.submittedAt).toLocaleDateString()}`}
+                      </span>
+                    </span>
+                    {request.status === "pending" ? (
+                      <Link
+                        to="/peer-input/$requestId"
+                        params={{ requestId: request.id }}
+                        className="shrink-0 rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-accent-dk)]"
+                      >
+                        Answer →
+                      </Link>
+                    ) : (
+                      <StatusPill status={request.status} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ---- My team: the reviewer panel ---- */}
+      {tab === "team" && data.isReviewer && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your reports' peer reviews</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Approve or reject their proposals, add reviewers who saw the work firsthand, and watch
+              the quota fill.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {data.cases.length === 0 ? (
+              <p className="text-muted-foreground">
+                No open cases from your reports in the self-review or peer-input stages.
+              </p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {data.cases.map((entry) => {
+                    const proposals = entry.requests.filter(
+                      (request) => request.status === "proposed",
+                    ).length;
+                    const active = entry.caseId === selectedCase?.caseId;
+                    return (
+                      <button
+                        key={entry.caseId}
+                        type="button"
+                        onClick={() => setSelectedCaseId(entry.caseId)}
+                        className={
+                          active
+                            ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
+                            : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                        }
+                      >
+                        <span
+                          className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                            active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
+                          }`}
+                        >
+                          {initials(entry.subjectName ?? entry.subjectEmail)}
+                        </span>
+                        {entry.subjectName ?? entry.subjectEmail}
+                        {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
+                        {proposals > 0 && (
+                          <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
+                            {proposals}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedCase !== undefined && (
+                  <>
+                    <div className="rounded-[14px] bg-cream px-4 py-3.5">
+                      <QuotaBar caseView={selectedCase} />
+                    </div>
+
+                    {selectedCase.peerSuggestions !== undefined && (
+                      <div className="rounded-[14px] border border-dashed border-border px-4 py-3">
+                        <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
+                          Suggested by {selectedCase.subjectName ?? "the subject"} — you decide the
+                          final list
+                        </p>
+                        <p className="mt-1 text-[13px] leading-relaxed text-ink-700">
+                          {selectedCase.peerSuggestions}
+                        </p>
+                      </div>
+                    )}
+
+                    {selectedCase.requests.length > 0 && (
+                      <div className="divide-y divide-border">
+                        {selectedCase.requests.map((request) => (
+                          <div key={request.id} className="flex items-center gap-3 py-2.5">
+                            <Avatar
+                              name={request.requesteeName ?? request.requesteeEmail}
+                              size={8}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13.5px] font-semibold">
+                                {request.requesteeName ?? request.requesteeEmail}
                               </span>
-                              {request.status === "proposed" ? (
-                                <span className="flex shrink-0 gap-1.5">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={busy}
-                                    onClick={() => {
-                                      void run(() =>
-                                        peerApproveFn({ data: { requestId: request.id } }),
-                                      );
-                                    }}
-                                  >
-                                    Approve
-                                  </Button>
+                              <span className="block truncate text-xs text-muted-foreground">
+                                {KIND_LABEL[request.kind]}
+                                {request.status === "declined" &&
+                                  request.declineReason !== undefined &&
+                                  ` · ${request.declineReason}`}
+                              </span>
+                            </span>
+                            {request.status === "proposed" ? (
+                              <span className="flex shrink-0 gap-1.5">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={busy}
+                                  onClick={() => {
+                                    void run(() =>
+                                      peerApproveFn({ data: { requestId: request.id } }),
+                                    );
+                                  }}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="secondary"
+                                  disabled={busy}
+                                  title="Remove this proposal — the person can suggest someone else"
+                                  onClick={() => {
+                                    void run(() =>
+                                      peerRejectFn({ data: { requestId: request.id } }),
+                                    );
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </span>
+                            ) : (
+                              <span className="flex shrink-0 items-center gap-1.5">
+                                <StatusPill status={request.status} />
+                                {request.status === "submitted" && (
                                   <Button
                                     type="button"
                                     size="sm"
                                     variant="secondary"
                                     disabled={busy}
-                                    title="Remove this proposal — the person can suggest someone else"
+                                    title="Reopen for the reviewer to edit — their input is kept"
                                     onClick={() => {
                                       void run(() =>
-                                        peerRejectFn({ data: { requestId: request.id } }),
+                                        peerReopenFn({ data: { requestId: request.id } }),
                                       );
                                     }}
                                   >
-                                    Reject
+                                    Reopen
                                   </Button>
-                                </span>
-                              ) : (
-                                <span className="flex shrink-0 items-center gap-1.5">
-                                  <StatusPill status={request.status} />
-                                  {request.status === "submitted" && (
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="secondary"
-                                      disabled={busy}
-                                      title="Reopen for the reviewer to edit — their input is kept"
-                                      onClick={() => {
-                                        void run(() =>
-                                          peerReopenFn({ data: { requestId: request.id } }),
-                                        );
-                                      }}
-                                    >
-                                      Reopen
-                                    </Button>
-                                  )}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="border-t border-border pt-4">
-                        <AddPeerComposer
-                          directory={data.directory.filter(
-                            (person) => person.email !== selectedCase.subjectEmail.toLowerCase(),
-                          )}
-                          excludeEmails={selectedCase.requests.map(
-                            (request) => request.requesteeEmail,
-                          )}
-                          teamEmails={selectedCase.teamEmails}
-                          actionLabel="Request"
-                          busy={busy}
-                          onAdd={(email, kind) => {
-                            const caseId = selectedCase.caseId;
-                            void run(() =>
-                              peerRequestCreateFn({
-                                data: { caseId, requests: [{ email, kind }] },
-                              }),
-                            );
-                          }}
-                        />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    </>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                    )}
+
+                    <div className="border-t border-border pt-4">
+                      <AddPeerComposer
+                        directory={data.directory.filter(
+                          (person) => person.email !== selectedCase.subjectEmail.toLowerCase(),
+                        )}
+                        excludeEmails={selectedCase.requests.map(
+                          (request) => request.requesteeEmail,
+                        )}
+                        teamEmails={selectedCase.teamEmails}
+                        actionLabel="Request"
+                        busy={busy}
+                        onAdd={(email, kind) => {
+                          const caseId = selectedCase.caseId;
+                          void run(() =>
+                            peerRequestCreateFn({
+                              data: { caseId, requests: [{ email, kind }] },
+                            }),
+                          );
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
