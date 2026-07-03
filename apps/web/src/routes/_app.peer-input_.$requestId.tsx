@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EVALUATION_DIMENSIONS, EVALUATION_DIMENSION_LABELS } from "@agds-hr/people/types";
 import type { EvaluationDimension, PeerKind } from "@agds-hr/people/types";
 
+import { FormRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import type { PeerAnswerView } from "../server/people.shared.ts";
 import { peerAnswerFn, peerDeclineFn, peerSubmitFn } from "../server/people.functions.ts";
@@ -13,6 +14,7 @@ import { peerAnswerFn, peerDeclineFn, peerSubmitFn } from "../server/people.func
 // subject's manager can reopen it from /peer-input.
 export const Route = createFileRoute("/_app/peer-input_/$requestId")({
   loader: ({ params }) => peerAnswerFn({ data: params.requestId }),
+  pendingComponent: () => <FormRoutePending width="3xl" />,
   component: PeerAnswerPage,
 });
 
@@ -122,6 +124,9 @@ function PeerAnswerPage() {
         <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight text-white">
           Your input on {view.subjectName ?? view.subjectEmail}
         </h1>
+        {view.subjectTitle !== undefined && (
+          <p className="mt-1 text-sm text-white/70">{view.subjectTitle}</p>
+        )}
         <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-white/80">
           Five dimensions, free text — about 10 minutes. Specific moments beat general praise. Your
           input is visible to the reviewer and the founders, never to{" "}
@@ -188,8 +193,13 @@ function PeerAnswerPage() {
             key={dimension}
             className="rounded-[14px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
           >
-            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-accent)]">
+            <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-accent)]">
               {EVALUATION_DIMENSION_LABELS[dimension]}
+              {(form[dimension] ?? "").trim().length > 0 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-[#e4f1e9] text-[10px] font-bold normal-case tracking-normal text-[#1e7a46]">
+                  ✓
+                </span>
+              )}
             </p>
             <p className="mb-3 text-xs text-muted-foreground">{DIMENSION_HINTS[dimension]}</p>
             <textarea

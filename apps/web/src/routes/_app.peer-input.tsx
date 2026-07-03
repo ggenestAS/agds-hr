@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import type { PeerKind } from "@agds-hr/people/types";
+import type { PeerKind, PeerRequestStatus } from "@agds-hr/people/types";
 
+import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
-import type { PeerPageView } from "../server/people.shared.ts";
+import type { PeerCaseView, PeerPageView } from "../server/people.shared.ts";
 import {
   peerApproveFn,
   peerPageFn,
@@ -14,12 +15,14 @@ import {
   peerRequestCreateFn,
 } from "../server/people.functions.ts";
 
-// Peer input (improve-ux plan). Staff: propose your own peer reviewers while
-// your manager hasn't set them; once set, watch statuses only. Answering a
-// request happens on its own page (like the self-review form). Submitted input
-// is locked for its author — only the SUBJECT'S manager can reopen it.
+// Peer input (improve-ux plan). Staff: answer requests addressed to you (each
+// on its own focused page), and propose your own reviewers while your manager
+// hasn't set the list. Managers: work each report's case — approve/reject
+// proposals, add reviewers (Own team vs Cross-team auto-classified from the
+// org graph), watch the quota fill, reopen submitted input.
 export const Route = createFileRoute("/_app/peer-input")({
   loader: () => peerPageFn(),
+  pendingComponent: () => <TwoColumnRoutePending width="4xl" />,
   component: PeerInputPage,
 });
 
@@ -29,40 +32,187 @@ const KIND_LABEL: Record<PeerKind, string> = {
   cross: "Cross-team",
 };
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-bone text-ink-500",
-  submitted: "bg-[#e4f1e9] text-[#1e7a46]",
-  declined: "bg-[var(--color-blush)] text-[var(--color-accent-dk)]",
-  proposed: "bg-[var(--color-warning-surface)] text-[var(--color-warning)]",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "pending",
-  submitted: "submitted",
-  declined: "declined",
-  proposed: "awaiting manager approval",
+const STATUS_META: Record<PeerRequestStatus, { label: string; dot: string; pill: string }> = {
+  pending: {
+    label: "awaiting answer",
+    dot: "bg-[var(--color-warning)]",
+    pill: "bg-bone text-ink-500",
+  },
+  submitted: { label: "submitted", dot: "bg-[#1e7a46]", pill: "bg-[#e4f1e9] text-[#1e7a46]" },
+  declined: {
+    label: "declined",
+    dot: "bg-[var(--color-accent)]",
+    pill: "bg-[var(--color-blush)] text-[var(--color-accent-dk)]",
+  },
+  proposed: {
+    label: "awaiting approval",
+    dot: "bg-ink-300",
+    pill: "bg-[var(--color-warning-surface)] text-[var(--color-warning)]",
+  },
 };
 
 const inputCls =
   "block w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(233,75,60,0.12)]";
 
+const initials = (name: string): string =>
+  name
+    .split(/[\s.@_-]+/)
+    .filter((part) => part.length > 0)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
+function Avatar({ name, size = 9 }: { name: string; size?: 8 | 9 }) {
+  return (
+    <span
+      className={`flex ${size === 9 ? "size-9 text-[12px]" : "size-8 text-[11px]"} shrink-0 items-center justify-center rounded-full bg-ink-100 font-bold text-ink-700`}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+function StatusPill({ status }: { status: PeerRequestStatus }) {
+  const meta = STATUS_META[status];
+  return (
+    <span
+      className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.pill}`}
+    >
+      <span className={`size-1.5 rounded-full ${meta.dot}`} />
+      {meta.label}
+    </span>
+  );
+}
+
+// Segmented progress toward the per-kind quota: one segment per required
+// submission, filled as they land.
+function QuotaBar({ caseView }: { caseView: PeerCaseView }) {
+  const entries = Object.entries(caseView.quota) as [PeerKind, number][];
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+      {entries.map(([kind, needed]) => {
+        const submitted = caseView.requests.filter(
+          (request) => request.kind === kind && request.status === "submitted",
+        ).length;
+        return (
+          <div key={kind} className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-ink-700">{KIND_LABEL[kind]}</span>
+            <span className="flex gap-1">
+              {Array.from({ length: needed }, (_, index) => (
+                <span
+                  key={index}
+                  className={`h-2 w-6 rounded-full ${index < submitted ? "bg-[#1e7a46]" : "bg-bone"}`}
+                />
+              ))}
+            </span>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {Math.min(submitted, needed)}/{needed}
+            </span>
+          </div>
+        );
+      })}
+      <span
+        className={
+          caseView.quotaMet
+            ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold text-[#1e7a46]"
+            : "text-xs text-muted-foreground"
+        }
+      >
+        {caseView.quotaMet ? "Quota met ✓" : "assessment unlocks when the quota clears"}
+      </span>
+    </div>
+  );
+}
+
+// One-step add composer: picking a colleague auto-classifies Own team vs
+// Cross-team from the org graph (overridable); Add sends immediately.
+function AddPeerComposer({
+  directory,
+  excludeEmails,
+  teamEmails,
+  actionLabel,
+  busy,
+  onAdd,
+}: {
+  directory: PeerPageView["directory"];
+  excludeEmails: readonly string[];
+  teamEmails: readonly string[];
+  actionLabel: string;
+  busy: boolean;
+  onAdd: (email: string, kind: PeerKind) => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [kind, setKind] = useState<PeerKind>("cross");
+  const [kindTouched, setKindTouched] = useState(false);
+  const teamSet = new Set(teamEmails);
+
+  const pick = (value: string) => {
+    setEmail(value);
+    if (!kindTouched && value !== "") {
+      setKind(teamSet.has(value) ? "team" : "cross");
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="min-w-0 flex-1 text-xs">
+          <span className="mb-1 block font-semibold text-ink-700">Colleague</span>
+          <select value={email} onChange={(event) => pick(event.target.value)} className={inputCls}>
+            <option value="">Choose…</option>
+            {directory
+              .filter((person) => !excludeEmails.includes(person.email))
+              .map((person) => (
+                <option key={person.email} value={person.email}>
+                  {person.name}
+                  {person.title !== undefined ? ` — ${person.title}` : ""}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label className="text-xs">
+          <span className="mb-1 block font-semibold text-ink-700">Kind</span>
+          <select
+            value={kind}
+            onChange={(event) => {
+              setKind(event.target.value as PeerKind);
+              setKindTouched(true);
+            }}
+            className={inputCls}
+          >
+            <option value="team">Own team</option>
+            <option value="cross">Cross-team</option>
+            <option value="lt">LT peer</option>
+          </select>
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          disabled={busy || email === ""}
+          onClick={() => {
+            onAdd(email, kind);
+            setEmail("");
+            setKindTouched(false);
+          }}
+        >
+          {actionLabel}
+        </Button>
+      </div>
+      <p className="mt-1.5 text-[11px] text-muted-foreground">
+        Own team = shares the local manager (pre-filled from the org chart — override if needed).
+      </p>
+    </div>
+  );
+}
+
 function PeerInputPage() {
   const data: PeerPageView = Route.useLoaderData();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-
-  // Own-case propose state
-  const [proposeStaged, setProposeStaged] = useState<readonly { email: string; kind: PeerKind }[]>(
-    [],
-  );
-  const [proposeEmail, setProposeEmail] = useState("");
-  const [proposeKind, setProposeKind] = useState<PeerKind>("team");
-
-  // Reviewer state
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
-  const [staged, setStaged] = useState<readonly { email: string; kind: PeerKind }[]>([]);
-  const [pickEmail, setPickEmail] = useState("");
-  const [pickKind, setPickKind] = useState<PeerKind>("team");
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -75,6 +225,9 @@ function PeerInputPage() {
   };
 
   const selectedCase = data.cases.find((entry) => entry.caseId === selectedCaseId) ?? data.cases[0];
+  const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
+  const pendingForYou = visibleForYou.filter((request) => request.status === "pending");
+  const answeredForYou = visibleForYou.filter((request) => request.status === "submitted");
 
   return (
     <div className="mx-auto max-w-4xl p-6">
@@ -90,65 +243,74 @@ function PeerInputPage() {
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="flex flex-col gap-5">
-          {/* Requests addressed to the viewer */}
-          <Card>
+          {/* ---- Requests addressed to the viewer ---- */}
+          <Card className={pendingForYou.length > 0 ? "border-[var(--color-accent)]/40" : ""}>
             <CardHeader>
-              <CardTitle>Requests for you</CardTitle>
+              <div className="flex items-baseline justify-between gap-3">
+                <CardTitle>Requests for you</CardTitle>
+                {visibleForYou.length > 0 && (
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {pendingForYou.length} to answer · {answeredForYou.length} submitted
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
-                About 10 minutes each. Your input is visible to the reviewer and the founders —
-                never to the person it describes.
+                About 10 minutes each. Visible to the reviewer and the founders — never to the
+                person it describes.
               </p>
             </CardHeader>
             <CardContent className="text-sm">
-              {data.requestsForYou.filter((request) => request.status !== "proposed").length ===
-              0 ? (
-                <p className="text-muted-foreground">No peer-input requests right now.</p>
+              {visibleForYou.length === 0 ? (
+                <p className="text-muted-foreground">
+                  No peer-input requests right now. When a manager names you as a reviewer, the
+                  request lands here.
+                </p>
               ) : (
                 <div className="divide-y divide-border">
-                  {data.requestsForYou
-                    .filter((request) => request.status !== "proposed")
-                    .map((request) => (
-                      <div key={request.id} className="flex items-center gap-3 py-3">
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-semibold">
-                            {request.subjectName ?? request.subjectEmail}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">
-                            {KIND_LABEL[request.kind]}
-                            {request.status === "declined" &&
-                              request.declineReason !== undefined &&
-                              ` · declined — ${request.declineReason}`}
-                          </span>
+                  {visibleForYou.map((request) => (
+                    <div key={request.id} className="flex items-center gap-3 py-3">
+                      <Avatar name={request.subjectName ?? request.subjectEmail} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">
+                          {request.subjectName ?? request.subjectEmail}
                         </span>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${STATUS_STYLE[request.status]}`}
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {request.subjectTitle !== undefined && `${request.subjectTitle} · `}
+                          you as {KIND_LABEL[request.kind]}
+                          {request.status === "declined" &&
+                            request.declineReason !== undefined &&
+                            ` · declined — ${request.declineReason}`}
+                          {request.status === "submitted" &&
+                            request.submittedAt !== undefined &&
+                            ` · sent ${new Date(request.submittedAt).toLocaleDateString()}`}
+                        </span>
+                      </span>
+                      {request.status === "pending" ? (
+                        <Link
+                          to="/peer-input/$requestId"
+                          params={{ requestId: request.id }}
+                          className="shrink-0 rounded-full bg-[var(--color-accent)] px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[var(--color-accent-dk)]"
                         >
-                          {STATUS_LABEL[request.status]}
-                        </span>
-                        {request.status === "pending" && (
-                          <Link
-                            to="/peer-input/$requestId"
-                            params={{ requestId: request.id }}
-                            className="rounded-full bg-ink-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-ink-700"
-                          >
-                            Answer →
-                          </Link>
-                        )}
-                      </div>
-                    ))}
+                          Answer →
+                        </Link>
+                      ) : (
+                        <StatusPill status={request.status} />
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* The viewer's own case: propose or watch */}
+          {/* ---- The viewer's own case ---- */}
           <Card>
             <CardHeader>
               <CardTitle>Your peer reviewers</CardTitle>
               <p className="text-sm text-muted-foreground">
                 {data.myCase.canPropose
                   ? "Suggest colleagues who saw your work firsthand — your manager approves the final list."
-                  : "Statuses of the peer reviews about you. Content is never shown to you."}
+                  : "Who's reviewing you, and where each one stands. Content is never shown to you."}
               </p>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
@@ -163,6 +325,7 @@ function PeerInputPage() {
                           key={request.requesteeEmail}
                           className="flex items-center gap-3 py-2.5"
                         >
+                          <Avatar name={request.requesteeName ?? request.requesteeEmail} size={8} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13.5px] font-semibold">
                               {request.requesteeName ?? request.requesteeEmail}
@@ -171,11 +334,7 @@ function PeerInputPage() {
                               {KIND_LABEL[request.kind]}
                             </span>
                           </span>
-                          <span
-                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${STATUS_STYLE[request.status]}`}
-                          >
-                            {STATUS_LABEL[request.status]}
-                          </span>
+                          <StatusPill status={request.status} />
                         </div>
                       ))}
                     </div>
@@ -184,108 +343,21 @@ function PeerInputPage() {
                   {data.myCase.canPropose && (
                     <div
                       className={
-                        data.myCase.requests.length > 0
-                          ? "space-y-3 border-t border-border pt-4"
-                          : "space-y-3"
+                        data.myCase.requests.length > 0 ? "border-t border-border pt-4" : ""
                       }
                     >
-                      <div className="flex flex-wrap items-end gap-2">
-                        <label className="min-w-0 flex-1 text-xs">
-                          <span className="mb-1 block font-semibold text-ink-700">Colleague</span>
-                          <select
-                            value={proposeEmail}
-                            onChange={(event) => setProposeEmail(event.target.value)}
-                            className={inputCls}
-                          >
-                            <option value="">Choose…</option>
-                            {data.directory
-                              .filter(
-                                (person) =>
-                                  !proposeStaged.some((entry) => entry.email === person.email) &&
-                                  !data.myCase.requests.some(
-                                    (request) => request.requesteeEmail === person.email,
-                                  ),
-                              )
-                              .map((person) => (
-                                <option key={person.email} value={person.email}>
-                                  {person.name}
-                                  {person.title !== undefined ? ` — ${person.title}` : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <label className="text-xs">
-                          <span className="mb-1 block font-semibold text-ink-700">Kind</span>
-                          <select
-                            value={proposeKind}
-                            onChange={(event) => setProposeKind(event.target.value as PeerKind)}
-                            className={inputCls}
-                          >
-                            <option value="team">Own team</option>
-                            <option value="cross">Cross-team</option>
-                            <option value="lt">LT peer</option>
-                          </select>
-                        </label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={proposeEmail === ""}
-                          onClick={() => {
-                            setProposeStaged((prev) => [
-                              ...prev,
-                              { email: proposeEmail, kind: proposeKind },
-                            ]);
-                            setProposeEmail("");
-                          }}
-                        >
-                          Add
-                        </Button>
-                      </div>
-                      {proposeStaged.length > 0 && (
-                        <div className="space-y-1.5">
-                          {proposeStaged.map((entry) => (
-                            <div
-                              key={entry.email}
-                              className="flex items-center justify-between rounded-[10px] bg-cream px-3 py-2"
-                            >
-                              <span className="text-[13px] font-medium">
-                                {data.directory.find((person) => person.email === entry.email)
-                                  ?.name ?? entry.email}{" "}
-                                <span className="text-xs text-muted-foreground">
-                                  · {KIND_LABEL[entry.kind]}
-                                </span>
-                              </span>
-                              <button
-                                type="button"
-                                className="text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() =>
-                                  setProposeStaged((prev) =>
-                                    prev.filter((candidate) => candidate.email !== entry.email),
-                                  )
-                                }
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          ))}
-                          <div className="flex justify-end pt-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={busy}
-                              onClick={() => {
-                                void run(async () => {
-                                  await peerProposeFn({ data: { requests: [...proposeStaged] } });
-                                  setProposeStaged([]);
-                                });
-                              }}
-                            >
-                              Propose to manager →
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                      <AddPeerComposer
+                        directory={data.directory}
+                        excludeEmails={data.myCase.requests.map(
+                          (request) => request.requesteeEmail,
+                        )}
+                        teamEmails={data.myCase.teamEmails}
+                        actionLabel="Propose"
+                        busy={busy}
+                        onAdd={(email, kind) => {
+                          void run(() => peerProposeFn({ data: { requests: [{ email, kind }] } }));
+                        }}
+                      />
                     </div>
                   )}
 
@@ -301,13 +373,14 @@ function PeerInputPage() {
           </Card>
         </div>
 
+        {/* ---- Reviewer panel ---- */}
         {data.isReviewer && (
           <Card>
             <CardHeader>
               <CardTitle>Request peer input</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Your reports' cases. Approve their proposals or pick colleagues who saw the work
-                firsthand; cross-team input is required, own-team scales with local team size.
+                Your reports' cases: approve or reject their proposals, add reviewers who saw the
+                work firsthand, and watch the quota fill.
               </p>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
@@ -318,60 +391,49 @@ function PeerInputPage() {
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
-                    {data.cases.map((entry) => (
-                      <button
-                        key={entry.caseId}
-                        type="button"
-                        onClick={() => setSelectedCaseId(entry.caseId)}
-                        className={
-                          entry.caseId === selectedCase?.caseId
-                            ? "rounded-full border border-ink-900 bg-ink-900 px-3.5 py-1.5 text-xs font-semibold text-white"
-                            : "rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
-                        }
-                      >
-                        {entry.subjectName ?? entry.subjectEmail}
-                        {entry.requests.some((request) => request.status === "proposed") && (
-                          <span className="ml-1.5 rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
-                            {
-                              entry.requests.filter((request) => request.status === "proposed")
-                                .length
-                            }
+                    {data.cases.map((entry) => {
+                      const proposals = entry.requests.filter(
+                        (request) => request.status === "proposed",
+                      ).length;
+                      const active = entry.caseId === selectedCase?.caseId;
+                      return (
+                        <button
+                          key={entry.caseId}
+                          type="button"
+                          onClick={() => setSelectedCaseId(entry.caseId)}
+                          className={
+                            active
+                              ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
+                              : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                          }
+                        >
+                          <span
+                            className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
+                              active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
+                            }`}
+                          >
+                            {initials(entry.subjectName ?? entry.subjectEmail)}
                           </span>
-                        )}
-                      </button>
-                    ))}
+                          {entry.subjectName ?? entry.subjectEmail}
+                          {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
+                          {proposals > 0 && (
+                            <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
+                              {proposals}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {selectedCase !== undefined && (
                     <>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {Object.entries(selectedCase.quota).map(([kind, needed]) => {
-                          const submitted = selectedCase.requests.filter(
-                            (request) => request.kind === kind && request.status === "submitted",
-                          ).length;
-                          const ok = submitted >= (needed ?? 0);
-                          return (
-                            <span
-                              key={kind}
-                              className={
-                                ok
-                                  ? "rounded-full bg-[#e4f1e9] px-3 py-1 text-[11.5px] font-bold text-[#1e7a46]"
-                                  : "rounded-full bg-[var(--color-blush)] px-3 py-1 text-[11.5px] font-bold text-[var(--color-accent-dk)]"
-                              }
-                            >
-                              {KIND_LABEL[kind as PeerKind]} {submitted}/{needed}
-                            </span>
-                          );
-                        })}
-                        <span className="text-xs text-muted-foreground">
-                          {selectedCase.quotaMet
-                            ? "Quota met — the case may advance to assessment."
-                            : "Assessment stays blocked until the quota clears."}
-                        </span>
+                      <div className="rounded-[14px] bg-cream px-4 py-3.5">
+                        <QuotaBar caseView={selectedCase} />
                       </div>
 
                       {selectedCase.peerSuggestions !== undefined && (
-                        <div className="rounded-[14px] bg-cream px-4 py-3">
+                        <div className="rounded-[14px] border border-dashed border-border px-4 py-3">
                           <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
                             Suggested by {selectedCase.subjectName ?? "the subject"} — you decide
                             the final list
@@ -383,26 +445,25 @@ function PeerInputPage() {
                       )}
 
                       {selectedCase.requests.length > 0 && (
-                        <div className="divide-y divide-border border-t border-border">
+                        <div className="divide-y divide-border">
                           {selectedCase.requests.map((request) => (
                             <div key={request.id} className="flex items-center gap-3 py-2.5">
+                              <Avatar
+                                name={request.requesteeName ?? request.requesteeEmail}
+                                size={8}
+                              />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[13.5px] font-semibold">
                                   {request.requesteeName ?? request.requesteeEmail}
                                 </span>
-                                <span className="block text-xs text-muted-foreground">
+                                <span className="block truncate text-xs text-muted-foreground">
                                   {KIND_LABEL[request.kind]}
                                   {request.status === "declined" &&
                                     request.declineReason !== undefined &&
                                     ` · ${request.declineReason}`}
                                 </span>
                               </span>
-                              <span
-                                className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${STATUS_STYLE[request.status]}`}
-                              >
-                                {STATUS_LABEL[request.status]}
-                              </span>
-                              {request.status === "proposed" && (
+                              {request.status === "proposed" ? (
                                 <span className="flex shrink-0 gap-1.5">
                                   <Button
                                     type="button"
@@ -431,127 +492,53 @@ function PeerInputPage() {
                                     Reject
                                   </Button>
                                 </span>
-                              )}
-                              {request.status === "submitted" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="secondary"
-                                  disabled={busy}
-                                  title="Reopen for the reviewer to edit — their input is kept"
-                                  onClick={() => {
-                                    void run(() =>
-                                      peerReopenFn({ data: { requestId: request.id } }),
-                                    );
-                                  }}
-                                >
-                                  Reopen
-                                </Button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
-                        <label className="min-w-0 flex-1 text-xs">
-                          <span className="mb-1 block font-semibold text-ink-700">Colleague</span>
-                          <select
-                            value={pickEmail}
-                            onChange={(event) => setPickEmail(event.target.value)}
-                            className={inputCls}
-                          >
-                            <option value="">Choose…</option>
-                            {data.directory
-                              .filter(
-                                (person) =>
-                                  person.email !== selectedCase.subjectEmail.toLowerCase() &&
-                                  !staged.some((entry) => entry.email === person.email) &&
-                                  !selectedCase.requests.some(
-                                    (request) => request.requesteeEmail === person.email,
-                                  ),
-                              )
-                              .map((person) => (
-                                <option key={person.email} value={person.email}>
-                                  {person.name}
-                                  {person.title !== undefined ? ` — ${person.title}` : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                        <label className="text-xs">
-                          <span className="mb-1 block font-semibold text-ink-700">Kind</span>
-                          <select
-                            value={pickKind}
-                            onChange={(event) => setPickKind(event.target.value as PeerKind)}
-                            className={inputCls}
-                          >
-                            <option value="team">Own team</option>
-                            <option value="cross">Cross-team</option>
-                            <option value="lt">LT peer</option>
-                          </select>
-                        </label>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          disabled={pickEmail === ""}
-                          onClick={() => {
-                            setStaged((prev) => [...prev, { email: pickEmail, kind: pickKind }]);
-                            setPickEmail("");
-                          }}
-                        >
-                          Add
-                        </Button>
-                      </div>
-
-                      {staged.length > 0 && (
-                        <div className="space-y-1.5">
-                          {staged.map((entry) => (
-                            <div
-                              key={entry.email}
-                              className="flex items-center justify-between rounded-[10px] bg-cream px-3 py-2"
-                            >
-                              <span className="text-[13px] font-medium">
-                                {data.directory.find((person) => person.email === entry.email)
-                                  ?.name ?? entry.email}{" "}
-                                <span className="text-xs text-muted-foreground">
-                                  · {KIND_LABEL[entry.kind]}
+                              ) : (
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  <StatusPill status={request.status} />
+                                  {request.status === "submitted" && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="secondary"
+                                      disabled={busy}
+                                      title="Reopen for the reviewer to edit — their input is kept"
+                                      onClick={() => {
+                                        void run(() =>
+                                          peerReopenFn({ data: { requestId: request.id } }),
+                                        );
+                                      }}
+                                    >
+                                      Reopen
+                                    </Button>
+                                  )}
                                 </span>
-                              </span>
-                              <button
-                                type="button"
-                                className="text-xs text-muted-foreground hover:text-foreground"
-                                onClick={() =>
-                                  setStaged((prev) =>
-                                    prev.filter((candidate) => candidate.email !== entry.email),
-                                  )
-                                }
-                              >
-                                Remove
-                              </button>
+                              )}
                             </div>
                           ))}
-                          <div className="flex justify-end pt-1">
-                            <Button
-                              type="button"
-                              size="sm"
-                              disabled={busy}
-                              onClick={() => {
-                                const target = selectedCase;
-                                void run(async () => {
-                                  await peerRequestCreateFn({
-                                    data: { caseId: target.caseId, requests: [...staged] },
-                                  });
-                                  setStaged([]);
-                                });
-                              }}
-                            >
-                              Send requests →
-                            </Button>
-                          </div>
                         </div>
                       )}
+
+                      <div className="border-t border-border pt-4">
+                        <AddPeerComposer
+                          directory={data.directory.filter(
+                            (person) => person.email !== selectedCase.subjectEmail.toLowerCase(),
+                          )}
+                          excludeEmails={selectedCase.requests.map(
+                            (request) => request.requesteeEmail,
+                          )}
+                          teamEmails={selectedCase.teamEmails}
+                          actionLabel="Request"
+                          busy={busy}
+                          onAdd={(email, kind) => {
+                            const caseId = selectedCase.caseId;
+                            void run(() =>
+                              peerRequestCreateFn({
+                                data: { caseId, requests: [{ email, kind }] },
+                              }),
+                            );
+                          }}
+                        />
+                      </div>
                     </>
                   )}
                 </>

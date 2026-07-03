@@ -25,6 +25,9 @@ import { z } from "zod";
 // Pure, client-importable shapes for the people server fns (§9.3). Enum tuples
 // come from the client-safe @agds-hr/people/types subpath (no DB), so validators
 // stay out of the server-only graph.
+// No rating here: the directory is visible to all staff, and ratings are
+// manager-graph-scoped (a person's rating is visible only to people who manage
+// them, plus leadership) — so the directory payload must not carry them.
 export type DirectoryEntry = {
   readonly userId: string;
   readonly name: string;
@@ -39,7 +42,6 @@ export type DirectoryEntry = {
   readonly path: CareerPath | undefined;
   // Undefined when no employee record exists (reads as the `employee` default).
   readonly employmentType: EmploymentType | undefined;
-  readonly rating: number | undefined;
 };
 
 export const setEmployeeAttrsSchema = z.object({
@@ -144,6 +146,8 @@ export type ManagerRef = {
 // manager-graph-scoped: the SUBJECT sees their self-review and the manager
 // assessment of themselves but NEVER peer input; someone who manages the
 // subject (either reporting line, any depth) and leadership see everything.
+// `rating` follows the same rule — managers/leadership see it as soon as it
+// exists, the subject only once the decision is delivered, nobody else ever.
 // `peers: undefined` = not visible to this viewer; `[]` = visible, none yet.
 export type ReceivedPeerView = {
   readonly requesteeEmail: string;
@@ -643,6 +647,7 @@ export type PeerAnswerView = {
   readonly requestId: string;
   readonly subjectEmail: string;
   readonly subjectName: string | undefined;
+  readonly subjectTitle: string | undefined;
   readonly kind: PeerKind;
   readonly status: PeerRequestStatus;
   readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
@@ -671,6 +676,10 @@ export type PeerCaseView = {
   // The subject's own suggestion from their self-review (sr_peers) — a hint
   // for the reviewer, who decides the final list.
   readonly peerSuggestions: string | undefined;
+  // The subject's local-team neighborhood (same local manager, their local
+  // reports, their local manager) — used to auto-classify a picked colleague
+  // as Own team vs Cross-team.
+  readonly teamEmails: readonly string[];
 };
 
 // The viewer's OWN case on the peer page (improve-ux plan): status only — a
@@ -688,6 +697,8 @@ export type MyPeerCaseView = {
     readonly kind: PeerKind;
     readonly status: PeerRequestStatus;
   }[];
+  // The viewer's own local-team neighborhood, for auto-classifying proposals.
+  readonly teamEmails: readonly string[];
 };
 
 export type PeerPageView = {
@@ -695,9 +706,11 @@ export type PeerPageView = {
     readonly id: string;
     readonly subjectEmail: string;
     readonly subjectName: string | undefined;
+    readonly subjectTitle: string | undefined;
     readonly kind: PeerKind;
     readonly status: PeerRequestStatus;
     readonly declineReason: string | undefined;
+    readonly submittedAt: string | undefined;
   }[];
   readonly isReviewer: boolean;
   readonly cases: readonly PeerCaseView[];

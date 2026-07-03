@@ -37,7 +37,6 @@ import {
   listCasesForCycle,
   listDecisionSummaries,
   listEmployeeAttrs,
-  listRatingsForCycle,
   getAssessmentByCase,
   getPeerRequestById,
   getSelfReviewByCase,
@@ -124,9 +123,42 @@ function resolvePeerInputQuota(
   return peerInputQuota(localPeers);
 }
 
+// The local-team neighborhood of a person: colleagues sharing their local
+// manager, their own local reports, and the local manager themself. Drives
+// Own-team vs Cross-team auto-classification in the peer pickers.
+function localTeamEmails(
+  subjectEmail: string,
+  orgNodes: readonly OrgNode[],
+  userIdByEmail: ReadonlyMap<string, string>,
+  emailByUserId: ReadonlyMap<string, string>,
+): readonly string[] {
+  const userId = userIdByEmail.get(subjectEmail.toLowerCase());
+  if (userId === undefined) {
+    return [];
+  }
+  const self = orgNodes.find((node) => node.userId === userId);
+  const team = new Set<string>();
+  for (const node of orgNodes) {
+    const sameManager =
+      self?.localManagerUserId !== undefined && node.localManagerUserId === self.localManagerUserId;
+    const isMyReport = node.localManagerUserId === userId;
+    const isMyManager =
+      self?.localManagerUserId !== undefined && node.userId === self.localManagerUserId;
+    if (node.userId !== userId && (sameManager || isMyReport || isMyManager)) {
+      const email = emailByUserId.get(node.userId);
+      if (email !== undefined) {
+        team.add(email);
+      }
+    }
+  }
+  return [...team];
+}
+
 // The directory is the Albert Inside roster merged with agds-hr-native level/path
-// (people.employee, by email) and the current-cycle rating; the empty state shows
-// when Inside is unconfigured. All reads run on the admin connection.
+// (people.employee, by email); the empty state shows when Inside is unconfigured.
+// Ratings are deliberately absent — the directory is all-staff-visible while
+// ratings are manager-graph-scoped (see personDetailHandler). All reads run on
+// the admin connection.
 const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   userId: admin.userId,
   name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -140,7 +172,6 @@ const toEntry = (admin: InsideAdmin): DirectoryEntry => ({
   level: undefined,
   path: undefined,
   employmentType: undefined,
-  rating: undefined,
 });
 
 export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]> {
@@ -149,10 +180,9 @@ export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]>
     return [];
   }
   const adminDb = getDbAs("admin");
-  const [admins, attrs, ratings] = await Promise.all([
+  const [admins, attrs] = await Promise.all([
     listAdminDirectory({ limit: 1000 }),
     listEmployeeAttrs(adminDb),
-    listRatingsForCycle(adminDb, REVIEW_CURRENT_CYCLE),
   ]);
   const byEmail = new Map(attrs.map((entry) => [entry.email.toLowerCase(), entry]));
   return admins.map((admin) => {
@@ -162,7 +192,6 @@ export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]>
       level: assigned?.level,
       path: assigned?.path,
       employmentType: assigned?.employmentType,
-      rating: ratings.get(admin.email.toLowerCase()),
     };
   });
 }
@@ -277,7 +306,11 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
           return {
             cycle: entry.cyclePeriod,
             state: entry.state,
-            rating: entry.rating,
+            // Managers (either line, any depth) and leadership see the rating
+            // as soon as it exists; the subject only once the decision is
+            // delivered — outcomes are communicated after calibration and
+            // sign-off, never mid-flight.
+            rating: managesSubject || entry.decidedAt !== undefined ? entry.rating : undefined,
             decidedAt: entry.decidedAt?.toISOString(),
             self:
               selfRow === undefined
@@ -392,7 +425,12 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
         : {
             id: reviewCase.id,
             state: reviewCase.state,
-            rating: reviewCase.rating,
+            // Rating is manager-graph-scoped: managers/leadership always; the
+            // subject once delivered; other directory viewers never.
+            rating:
+              managesSubject || (isSubjectPerson && reviewCase.decidedAt !== undefined)
+                ? reviewCase.rating
+                : undefined,
             nextStates: REVIEW_TRANSITIONS[reviewCase.state],
             signoffCount: signoffs.length,
             decidedAt: reviewCase.decidedAt?.toISOString(),
@@ -743,9 +781,10 @@ export async function peerPageHandler(): Promise<PeerPageView> {
   const isReviewer = can(session.subject, "people.peer.request").allow;
   const leadership = isLeadership(session.subject.roles);
 
-  const [forYou, admins, managed, myAttrs, myReviewCase] = await Promise.all([
+  const [forYou, admins, orgNodes, managed, myAttrs, myReviewCase] = await Promise.all([
     listPeerRequestsForRequestee(adminDb, effectiveEmail),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
     managedEmailSets(adminDb, session.subject.id),
     getEmployeeByEmail(adminDb, effectiveEmail),
     getCaseBySubject(adminDb, effectiveEmail, REVIEW_CURRENT_CYCLE),
@@ -756,6 +795,9 @@ export async function peerPageHandler(): Promise<PeerPageView> {
       `${admin.firstName} ${admin.lastName}`.trim(),
     ]),
   );
+  const titleByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.title]));
+  const userIdByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.userId]));
+  const emailByUserId = new Map(admins.map((admin) => [admin.userId, admin.email.toLowerCase()]));
 
   // The viewer's OWN case: status only, never content. The propose form yields
   // once the manager has set (or approved) live requests.
@@ -782,15 +824,12 @@ export async function peerPageHandler(): Promise<PeerPageView> {
       kind: request.kind,
       status: request.status,
     })),
+    teamEmails: localTeamEmails(effectiveEmail, orgNodes, userIdByEmail, emailByUserId),
   };
 
   let cases: PeerCaseView[] = [];
   if (isReviewer) {
-    const [allCases, orgNodes] = await Promise.all([
-      listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
-      isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
-    ]);
-    const userIdByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.userId]));
+    const allCases = await listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE);
     // Manager-graph scoping (improve-ux plan): a manager works their own
     // reports' cases; leadership sees every case (never their own).
     const inScope = allCases.filter(
@@ -826,6 +865,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
             input: request.input,
           })),
           peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
+          teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
         };
       }),
     );
@@ -836,9 +876,11 @@ export async function peerPageHandler(): Promise<PeerPageView> {
       id: request.id,
       subjectEmail: request.subjectEmail,
       subjectName: nameByEmail.get(request.subjectEmail.toLowerCase()),
+      subjectTitle: titleByEmail.get(request.subjectEmail.toLowerCase()),
       kind: request.kind,
       status: request.status,
       declineReason: request.declineReason,
+      submittedAt: request.submittedAt?.toISOString(),
     })),
     isReviewer,
     cases,
@@ -939,6 +981,7 @@ export async function peerAnswerHandler(requestId: string): Promise<PeerAnswerVi
     requestId: request.id,
     subjectEmail: request.subjectEmail,
     subjectName: roster === undefined ? undefined : `${roster.firstName} ${roster.lastName}`.trim(),
+    subjectTitle: roster?.title,
     kind: request.kind,
     status: request.status,
     input: request.input,
@@ -1381,17 +1424,25 @@ export async function setBandHandler(input: SetBandInput): Promise<{ ok: true }>
 }
 
 // The Overview surface: the cycle timeline + the viewer's own case status;
-// reviewers additionally get the calibrated rating distribution and the
-// needs-a-decision list. The stat tiles were dropped (improve-ux plan).
+// reviewers additionally get the calibrated rating distribution (org-wide but
+// aggregate — no names, so not a per-person rating disclosure) and the
+// needs-a-decision list. That list carries per-person in-flight ratings, so it
+// follows the rating visibility rule: leadership sees the full queue (they run
+// sign-off); a manager sees only people in their own managed set (either
+// reporting line, any depth). The stat tiles were dropped (improve-ux plan).
 export async function overviewHandler(): Promise<OverviewData> {
   const session = await requireSession("people.directory.read");
   const adminDb = getDbAs("admin");
   const isReviewer = can(session.subject, "people.review.open").allow;
+  const leadership = isLeadership(session.subject.roles);
 
-  const [cases, admins, myCase] = await Promise.all([
+  const [cases, admins, myCase, managed] = await Promise.all([
     listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
     getCaseBySubject(adminDb, session.actor.email.toLowerCase(), REVIEW_CURRENT_CYCLE),
+    isReviewer && !leadership
+      ? managedEmailSets(adminDb, session.subject.id)
+      : Promise.resolve(undefined),
   ]);
 
   const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
@@ -1402,11 +1453,17 @@ export async function overviewHandler(): Promise<OverviewData> {
       { userId: admin.userId, name: `${admin.firstName} ${admin.lastName}`.trim() },
     ]),
   );
+  const inDecisionScope = (subjectEmail: string): boolean =>
+    leadership || (managed?.all.has(subjectEmail) ?? false);
   for (const entry of cases) {
     if (entry.rating !== undefined) {
       distribution[entry.rating] += 1;
     }
-    if ((entry.state === "calibration" || entry.state === "decision") && !entry.decided) {
+    if (
+      (entry.state === "calibration" || entry.state === "decision") &&
+      !entry.decided &&
+      inDecisionScope(entry.subjectEmail.toLowerCase())
+    ) {
       const roster = byEmail.get(entry.subjectEmail.toLowerCase());
       needsDecision.push({
         subjectEmail: entry.subjectEmail,
