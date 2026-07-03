@@ -107,7 +107,7 @@ function AssessmentBlock({ assessment }: { assessment: AssessmentView }) {
   return (
     <div className="space-y-4 text-sm">
       {assessment.narrative !== "" && (
-        <div className="border-l-2 border-ink-100 pl-4 leading-relaxed text-ink-700">
+        <div className="border-l-2 border-ink-100 pl-4 leading-relaxed text-foreground">
           {assessment.narrative}
         </div>
       )}
@@ -174,7 +174,7 @@ function PeerInputBlock({
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
               {EVALUATION_DIMENSION_LABELS[dimension]}
             </p>
-            <p className="text-[13px] leading-relaxed text-ink-700">{input[dimension]}</p>
+            <p className="text-[13px] leading-relaxed text-foreground">{input[dimension]}</p>
           </div>
         ),
       )}
@@ -458,7 +458,7 @@ function PersonDetailPage() {
                                 )}
                                 {entry.proposedRating !== undefined &&
                                   isReviewRating(entry.proposedRating) && (
-                                    <span className="rounded-full bg-bone px-2.5 py-0.5 text-[10.5px] font-bold text-ink-700">
+                                    <span className="rounded-full bg-bone px-2.5 py-0.5 text-[10.5px] font-bold text-foreground">
                                       proposed {REVIEW_RATING_LABELS[entry.proposedRating]}
                                     </span>
                                   )}
@@ -469,7 +469,7 @@ function PersonDetailPage() {
                                 </span>
                               </div>
                               {entry.narrative !== undefined && (
-                                <p className="text-[13px] leading-relaxed text-ink-700">
+                                <p className="text-[13px] leading-relaxed text-foreground">
                                   {entry.narrative}
                                 </p>
                               )}
@@ -504,13 +504,13 @@ function PersonDetailPage() {
                                       {entry.subjectName ?? entry.subjectEmail}
                                     </span>
                                   )}
-                                  <span className="rounded-full bg-bone px-2 py-0.5 text-[10.5px] font-bold text-ink-700">
+                                  <span className="rounded-full bg-bone px-2 py-0.5 text-[10.5px] font-bold text-foreground">
                                     {KIND_LABEL[entry.kind]}
                                   </span>
                                   <span
                                     className={
                                       entry.status === "submitted"
-                                        ? "rounded-full bg-[#e4f1e9] px-2 py-0.5 text-[10.5px] font-bold text-[#1e7a46]"
+                                        ? "rounded-full bg-[var(--color-success-surface)] px-2 py-0.5 text-[10.5px] font-bold text-[var(--color-success)]"
                                         : "rounded-full bg-bone px-2 py-0.5 text-[10.5px] font-bold text-ink-500"
                                     }
                                   >
@@ -973,7 +973,7 @@ function PersonDetailPage() {
                         <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
                           Decision rationale
                         </p>
-                        <p className="leading-relaxed text-ink-700">
+                        <p className="leading-relaxed text-foreground">
                           {comp.recommendation.rationale}
                         </p>
                       </div>

@@ -71,7 +71,7 @@ function AssessmentPage() {
                         <span
                           className={
                             row.selfSubmitted
-                              ? "rounded-full bg-[#e4f1e9] px-2 py-0.5 text-[#1e7a46]"
+                              ? "rounded-full bg-[var(--color-success-surface)] px-2 py-0.5 text-[var(--color-success)]"
                               : "rounded-full bg-bone px-2 py-0.5 text-ink-500"
                           }
                         >
@@ -80,7 +80,7 @@ function AssessmentPage() {
                         <span
                           className={
                             row.peersPending === 0 && row.caseId !== undefined
-                              ? "rounded-full bg-[#e4f1e9] px-2 py-0.5 text-[#1e7a46]"
+                              ? "rounded-full bg-[var(--color-success-surface)] px-2 py-0.5 text-[var(--color-success)]"
                               : "rounded-full bg-bone px-2 py-0.5 text-ink-500"
                           }
                         >
@@ -127,7 +127,7 @@ function AssessmentPage() {
         </Card>
       )}
 
-      <div className="mt-4 flex items-start gap-3 rounded-[14px] border border-[rgba(233,75,60,0.28)] bg-[#fffbfa] px-4 py-3.5">
+      <div className="mt-4 flex items-start gap-3 rounded-[14px] border border-[rgba(233,75,60,0.28)] bg-[var(--color-accent-tint-surface)] px-4 py-3.5">
         <span className="flex size-5.5 shrink-0 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm font-bold text-white">
           !
         </span>

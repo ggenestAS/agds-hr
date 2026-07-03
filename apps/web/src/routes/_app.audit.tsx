@@ -16,8 +16,8 @@ export const Route = createFileRoute("/_app/audit")({
 
 const CATEGORY_STYLE: Record<AuditLogRow["category"], string> = {
   "Sign-off": "bg-ink-900 text-white",
-  Read: "bg-[#e8ecf7] text-[#1e3a8a]",
-  Write: "bg-bone text-ink-700",
+  Read: "bg-[var(--color-info-surface)] text-[var(--color-info)]",
+  Write: "bg-bone text-foreground",
 };
 
 const fmtWhen = (iso: string): string =>
@@ -38,13 +38,13 @@ function AuditLog() {
         Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Audit log</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground">
         A complete record of every action in the system — who did what, and when. It includes reads
         of compensation data as well as changes, and no one can edit or delete entries.
       </p>
 
       <Card className="mt-6 overflow-hidden">
-        <div className="grid grid-cols-[150px_minmax(0,1fr)_110px] gap-4 border-b border-border bg-[#fbf9f5] px-6 py-3 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground sm:grid-cols-[150px_190px_minmax(0,1fr)_110px]">
+        <div className="grid grid-cols-[150px_minmax(0,1fr)_110px] gap-4 border-b border-border bg-[var(--color-panel-soft)] px-6 py-3 text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground sm:grid-cols-[150px_190px_minmax(0,1fr)_110px]">
           <span>When</span>
           <span className="hidden sm:block">Actor</span>
           <span>Event</span>

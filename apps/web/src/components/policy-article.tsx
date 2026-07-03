@@ -29,9 +29,9 @@ const PROSE =
   "[&_h2]:mt-8 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:tracking-tight " +
   "[&_h3]:mt-6 [&_h3]:text-[15px] [&_h3]:font-bold " +
   "[&_h4]:mt-4 [&_h4]:text-sm [&_h4]:font-bold " +
-  "[&_p]:mt-3 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-ink-700 " +
+  "[&_p]:mt-3 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-foreground " +
   "[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-5 " +
-  "[&_li]:mt-1.5 [&_li]:text-sm [&_li]:leading-relaxed [&_li]:text-ink-700 " +
+  "[&_li]:mt-1.5 [&_li]:text-sm [&_li]:leading-relaxed [&_li]:text-foreground " +
   "[&_blockquote]:mt-3 [&_blockquote]:border-l-2 [&_blockquote]:border-[var(--color-accent)] " +
   "[&_blockquote]:pl-3.5 [&_blockquote]:italic [&_blockquote]:text-muted-foreground " +
   "[&_strong]:font-semibold [&_strong]:text-foreground";

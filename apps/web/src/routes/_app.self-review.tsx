@@ -99,7 +99,7 @@ const FORWARD = [
 
 const inputCls =
   "block w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(233,75,60,0.12)]";
-const labelCls = "mb-1 block text-[12.5px] font-semibold text-ink-700";
+const labelCls = "mb-1 block text-[12.5px] font-semibold text-foreground";
 const helpCls = "mb-1.5 text-xs leading-relaxed text-muted-foreground";
 const sectionCls =
   "mt-4 rounded-[14px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]";
@@ -109,9 +109,9 @@ const rowTitleCls = "text-[11px] font-bold uppercase tracking-[0.09em] text-mute
 const removeBtnCls =
   "text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-[var(--color-accent)] hover:underline";
 const addBtnCls =
-  "mt-4 rounded-xl border border-dashed border-border px-3.5 py-2 text-xs font-semibold text-ink-700 hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]";
+  "mt-4 rounded-xl border border-dashed border-border px-3.5 py-2 text-xs font-semibold text-foreground hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]";
 const contextLabelCls = "text-[11px] font-bold uppercase tracking-[0.09em] text-muted-foreground";
-const contextValueCls = "text-sm font-medium text-ink-900";
+const contextValueCls = "text-sm font-medium text-foreground";
 
 const stampedKeySet = new Set<string>(SELF_REVIEW_STAMPED_KEYS);
 
@@ -127,10 +127,10 @@ function WordCounter({ value, fieldKey }: { value: string; fieldKey: SelfReviewK
     words === 0
       ? "text-muted-foreground"
       : words < bounds.min
-        ? "text-[#b45309]"
+        ? "text-[var(--color-warning)]"
         : words > bounds.max
           ? "text-[var(--color-accent)]"
-          : "text-[#1e7a46]";
+          : "text-[var(--color-success)]";
   return (
     <p className={`mt-1 text-[11px] tabular-nums ${tone}`}>
       {words} {words === 1 ? "word" : "words"} · aim for {bounds.min}–{bounds.max}
@@ -636,11 +636,11 @@ function SelfReviewPage() {
       </div>
 
       {!submitted && !canSubmit && (
-        <div className="mt-5 rounded-[14px] border border-[rgba(180,83,9,0.3)] bg-[#fffaf3] px-5 py-4">
-          <p className="text-[13px] font-bold text-[#b45309]">
+        <div className="mt-5 rounded-[14px] border border-[var(--color-warning)]/30 bg-[var(--color-warning-surface)] px-5 py-4">
+          <p className="text-[13px] font-bold text-[var(--color-warning)]">
             Before you can send to your manager
           </p>
-          <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-[#8a5a1c]">
+          <ul className="mt-2 space-y-1 text-[12.5px] leading-relaxed text-[var(--color-warning)]">
             {issues.map((issue) => (
               <li key={issue}>· {issue}</li>
             ))}

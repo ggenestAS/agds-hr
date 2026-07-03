@@ -65,7 +65,7 @@ function SignOffPage() {
         Review cycle
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Decision & sign-off</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground">
         Every decision needs sign-off from both founders before the summary can be delivered. Once
         delivered, the employee has 30 days to appeal.
       </p>
@@ -115,7 +115,7 @@ function SignOffPage() {
                           title={signer}
                           className={
                             signer !== undefined
-                              ? "rounded-full bg-[#1e7a46] px-2.5 py-1 text-[10.5px] font-bold text-white"
+                              ? "rounded-full bg-[var(--color-success)] px-2.5 py-1 text-[10.5px] font-bold text-white"
                               : "rounded-full border border-border bg-bone px-2.5 py-1 text-[10.5px] font-bold text-ink-300"
                           }
                         >
@@ -158,7 +158,7 @@ function SignOffPage() {
               {selected.rationale !== "" && (
                 <div>
                   <p className="mb-1 text-muted-foreground">Rationale</p>
-                  <p className="leading-relaxed text-ink-700">{selected.rationale}</p>
+                  <p className="leading-relaxed text-foreground">{selected.rationale}</p>
                 </div>
               )}
 
@@ -217,17 +217,17 @@ function SignOffPage() {
               <div
                 className={
                   selected.decidedAt !== undefined
-                    ? "rounded-xl border border-[#1e7a46]/30 bg-[#e4f1e9] px-4 py-3"
+                    ? "rounded-xl border border-[var(--color-success)]/30 bg-[var(--color-success-surface)] px-4 py-3"
                     : "rounded-xl border border-border bg-cream px-4 py-3"
                 }
               >
                 {selected.decidedAt !== undefined ? (
                   <>
-                    <p className="text-[12.5px] font-bold text-[#1e7a46]">
+                    <p className="text-[12.5px] font-bold text-[var(--color-success)]">
                       Delivered {new Date(selected.decidedAt).toLocaleDateString()} — locked.
                     </p>
                     {selected.appealUntil !== undefined && (
-                      <p className="mt-1 text-[12.5px] text-ink-700">
+                      <p className="mt-1 text-[12.5px] text-foreground">
                         The subject may appeal until{" "}
                         <strong>{new Date(selected.appealUntil).toLocaleDateString()}</strong>.
                         {selected.p6Triggered && " An improvement plan was started automatically."}
@@ -239,7 +239,7 @@ function SignOffPage() {
                     <p className="text-[12.5px] font-bold">
                       {selected.signoffs.length}/2 founder sign-offs
                     </p>
-                    <p className="mt-1 text-[12.5px] leading-relaxed text-ink-700">
+                    <p className="mt-1 text-[12.5px] leading-relaxed text-foreground">
                       The summary unlocks — and the 30-day appeal clock starts — at the second
                       distinct confirmation.
                     </p>

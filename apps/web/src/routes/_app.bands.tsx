@@ -107,7 +107,7 @@ function Bands() {
         ] as const
       ).map(([key, label]) => (
         <label key={key} className="text-xs">
-          <span className="mb-1 block font-semibold text-ink-700">{label} €</span>
+          <span className="mb-1 block font-semibold text-foreground">{label} €</span>
           <input
             value={draft[key]}
             onChange={(event) =>
@@ -160,7 +160,7 @@ function Bands() {
               <div className="mb-5 space-y-3 rounded-[14px] bg-cream p-4">
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="min-w-40 flex-1 text-xs">
-                    <span className="mb-1 block font-semibold text-ink-700">Family</span>
+                    <span className="mb-1 block font-semibold text-foreground">Family</span>
                     <input
                       value={newFamily}
                       onChange={(event) => setNewFamily(event.target.value)}
@@ -170,7 +170,7 @@ function Bands() {
                     />
                   </label>
                   <label className="text-xs">
-                    <span className="mb-1 block font-semibold text-ink-700">Level</span>
+                    <span className="mb-1 block font-semibold text-foreground">Level</span>
                     <select
                       value={newLevel}
                       onChange={(event) => setNewLevel(event.target.value as CareerLevel)}
@@ -283,7 +283,7 @@ function Bands() {
                 {data.coefficients.map((coefficient) => (
                   <div key={coefficient.campus} className="flex items-center justify-between py-3">
                     <span className="flex items-center gap-2.5">
-                      <span className="rounded bg-bone px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-ink-700">
+                      <span className="rounded bg-bone px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-foreground">
                         {coefficient.campus.slice(0, 2).toUpperCase()}
                       </span>
                       <span className="text-sm font-semibold">{coefficient.campus}</span>

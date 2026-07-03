@@ -31,7 +31,7 @@ function Documentation() {
         Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Documentation</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
         Every compensation decision on record — role, level, band, rating, outcome, rationale, and
         any exception. Note that opening this page is itself recorded in the audit log.
       </p>
@@ -45,7 +45,7 @@ function Documentation() {
             className={
               filter === entry
                 ? "rounded-full border border-ink-900 bg-ink-900 px-4 py-1.5 text-xs font-semibold text-white"
-                : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
             }
           >
             {entry === "Promotion-scale raise"
@@ -91,7 +91,7 @@ function Documentation() {
                     </span>
                   )}
                 </div>
-                <p className="text-[13.5px] leading-relaxed text-ink-700">
+                <p className="text-[13.5px] leading-relaxed text-foreground">
                   {doc.rationale ??
                     "No rationale recorded — a documented decision requires one before the annual audit."}
                 </p>

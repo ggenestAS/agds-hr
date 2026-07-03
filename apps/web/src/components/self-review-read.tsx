@@ -24,7 +24,7 @@ function ReadField({
       <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-1 text-[13.5px] leading-relaxed text-ink-700">{value}</p>
+      <p className="mt-1 text-[13.5px] leading-relaxed text-foreground">{value}</p>
     </div>
   );
 }
@@ -43,7 +43,7 @@ function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
 function ObjectiveBlock({ objective }: { objective: SelfReviewObjectiveRead }) {
   return (
     <div className="rounded-[14px] border border-border bg-card px-4 py-4">
-      <p className="font-display text-base font-semibold text-ink-900">
+      <p className="font-display text-base font-semibold text-foreground">
         Objective {objective.index}
         {objective.title !== undefined && (
           <span className="font-normal text-ink-500"> · {objective.title}</span>
@@ -62,7 +62,7 @@ function ObjectiveBlock({ objective }: { objective: SelfReviewObjectiveRead }) {
 function KpiBlock({ kpi }: { kpi: SelfReviewKpiRead }) {
   return (
     <div className="rounded-[14px] border border-border bg-card px-4 py-4">
-      <p className="font-display text-base font-semibold text-ink-900">
+      <p className="font-display text-base font-semibold text-foreground">
         KPI {kpi.index}
         {kpi.name !== undefined && <span className="font-normal text-ink-500"> · {kpi.name}</span>}
       </p>
@@ -189,7 +189,9 @@ export function SelfReviewReadView({ payload }: { payload: SelfReviewPayload }) 
           <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
             Suggested peer reviewers
           </p>
-          <p className="mt-1 text-[13.5px] leading-relaxed text-ink-700">{model.peerSuggestions}</p>
+          <p className="mt-1 text-[13.5px] leading-relaxed text-foreground">
+            {model.peerSuggestions}
+          </p>
         </section>
       )}
     </div>

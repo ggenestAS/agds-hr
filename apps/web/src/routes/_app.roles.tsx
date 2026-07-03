@@ -46,8 +46,8 @@ const roleChipCls = (role: UserRole): string =>
     : role === "founder"
       ? "bg-[var(--color-accent)] text-white"
       : role === "admin"
-        ? "bg-[#1e3a8a] text-white"
-        : "bg-bone text-ink-700";
+        ? "bg-[var(--color-info)] text-white"
+        : "bg-bone text-foreground";
 
 function Roles() {
   const data: RolesPageView = Route.useLoaderData();
@@ -86,7 +86,7 @@ function Roles() {
         Access control
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Roles</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
         Roles decide review authority throughout the cycle. Someone needs <strong>Manager</strong>{" "}
         (or Founder/Developer) to open cases, request peer input, run assessments, or appear in
         calibration as a reviewer. Every grant and revoke is recorded in the audit trail.
@@ -180,7 +180,7 @@ function Roles() {
         <CardContent>
           <div className="flex flex-wrap items-end gap-2">
             <label className="min-w-56 flex-1 text-xs">
-              <span className="mb-1 block font-semibold text-ink-700">Email</span>
+              <span className="mb-1 block font-semibold text-foreground">Email</span>
               <input
                 value={addEmail}
                 onChange={(event) => setAddEmail(event.target.value)}
@@ -189,7 +189,7 @@ function Roles() {
               />
             </label>
             <label className="text-xs">
-              <span className="mb-1 block font-semibold text-ink-700">Role</span>
+              <span className="mb-1 block font-semibold text-foreground">Role</span>
               <select
                 value={addRole}
                 onChange={(event) =>

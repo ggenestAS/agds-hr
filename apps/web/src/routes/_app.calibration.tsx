@@ -34,7 +34,7 @@ function Calibration() {
           {summary.total} cases · {summary.unrated} unrated
         </span>
       </div>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
         Compare ratings across people at the same level and similar scope, and correct for bias
         before decisions are made. The CEO and COO give the final sign-off.
       </p>

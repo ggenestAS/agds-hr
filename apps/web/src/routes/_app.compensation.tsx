@@ -39,7 +39,7 @@ function Compensation() {
         Compensation
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Compensation</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
         Compensation is guided by the merit matrix but is never purely mechanical. It weighs rating,
         band position, market movement, scope, promotion, and internal equity.
       </p>
@@ -79,7 +79,7 @@ function Compensation() {
                         key={third.key}
                         className={
                           bp === 0
-                            ? "border border-border/40 bg-[#fbf9f5] p-2.5 text-center text-[12.5px] text-ink-300"
+                            ? "border border-border/40 bg-[var(--color-panel-soft)] p-2.5 text-center text-[12.5px] text-ink-300"
                             : "border border-border/40 p-2.5 text-center text-[12.5px] font-medium tabular-nums"
                         }
                       >
@@ -103,7 +103,7 @@ function Compensation() {
           <CardHeader>
             <CardTitle className="text-base">Should NOT drive pay</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-ink-700">
+          <CardContent className="space-y-2 text-sm text-foreground">
             {NOT_DRIVE.map((item) => (
               <div key={item} className="flex items-baseline gap-2.5">
                 <span className="font-bold text-[var(--color-accent)]">✕</span>

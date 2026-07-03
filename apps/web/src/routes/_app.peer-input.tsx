@@ -48,7 +48,11 @@ const STATUS_META: Record<PeerRequestStatus, { label: string; dot: string; pill:
     dot: "bg-[var(--color-warning)]",
     pill: "bg-bone text-ink-500",
   },
-  submitted: { label: "submitted", dot: "bg-[#1e7a46]", pill: "bg-[#e4f1e9] text-[#1e7a46]" },
+  submitted: {
+    label: "submitted",
+    dot: "bg-[var(--color-success)]",
+    pill: "bg-[var(--color-success-surface)] text-[var(--color-success)]",
+  },
   declined: {
     label: "declined",
     dot: "bg-[var(--color-accent)]",
@@ -100,7 +104,7 @@ function StatusPill({
 function Avatar({ name, size = 9 }: { name: string; size?: 8 | 9 }) {
   return (
     <span
-      className={`flex ${size === 9 ? "size-9 text-[12px]" : "size-8 text-[11px]"} shrink-0 items-center justify-center rounded-full bg-ink-100 font-bold text-ink-700`}
+      className={`flex ${size === 9 ? "size-9 text-[12px]" : "size-8 text-[11px]"} shrink-0 items-center justify-center rounded-full bg-ink-100 font-bold text-foreground`}
     >
       {initials(name)}
     </span>
@@ -122,12 +126,12 @@ function QuotaBar({ caseView }: { caseView: PeerCaseView }) {
         ).length;
         return (
           <div key={kind} className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-ink-700">{KIND_LABEL[kind]}</span>
+            <span className="text-xs font-semibold text-foreground">{KIND_LABEL[kind]}</span>
             <span className="flex gap-1">
               {Array.from({ length: needed }, (_, index) => (
                 <span
                   key={index}
-                  className={`h-2 w-6 rounded-full ${index < submitted ? "bg-[#1e7a46]" : "bg-bone"}`}
+                  className={`h-2 w-6 rounded-full ${index < submitted ? "bg-[var(--color-success)]" : "bg-bone"}`}
                 />
               ))}
             </span>
@@ -140,7 +144,7 @@ function QuotaBar({ caseView }: { caseView: PeerCaseView }) {
       <span
         className={
           caseView.quotaMet
-            ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold text-[#1e7a46]"
+            ? "rounded-full bg-[var(--color-success-surface)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--color-success)]"
             : "text-xs text-muted-foreground"
         }
       >
@@ -183,7 +187,7 @@ function AddPeerComposer({
     <div>
       <div className="flex flex-wrap items-end gap-2">
         <label className="min-w-0 flex-1 text-xs">
-          <span className="mb-1 block font-semibold text-ink-700">Colleague</span>
+          <span className="mb-1 block font-semibold text-foreground">Colleague</span>
           <select value={email} onChange={(event) => pick(event.target.value)} className={inputCls}>
             <option value="">Choose…</option>
             {directory
@@ -197,7 +201,7 @@ function AddPeerComposer({
           </select>
         </label>
         <label className="text-xs">
-          <span className="mb-1 block font-semibold text-ink-700">Kind</span>
+          <span className="mb-1 block font-semibold text-foreground">Kind</span>
           <select
             value={kind}
             onChange={(event) => {
@@ -288,7 +292,7 @@ function PeerInputPage() {
         Review cycle
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Peer input</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground">
         Peer input is <strong>named</strong>, never anonymous — and it is never shown to the person
         it describes. You can suggest who reviews you; {approverPhrase(data.myCase.approverKind)}{" "}
         makes the final call.
@@ -503,12 +507,12 @@ function PeerInputPage() {
                               className={
                                 active
                                   ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
-                                  : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                                  : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-foreground hover:border-ink-500"
                               }
                             >
                               <span
                                 className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
-                                  active ? "bg-white/20 text-white" : "bg-ink-100 text-ink-700"
+                                  active ? "bg-white/20 text-white" : "bg-ink-100 text-foreground"
                                 }`}
                               >
                                 {initials(entry.subjectName ?? entry.subjectEmail)}
@@ -546,7 +550,7 @@ function PeerInputPage() {
                           Suggested by {selectedCase.subjectName ?? "the subject"} — you decide the
                           final list
                         </p>
-                        <p className="mt-1 text-[13px] leading-relaxed text-ink-700">
+                        <p className="mt-1 text-[13px] leading-relaxed text-foreground">
                           {selectedCase.peerSuggestions}
                         </p>
                       </div>

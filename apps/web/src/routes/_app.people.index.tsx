@@ -117,7 +117,7 @@ function People() {
               className={
                 filter === campus
                   ? "rounded-full border border-ink-900 bg-ink-900 px-4 py-1.5 text-xs font-semibold text-white"
-                  : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                  : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
               }
             >
               {campus === "all" ? "Everyone" : campus}

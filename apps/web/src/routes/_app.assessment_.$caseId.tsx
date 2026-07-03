@@ -413,7 +413,7 @@ function AssessCasePage() {
                       <span className="shrink-0 rounded-lg bg-cream px-2 py-0.5 text-xs font-bold">
                         Now
                       </span>
-                      <span className="text-[13px] leading-relaxed text-ink-700">
+                      <span className="text-[13px] leading-relaxed text-foreground">
                         {CAREER_LEVEL_META[detail.level].test}
                       </span>
                     </div>
@@ -469,7 +469,7 @@ function AssessCasePage() {
                   <span
                     className={
                       doneCount === EVALUATION_DIMENSIONS.length
-                        ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-[#1e7a46]"
+                        ? "rounded-full bg-[var(--color-success-surface)] px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-[var(--color-success)]"
                         : "rounded-full bg-bone px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-ink-500"
                     }
                   >
@@ -478,7 +478,7 @@ function AssessCasePage() {
                 )}
               </div>
               {submitted ? (
-                <p className="text-sm font-semibold text-[#1e7a46]">
+                <p className="text-sm font-semibold text-[var(--color-success)]">
                   Submitted{" "}
                   {detail.assessment?.submittedAt !== undefined &&
                     new Date(detail.assessment.submittedAt).toLocaleDateString()}{" "}
@@ -500,7 +500,9 @@ function AssessCasePage() {
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <span className="flex items-center gap-1.5 text-[13.5px] font-bold">
                         {EVALUATION_DIMENSION_LABELS[dimension]}
-                        {done && !submitted && <span className="text-[#1e7a46]">✓</span>}
+                        {done && !submitted && (
+                          <span className="text-[var(--color-success)]">✓</span>
+                        )}
                       </span>
                       <select
                         value={entry.score ?? ""}
@@ -543,7 +545,7 @@ function AssessCasePage() {
               })}
 
               <div>
-                <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-700">
+                <label className="mb-1.5 block text-[12.5px] font-semibold text-foreground">
                   Overall narrative
                 </label>
                 <textarea
@@ -561,7 +563,7 @@ function AssessCasePage() {
 
               <div className="flex flex-wrap items-center gap-4 border-t border-border pt-4">
                 <label className="text-xs">
-                  <span className="mb-1 block font-semibold text-ink-700">Proposed rating</span>
+                  <span className="mb-1 block font-semibold text-foreground">Proposed rating</span>
                   <select
                     value={draft.proposedRating ?? ""}
                     disabled={submitted}
@@ -594,7 +596,7 @@ function AssessCasePage() {
                   Promotion proposed
                 </label>
                 <label className="min-w-40 flex-1 text-xs">
-                  <span className="mb-1 block font-semibold text-ink-700">
+                  <span className="mb-1 block font-semibold text-foreground">
                     Compensation recommendation (type only)
                   </span>
                   <input
@@ -611,11 +613,11 @@ function AssessCasePage() {
               </div>
 
               {lowRating && (
-                <div className="flex items-start gap-3 rounded-xl border border-[rgba(233,75,60,0.28)] bg-[#fbf1ee] px-4 py-3">
+                <div className="flex items-start gap-3 rounded-xl border border-[rgba(233,75,60,0.28)] bg-[var(--color-accent-tint-surface)] px-4 py-3">
                   <span className="shrink-0 rounded-md bg-[var(--color-blush)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-dk)]">
                     Improvement plan
                   </span>
-                  <label className="flex items-start gap-2 text-[12.5px] leading-relaxed text-[#8a3325]">
+                  <label className="flex items-start gap-2 text-[12.5px] leading-relaxed text-[var(--color-accent-tint-text)]">
                     <input
                       type="checkbox"
                       className="mt-0.5"
@@ -733,7 +735,7 @@ function AssessCasePage() {
                       <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
                         {EVALUATION_DIMENSION_LABELS[dimension]}
                       </p>
-                      <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-700">
+                      <p className="mt-0.5 text-[13.5px] leading-relaxed text-foreground">
                         {peer.input[dimension]}
                       </p>
                     </div>

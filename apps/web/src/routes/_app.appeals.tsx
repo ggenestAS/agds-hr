@@ -40,7 +40,7 @@ function AppealCard({ appeal, mine }: { appeal: AppealView; mine?: boolean }) {
             {new Date(appeal.createdAt).toLocaleDateString()}
           </span>
         </div>
-        <p className="whitespace-pre-wrap leading-relaxed text-ink-700">{appeal.statement}</p>
+        <p className="whitespace-pre-wrap leading-relaxed text-foreground">{appeal.statement}</p>
         {appeal.resolution !== undefined && (
           <div className="mt-3 rounded-[10px] bg-cream px-3.5 py-2.5">
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -81,7 +81,7 @@ function Appeals() {
         Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Appeals</h1>
-      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
+      <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground">
         You can appeal a decision within 30 days of receiving it. Appeals are visible only to you
         and HR admins, and they never feed into future performance reviews.
       </p>
@@ -185,7 +185,7 @@ function Appeals() {
             ) : (
               <>
                 <div>
-                  <p className="mb-2 text-[12.5px] font-semibold text-ink-700">
+                  <p className="mb-2 text-[12.5px] font-semibold text-foreground">
                     What are you appealing?
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -197,7 +197,7 @@ function Appeals() {
                         className={
                           category === value
                             ? "rounded-full border border-ink-900 bg-ink-900 px-3.5 py-1.5 text-xs font-semibold text-white"
-                            : "rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
+                            : "rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
                         }
                       >
                         {CATEGORY_LABEL[value]}
@@ -206,7 +206,7 @@ function Appeals() {
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-[12.5px] font-semibold text-ink-700">Your statement</p>
+                  <p className="mb-2 text-[12.5px] font-semibold text-foreground">Your statement</p>
                   <textarea
                     value={statement}
                     onChange={(event) => setStatement(event.target.value)}

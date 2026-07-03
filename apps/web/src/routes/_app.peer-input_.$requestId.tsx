@@ -196,7 +196,7 @@ function PeerAnswerPage() {
             <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-accent)]">
               {EVALUATION_DIMENSION_LABELS[dimension]}
               {(form[dimension] ?? "").trim().length > 0 && (
-                <span className="flex size-4 items-center justify-center rounded-full bg-[#e4f1e9] text-[10px] font-bold normal-case tracking-normal text-[#1e7a46]">
+                <span className="flex size-4 items-center justify-center rounded-full bg-[var(--color-success-surface)] text-[10px] font-bold normal-case tracking-normal text-[var(--color-success)]">
                   ✓
                 </span>
               )}
@@ -221,7 +221,7 @@ function PeerAnswerPage() {
             {declining ? (
               <span className="flex min-w-0 flex-1 items-end gap-2">
                 <label className="min-w-0 flex-1 text-xs">
-                  <span className="mb-1 block font-semibold text-ink-700">
+                  <span className="mb-1 block font-semibold text-foreground">
                     Declines are logged with a reason
                   </span>
                   <input

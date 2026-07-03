@@ -27,9 +27,20 @@
   --color-coral: #f5a28f;
   --color-blush: #f3d9d2;
 
-  /* warning is the one added semantic color (§9.4); success/info deferred. */
+  /* Semantic colors (§9.4). Each has a light value here and a dark-mode
+     override below — see the `.dark` block. success/info/accent-tint/divider
+     added alongside the original warning to cover every ad hoc callout color
+     that had accumulated across routes without a theme-aware pairing. */
   --color-warning: #8a6a1e;
   --color-warning-surface: #f6eeda;
+  --color-success: #1e7a46;
+  --color-success-surface: #e4f1e9;
+  --color-info: #1e3a8a;
+  --color-info-surface: #e8ecf7;
+  --color-accent-tint-surface: #fbf1ee;
+  --color-accent-tint-text: #8a3325;
+  --color-divider-soft: #e9e4da;
+  --color-panel-soft: #fbf9f5;
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -87,6 +98,27 @@
   --muted-foreground: var(--color-ink-300);
   --border: rgba(216, 217, 228, 0.16);
   --ring: var(--color-accent);
+
+  /* Soft panel tones (bg-cream / bg-bone throughout composer boxes, badges,
+     table stripes) — raised a touch above --card so nested panels stay
+     legible against it. */
+  --color-cream: #262b47;
+  --color-bone: #2c3154;
+
+  /* Semantic callouts: dark surface + a brighter version of the same hue for
+     text, the standard dark-mode alert pattern (as opposed to a flat
+     light-mode surface that would clash, or worse, hide theme-reactive text
+     — see the Overview "Needs a decision" card, previously invisible here). */
+  --color-warning: #e0b64a;
+  --color-warning-surface: #362d17;
+  --color-success: #5fd88f;
+  --color-success-surface: #17301f;
+  --color-info: #8ca3ea;
+  --color-info-surface: #202c4c;
+  --color-accent-tint-surface: #3a2420;
+  --color-accent-tint-text: #f0a08f;
+  --color-divider-soft: #33375c;
+  --color-panel-soft: #232842;
 }
 
 html,
