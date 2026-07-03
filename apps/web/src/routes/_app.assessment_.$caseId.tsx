@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import {
@@ -102,6 +102,11 @@ const toPayload = (caseId: string, draft: Draft) => ({
   p6Acknowledged: draft.p6Acknowledged,
 });
 
+// A dimension counts as written once it has all three: score, narrative,
+// evidence. Drives the per-dimension ✓ and the progress pill.
+const isDimDone = (entry: DimDraft): boolean =>
+  entry.score !== undefined && entry.narrative.trim() !== "" && entry.evidence.trim() !== "";
+
 const isComplete = (draft: Draft): boolean => {
   const dims: Partial<
     Record<EvaluationDimension, { score: ReviewRating; narrative: string; evidence: string }>
@@ -138,14 +143,54 @@ const KIND_LABEL: Record<PeerKind, string> = {
 function AssessCasePage() {
   const detail: AssessCaseDetail = Route.useLoaderData();
   const router = useRouter();
+  const storageKey = `agds_assessment_${detail.caseId}`;
   const [draft, setDraft] = useState<Draft>(() => draftFromDetail(detail));
   const [busy, setBusy] = useState(false);
-  const [showSelf, setShowSelf] = useState(false);
-  const [showPeers, setShowPeers] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  // Evidence panels open by default when they have content — the page's whole
+  // premise is assessing against evidence, so don't hide it behind a click.
+  const selfEntries = selfReviewEntries(detail.selfReview);
+  const [showSelf, setShowSelf] = useState(selfEntries.length > 0);
+  const [showPeers, setShowPeers] = useState(detail.peers.length > 0);
 
   const submitted = detail.assessment?.submittedAt !== undefined;
   const lowRating = draft.proposedRating !== undefined && draft.proposedRating <= 2;
   const complete = isComplete(draft);
+  const doneCount = EVALUATION_DIMENSIONS.filter((dimension) =>
+    isDimDone(draft.dims[dimension]),
+  ).length;
+
+  // Local draft safety net (same pattern as the peer answer form): restore an
+  // unsaved local draft only when the server holds nothing — an explicit
+  // server save always wins. Cleared on submit.
+  useEffect(() => {
+    if (submitted || detail.assessment !== undefined) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw !== null) {
+        const local = JSON.parse(raw) as Draft;
+        if (local.dims !== undefined) {
+          setDraft({ ...emptyDraft(), ...local, dims: { ...emptyDraft().dims, ...local.dims } });
+        }
+      }
+    } catch {
+      // ignore unreadable local drafts
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const update = (updater: (prev: Draft) => Draft) =>
+    setDraft((prev) => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        // storage full/unavailable — the explicit Save draft still works
+      }
+      return next;
+    });
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -158,10 +203,13 @@ function AssessCasePage() {
   };
 
   const setDim = (dimension: EvaluationDimension, patch: Partial<DimDraft>) =>
-    setDraft((prev) => ({
+    update((prev) => ({
       ...prev,
       dims: { ...prev.dims, [dimension]: { ...prev.dims[dimension], ...patch } },
     }));
+
+  const selfMissing = detail.selfReviewSubmittedAt === undefined;
+  const noPeerInput = detail.peers.length === 0;
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -169,29 +217,27 @@ function AssessCasePage() {
         to="/assessment"
         className="text-xs font-semibold text-muted-foreground hover:text-foreground"
       >
-        ← All reports
+        ← Assessment
       </Link>
       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
         Manager assessment
       </p>
-      <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">
-        {detail.subjectName ?? detail.subjectEmail}
-      </h1>
-
-      <div className="mt-4 flex items-start gap-3 rounded-[14px] border border-[rgba(233,75,60,0.28)] bg-[#fffbfa] px-4 py-3.5">
-        <span className="flex size-5.5 shrink-0 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm font-bold text-white">
-          !
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl font-medium tracking-tight">
+          {detail.subjectName ?? detail.subjectEmail}
+        </h1>
+        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+          {detail.state.replace(/_/g, " ")}
         </span>
-        <div>
-          <p className="text-[13.5px] font-bold text-[var(--color-accent-dk)]">
-            Assessments must be evidence-based; vague impressions are not sufficient.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Every dimension needs a narrative and at least one linked piece of evidence. Submission
-            is blocked while any evidence field is empty.
-          </p>
-        </div>
       </div>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        {detail.level !== undefined
+          ? `${detail.level} · ${CAREER_LEVEL_META[detail.level].name}`
+          : "Level unassigned"}
+        {detail.path !== undefined && ` · ${detail.path === "ic" ? "IC path" : "Management"}`}
+        {" · "}
+        {detail.peerSubmitted} peer {detail.peerSubmitted === 1 ? "input" : "inputs"} submitted
+      </p>
 
       {!detail.direct && (
         <div className="mt-4 rounded-[14px] border border-[var(--color-warning)]/40 bg-[var(--color-warning-surface)] px-4 py-3 text-[13px] text-[var(--color-warning)]">
@@ -201,80 +247,56 @@ function AssessCasePage() {
         </div>
       )}
 
+      {!submitted && (selfMissing || noPeerInput) && (
+        <div className="mt-4 rounded-[14px] border border-[var(--color-warning)]/40 bg-[var(--color-warning-surface)] px-4 py-3 text-[13px] text-[var(--color-warning)]">
+          <strong>The evidence base is still thin.</strong>{" "}
+          {selfMissing && "The self-review has not been submitted yet. "}
+          {noPeerInput && "No peer input has come in yet — you can set reviewers on the "}
+          {noPeerInput && (
+            <Link to="/peer-input" className="font-semibold underline">
+              peer input page
+            </Link>
+          )}
+          {noPeerInput && ". "}
+          You can draft now, but consider waiting before you submit.
+        </div>
+      )}
+
       <div className="mt-5 grid items-start gap-5 lg:grid-cols-[0.85fr_1.15fr]">
         <div className="flex flex-col gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle>{detail.subjectName ?? detail.subjectEmail}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {detail.level !== undefined
-                  ? `${detail.level} · ${CAREER_LEVEL_META[detail.level].name}`
-                  : "Level unassigned"}
-                {detail.path !== undefined && ` · ${detail.path === "ic" ? "IC" : "Management"}`}
-              </p>
-            </CardHeader>
-            <CardContent className="text-sm">
+            <CardContent className="pt-5 text-sm">
               <div className="mb-2.5 flex items-baseline justify-between">
                 <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
                   Self-review · input, not rating
-                  {detail.selfReviewSubmittedAt === undefined && " · not yet submitted"}
+                  {selfMissing && " · not yet submitted"}
                 </p>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
-                  onClick={() => setShowSelf((value) => !value)}
-                >
-                  {showSelf ? "Hide" : "Show"}
-                </button>
+                {selfEntries.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-xs font-medium text-muted-foreground underline hover:text-foreground"
+                    onClick={() => setShowSelf((value) => !value)}
+                  >
+                    {showSelf ? "Hide" : "Show"}
+                  </button>
+                )}
               </div>
-              {showSelf &&
-                (selfReviewEntries(detail.selfReview).length === 0 ? (
-                  <p className="text-muted-foreground">No self-review content yet.</p>
-                ) : (
+              {selfEntries.length === 0 ? (
+                <p className="text-muted-foreground">No self-review content yet.</p>
+              ) : (
+                showSelf && (
                   <div className="space-y-2.5">
-                    {selfReviewEntries(detail.selfReview).map((entry) => (
+                    {selfEntries.map((entry) => (
                       <div key={entry.label}>
                         <p className="text-[12.5px] font-semibold">{entry.label}</p>
                         <p className="text-[13px] leading-relaxed text-ink-700">{entry.value}</p>
                       </div>
                     ))}
                   </div>
-                ))}
+                )
+              )}
             </CardContent>
           </Card>
-
-          {detail.level !== undefined && (
-            <Card>
-              <CardContent className="pt-5 text-sm">
-                <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
-                  Level expectations
-                </p>
-                <div className="space-y-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <span className="shrink-0 rounded-lg bg-cream px-2 py-0.5 text-xs font-bold">
-                      Now
-                    </span>
-                    <span className="text-[13px] leading-relaxed text-ink-700">
-                      {CAREER_LEVEL_META[detail.level].test}
-                    </span>
-                  </div>
-                  {detail.level !== "L4" && (
-                    <div className="flex items-start gap-2.5">
-                      <span className="shrink-0 rounded-lg bg-bone px-2 py-0.5 text-xs font-bold text-ink-300">
-                        {CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]}
-                      </span>
-                      <span className="text-[13px] leading-relaxed text-muted-foreground">
-                        {
-                          CAREER_LEVEL_META[CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]!]
-                            .test
-                        }
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           <Card>
             <CardContent className="pt-5 text-sm">
@@ -324,6 +346,39 @@ function AssessCasePage() {
             </CardContent>
           </Card>
 
+          {detail.level !== undefined && (
+            <Card>
+              <CardContent className="pt-5 text-sm">
+                <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                  Level expectations
+                </p>
+                <div className="space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <span className="shrink-0 rounded-lg bg-cream px-2 py-0.5 text-xs font-bold">
+                      Now
+                    </span>
+                    <span className="text-[13px] leading-relaxed text-ink-700">
+                      {CAREER_LEVEL_META[detail.level].test}
+                    </span>
+                  </div>
+                  {detail.level !== "L4" && (
+                    <div className="flex items-start gap-2.5">
+                      <span className="shrink-0 rounded-lg bg-bone px-2 py-0.5 text-xs font-bold text-ink-300">
+                        {CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]}
+                      </span>
+                      <span className="text-[13px] leading-relaxed text-muted-foreground">
+                        {
+                          CAREER_LEVEL_META[CAREER_LEVELS[CAREER_LEVELS.indexOf(detail.level) + 1]!]
+                            .test
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="space-y-2.5 pt-5 text-sm">
               <div className="flex items-baseline justify-between gap-3">
@@ -351,24 +406,44 @@ function AssessCasePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Manager assessment</CardTitle>
-            {submitted && (
+            <div className="flex items-baseline justify-between gap-3">
+              <CardTitle>Your assessment</CardTitle>
+              {!submitted && (
+                <span
+                  className={
+                    doneCount === EVALUATION_DIMENSIONS.length
+                      ? "rounded-full bg-[#e4f1e9] px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-[#1e7a46]"
+                      : "rounded-full bg-bone px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-ink-500"
+                  }
+                >
+                  {doneCount}/{EVALUATION_DIMENSIONS.length} dimensions
+                </span>
+              )}
+            </div>
+            {submitted ? (
               <p className="text-sm font-semibold text-[#1e7a46]">
                 Submitted{" "}
                 {detail.assessment?.submittedAt !== undefined &&
                   new Date(detail.assessment.submittedAt).toLocaleDateString()}{" "}
                 — read-only.
               </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Evidence-based only: every dimension needs a score, a narrative, and at least one
+                linked artefact, metric, or concrete moment.
+              </p>
             )}
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             {EVALUATION_DIMENSIONS.map((dimension) => {
               const entry = draft.dims[dimension];
+              const done = isDimDone(entry);
               return (
                 <div key={dimension} className="rounded-[14px] border border-border p-4">
                   <div className="mb-2 flex items-center justify-between gap-3">
-                    <span className="text-[13.5px] font-bold">
+                    <span className="flex items-center gap-1.5 text-[13.5px] font-bold">
                       {EVALUATION_DIMENSION_LABELS[dimension]}
+                      {done && !submitted && <span className="text-[#1e7a46]">✓</span>}
                     </span>
                     <select
                       value={entry.score ?? ""}
@@ -419,9 +494,7 @@ function AssessCasePage() {
                 placeholder="The proposal to calibration, in plain words"
                 value={draft.narrative}
                 disabled={submitted}
-                onChange={(event) =>
-                  setDraft((prev) => ({ ...prev, narrative: event.target.value }))
-                }
+                onChange={(event) => update((prev) => ({ ...prev, narrative: event.target.value }))}
                 className={inputCls}
               />
             </div>
@@ -433,7 +506,7 @@ function AssessCasePage() {
                   value={draft.proposedRating ?? ""}
                   disabled={submitted}
                   onChange={(event) =>
-                    setDraft((prev) => ({
+                    update((prev) => ({
                       ...prev,
                       proposedRating:
                         event.target.value === "" ? undefined : Number(event.target.value),
@@ -455,7 +528,7 @@ function AssessCasePage() {
                   checked={draft.promoProposed}
                   disabled={submitted}
                   onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, promoProposed: event.target.checked }))
+                    update((prev) => ({ ...prev, promoProposed: event.target.checked }))
                   }
                 />
                 Promotion proposed
@@ -469,9 +542,7 @@ function AssessCasePage() {
                   placeholder='e.g. "+4% + bonus" — amounts are set by Admins at sign-off'
                   value={draft.compRec}
                   disabled={submitted}
-                  onChange={(event) =>
-                    setDraft((prev) => ({ ...prev, compRec: event.target.value }))
-                  }
+                  onChange={(event) => update((prev) => ({ ...prev, compRec: event.target.value }))}
                   className={inputCls}
                 />
               </label>
@@ -489,7 +560,7 @@ function AssessCasePage() {
                     checked={draft.p6Acknowledged}
                     disabled={submitted}
                     onChange={(event) =>
-                      setDraft((prev) => ({ ...prev, p6Acknowledged: event.target.checked }))
+                      update((prev) => ({ ...prev, p6Acknowledged: event.target.checked }))
                     }
                   />
                   A rating of 1 or 2 starts an improvement plan for this person. Please confirm you
@@ -500,13 +571,21 @@ function AssessCasePage() {
 
             {!submitted && (
               <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+                {savedAt !== null && (
+                  <span className="mr-auto text-xs text-muted-foreground">
+                    Draft saved at {savedAt} ✓
+                  </span>
+                )}
                 <Button
                   type="button"
                   size="sm"
                   variant="secondary"
                   disabled={busy}
                   onClick={() => {
-                    void run(() => assessSaveFn({ data: toPayload(detail.caseId, draft) }));
+                    void run(async () => {
+                      await assessSaveFn({ data: toPayload(detail.caseId, draft) });
+                      setSavedAt(new Date().toLocaleTimeString([], { timeStyle: "short" }));
+                    });
                   }}
                 >
                   Save draft
@@ -517,7 +596,14 @@ function AssessCasePage() {
                     size="sm"
                     disabled={busy || !complete}
                     onClick={() => {
-                      void run(() => assessSubmitFn({ data: toPayload(detail.caseId, draft) }));
+                      void run(async () => {
+                        await assessSubmitFn({ data: toPayload(detail.caseId, draft) });
+                        try {
+                          localStorage.removeItem(storageKey);
+                        } catch {
+                          // best-effort cleanup
+                        }
+                      });
                     }}
                   >
                     Submit assessment
