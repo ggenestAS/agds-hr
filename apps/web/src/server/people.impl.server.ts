@@ -26,7 +26,7 @@ import {
   getAppealForCase,
   getCaseById,
   listBands,
-  listCountryCoefficients,
+  listCampusCoefficients,
   getCaseBySubject,
   getCompRecommendation,
   getEmployeeByEmail,
@@ -1390,7 +1390,7 @@ export async function decisionsHandler(): Promise<readonly DecisionDoc[]> {
   });
 }
 
-// Salary bands + country coefficients (design: "Internal — used by CEO, COO &
+// Salary bands + campus coefficients (design: "Internal — used by CEO, COO &
 // leadership"). Band figures are reference config, not a person's comp, so a
 // normal (leadership-gated) read rather than an audited one. Founders edit the
 // figures in place (people.band.manage); every write is audited.
@@ -1399,7 +1399,7 @@ export async function bandsHandler(): Promise<BandsView> {
   const adminDb = getDbAs("admin");
   const [bands, coefficients] = await Promise.all([
     listBands(adminDb),
-    listCountryCoefficients(adminDb),
+    listCampusCoefficients(adminDb),
   ]);
   return {
     bands,

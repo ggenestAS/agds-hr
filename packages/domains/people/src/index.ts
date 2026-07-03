@@ -54,7 +54,7 @@ export type {
   AppealStatus,
 } from "./types.ts";
 export type {
-  CountryCoefficient,
+  CampusCoefficient,
   DecisionSummary,
   UpsertBandInput,
   UpsertCompInput,
@@ -63,7 +63,7 @@ export {
   getBand,
   getCompRecommendation,
   listBands,
-  listCountryCoefficients,
+  listCampusCoefficients,
   listDecisionSummaries,
   upsertBand,
   upsertCompRecommendation,

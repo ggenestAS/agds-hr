@@ -102,8 +102,10 @@ export const band = peopleSchema.table(
   (table) => [unique("band_family_level").on(table.roleFamily, table.level)],
 );
 
-export const countryCoefficient = peopleSchema.table("country_coefficient", {
-  country: text("country").primaryKey(),
+// Cost-of-living multiplier per campus (Paris reference = 1.00x, stored as
+// basis points). Per campus, not per country — Paris and Marseille differ.
+export const campusCoefficient = peopleSchema.table("campus_coefficient", {
+  campus: text("campus").primaryKey(),
   coefficientBp: integer("coefficient_bp").notNull(),
 });
 

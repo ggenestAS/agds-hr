@@ -233,7 +233,7 @@ export type PersonDetail = {
 };
 
 // The Salary bands surface (design): France-reference bands per role family &
-// level, plus country coefficients in basis points. Leadership-only to read;
+// level, plus campus coefficients in basis points. Leadership-only to read;
 // founders edit the figures in place.
 export type BandsView = {
   readonly bands: readonly {
@@ -243,7 +243,7 @@ export type BandsView = {
     readonly midEur: number;
     readonly maxEur: number;
   }[];
-  readonly coefficients: readonly { readonly country: string; readonly coefficientBp: number }[];
+  readonly coefficients: readonly { readonly campus: string; readonly coefficientBp: number }[];
   readonly canManageBands: boolean;
 };
 

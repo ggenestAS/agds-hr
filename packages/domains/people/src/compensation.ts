@@ -4,7 +4,7 @@ import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { ConflictError } from "@agds-hr/shared";
 
-import { band, compRecommendation, countryCoefficient, reviewCase } from "./db/schema.ts";
+import { band, campusCoefficient, compRecommendation, reviewCase } from "./db/schema.ts";
 import type { Band, CareerLevel, CompRecommendation, ReviewRating } from "./types.ts";
 import { isReviewRating } from "./types.ts";
 
@@ -29,7 +29,7 @@ export async function getBand(
 }
 
 // The full band table for the Salary bands surface (France reference figures;
-// adjusted by country coefficient with judgment, not mechanically).
+// adjusted by campus coefficient with judgment, not mechanically).
 export async function listBands(db: DrizzleExecutor): Promise<readonly Band[]> {
   return db
     .select({
@@ -89,21 +89,21 @@ export async function upsertBand(
   });
 }
 
-export type CountryCoefficient = {
-  readonly country: string;
+export type CampusCoefficient = {
+  readonly campus: string;
   readonly coefficientBp: number;
 };
 
-export async function listCountryCoefficients(
+export async function listCampusCoefficients(
   db: DrizzleExecutor,
-): Promise<readonly CountryCoefficient[]> {
+): Promise<readonly CampusCoefficient[]> {
   return db
     .select({
-      country: countryCoefficient.country,
-      coefficientBp: countryCoefficient.coefficientBp,
+      campus: campusCoefficient.campus,
+      coefficientBp: campusCoefficient.coefficientBp,
     })
-    .from(countryCoefficient)
-    .orderBy(asc(countryCoefficient.country));
+    .from(campusCoefficient)
+    .orderBy(asc(campusCoefficient.campus));
 }
 
 // Reading a person's compensation is itself recorded as an audit event — "the

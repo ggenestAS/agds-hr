@@ -150,8 +150,8 @@ function Bands() {
             <p className="text-sm text-muted-foreground">
               Three families per level — high variable component (lower base, variable plan on top),
               low variable component, and Teaching. Progression is performance-related within the
-              range, appraisal-based — no automatic seniority steps. France reference · adjust by
-              country coefficient. Internal — used by CEO, COO & leadership.
+              range, appraisal-based — no automatic seniority steps. Paris reference · adjust by
+              campus coefficient. Internal — used by CEO, COO & leadership.
               {data.canManageBands && " Edits are recorded in the audit trail."}
             </p>
           </CardHeader>
@@ -270,9 +270,9 @@ function Bands() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Country coefficients</CardTitle>
+            <CardTitle>Campus coefficients</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Applied with judgment, not mechanically.
+              Cost of living per campus, Paris = 1.00× — applied with judgment, not mechanically.
             </p>
           </CardHeader>
           <CardContent>
@@ -281,12 +281,12 @@ function Bands() {
             ) : (
               <div className="divide-y divide-border">
                 {data.coefficients.map((coefficient) => (
-                  <div key={coefficient.country} className="flex items-center justify-between py-3">
+                  <div key={coefficient.campus} className="flex items-center justify-between py-3">
                     <span className="flex items-center gap-2.5">
                       <span className="rounded bg-bone px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-ink-700">
-                        {coefficient.country.slice(0, 2).toUpperCase()}
+                        {coefficient.campus.slice(0, 2).toUpperCase()}
                       </span>
-                      <span className="text-sm font-semibold">{coefficient.country}</span>
+                      <span className="text-sm font-semibold">{coefficient.campus}</span>
                     </span>
                     <span className="font-display text-lg font-semibold tabular-nums">
                       {(coefficient.coefficientBp / 10000).toFixed(2)}×
