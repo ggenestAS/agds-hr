@@ -114,6 +114,8 @@ export type {
   PeerRequestStatus,
   SelfReview,
 } from "./types.ts";
+export { computeObligations, OBLIGATION_KINDS } from "./obligations.ts";
+export type { Obligation, ObligationCaseInput, ObligationKind } from "./obligations.ts";
 export type { EmployeeAttrs, UpsertEmployeeInput } from "./dal.ts";
 export { getEmployeeByEmail, listEmployeeAttrs, upsertEmployeeByEmail } from "./dal.ts";
 export {
