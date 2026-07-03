@@ -102,3 +102,8 @@ export const overviewFn = createServerFn({ method: "GET" }).handler(async () => 
   const { overviewHandler } = await import("./people.impl.server.ts");
   return overviewHandler();
 });
+
+export const bandsFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { bandsHandler } = await import("./people.impl.server.ts");
+  return bandsHandler();
+});

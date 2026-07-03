@@ -20,7 +20,7 @@ const REVIEWERS = ["manager", ...LEADERSHIP] as const;
 const EVERYONE = ["staff", ...REVIEWERS] as const;
 
 type NavEntry = {
-  readonly to: "/dashboard" | "/people" | "/calibration" | "/appeals";
+  readonly to: "/dashboard" | "/people" | "/calibration" | "/appeals" | "/compensation" | "/bands";
   readonly label: string;
   readonly roles: readonly string[];
 };
@@ -32,6 +32,13 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
       { to: "/dashboard", label: "Overview", roles: EVERYONE },
       { to: "/people", label: "People", roles: EVERYONE },
       { to: "/calibration", label: "Calibration", roles: REVIEWERS },
+    ],
+  },
+  {
+    header: "Compensation",
+    items: [
+      { to: "/compensation", label: "Compensation", roles: LEADERSHIP },
+      { to: "/bands", label: "Salary bands", roles: LEADERSHIP },
     ],
   },
   {

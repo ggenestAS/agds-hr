@@ -130,6 +130,19 @@ export type PersonDetail = {
   readonly canAppeal: boolean;
 };
 
+// The Salary bands surface (design): France-reference bands per role family &
+// level, plus country coefficients in basis points. Leadership-only.
+export type BandsView = {
+  readonly bands: readonly {
+    readonly roleFamily: string;
+    readonly level: CareerLevel;
+    readonly minEur: number;
+    readonly midEur: number;
+    readonly maxEur: number;
+  }[];
+  readonly coefficients: readonly { readonly country: string; readonly coefficientBp: number }[];
+};
+
 // The Overview surface (design): stat tiles + rating distribution + attention
 // list for reviewers; everyone gets the cycle timeline and their own status.
 export type OverviewData = {

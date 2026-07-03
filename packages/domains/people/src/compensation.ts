@@ -1,9 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 
-import { band, compRecommendation } from "./db/schema.ts";
+import { band, compRecommendation, countryCoefficient } from "./db/schema.ts";
 import type { Band, CareerLevel, CompRecommendation } from "./types.ts";
 
 // Band reference lookup — internal config, not a person's comp, so a normal read.
@@ -24,6 +24,38 @@ export async function getBand(
     .where(and(eq(band.roleFamily, roleFamily), eq(band.level, level)))
     .limit(1);
   return row === undefined ? undefined : row;
+}
+
+// The full band table for the Salary bands surface (France reference figures;
+// adjusted by country coefficient with judgment, not mechanically).
+export async function listBands(db: DrizzleExecutor): Promise<readonly Band[]> {
+  return db
+    .select({
+      roleFamily: band.roleFamily,
+      level: band.level,
+      minEur: band.minEur,
+      midEur: band.midEur,
+      maxEur: band.maxEur,
+    })
+    .from(band)
+    .orderBy(asc(band.roleFamily), asc(band.level));
+}
+
+export type CountryCoefficient = {
+  readonly country: string;
+  readonly coefficientBp: number;
+};
+
+export async function listCountryCoefficients(
+  db: DrizzleExecutor,
+): Promise<readonly CountryCoefficient[]> {
+  return db
+    .select({
+      country: countryCoefficient.country,
+      coefficientBp: countryCoefficient.coefficientBp,
+    })
+    .from(countryCoefficient)
+    .orderBy(asc(countryCoefficient.country));
 }
 
 // Reading a person's compensation is itself recorded as an audit event — "the

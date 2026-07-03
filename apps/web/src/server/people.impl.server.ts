@@ -14,6 +14,8 @@ import {
   fileAppeal,
   getAppealForCase,
   getCaseById,
+  listBands,
+  listCountryCoefficients,
   getCaseBySubject,
   getCompRecommendation,
   getEmployeeByEmail,
@@ -36,6 +38,7 @@ import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
 
 import type {
   AppealView,
+  BandsView,
   CalibrationSummary,
   CompView,
   DirectoryEntry,
@@ -276,6 +279,19 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
     }
   }
   return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+}
+
+// Salary bands + country coefficients (design: "Internal — used by CEO, COO &
+// leadership"). Band figures are reference config, not a person's comp, so a
+// normal (leadership-gated) read rather than an audited one.
+export async function bandsHandler(): Promise<BandsView> {
+  await requireSession("people.comp.read");
+  const adminDb = getDbAs("admin");
+  const [bands, coefficients] = await Promise.all([
+    listBands(adminDb),
+    listCountryCoefficients(adminDb),
+  ]);
+  return { bands, coefficients };
 }
 
 // The Overview surface (design): reviewers get stat tiles, the calibrated

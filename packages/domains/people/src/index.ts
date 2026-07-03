@@ -40,8 +40,14 @@ export type {
   AppealCategory,
   AppealStatus,
 } from "./types.ts";
-export type { UpsertCompInput } from "./compensation.ts";
-export { getBand, getCompRecommendation, upsertCompRecommendation } from "./compensation.ts";
+export type { CountryCoefficient, UpsertCompInput } from "./compensation.ts";
+export {
+  getBand,
+  getCompRecommendation,
+  listBands,
+  listCountryCoefficients,
+  upsertCompRecommendation,
+} from "./compensation.ts";
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
 export type { EmployeeAttrs, UpsertEmployeeInput } from "./dal.ts";
 export { getEmployeeByEmail, listEmployeeAttrs, upsertEmployeeByEmail } from "./dal.ts";
