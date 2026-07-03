@@ -74,6 +74,17 @@ export const resolveAppealSchema = z.object({
   resolution: z.string().min(1).max(4000),
 });
 
+// The Appeals surface (design M9): everyone sees their own appeal state and
+// the submit form inside the window; HR Admins additionally see the queue.
+export type AppealsPageView = {
+  readonly canManage: boolean;
+  readonly queue: readonly AppealView[];
+  readonly myAppeal: AppealView | undefined;
+  readonly myCaseId: string | undefined;
+  readonly canAppealNow: boolean;
+  readonly appealUntil: string | undefined;
+};
+
 export type AppealView = {
   readonly id: string;
   readonly caseId: string;
@@ -405,6 +416,15 @@ export type OverviewData = {
     | undefined;
 };
 
+export type CalibrationPerson = {
+  readonly subjectEmail: string;
+  readonly name: string | undefined;
+  readonly userId: string | undefined;
+  readonly title: string | undefined;
+  readonly state: ReviewState;
+  readonly rating: number | undefined;
+};
+
 export type CalibrationSummary = {
   readonly cycle: string;
   readonly distribution: Readonly<Record<1 | 2 | 3 | 4, number>>;
@@ -413,5 +433,11 @@ export type CalibrationSummary = {
   readonly needsDecision: readonly {
     readonly subjectEmail: string;
     readonly rating: number | undefined;
+  }[];
+  // Compare people at the same level and similar scope (design): cases grouped
+  // by assigned level, unassigned last.
+  readonly groups: readonly {
+    readonly level: CareerLevel | undefined;
+    readonly people: readonly CalibrationPerson[];
   }[];
 };

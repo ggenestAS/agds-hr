@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { REVIEW_RATING_LABELS } from "@agds-hr/people/types";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { CAREER_LEVEL_META, REVIEW_RATING_LABELS, isReviewRating } from "@agds-hr/people/types";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { CalibrationSummary } from "../server/people.shared.ts";
@@ -32,6 +32,10 @@ function Calibration() {
           {summary.total} cases · {summary.unrated} unrated
         </span>
       </div>
+      <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
+        Compare people at the same level and similar scope. Challenge inflated or harsh ratings;
+        reduce bias from visibility, tenure, or proximity to leadership. Final sign-off: CEO & COO.
+      </p>
 
       <Card className="mt-6">
         <CardHeader>
@@ -60,6 +64,61 @@ function Calibration() {
           </div>
         </CardContent>
       </Card>
+
+      {summary.groups.map((group) => (
+        <Card key={group.level ?? "unassigned"} className="mt-4 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border bg-cream px-6 py-3.5">
+            <span className="font-display text-base font-semibold">
+              {group.level !== undefined
+                ? `${group.level} — ${CAREER_LEVEL_META[group.level].name}`
+                : "Level unassigned"}
+            </span>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {group.people.length} {group.people.length === 1 ? "person" : "people"}
+            </span>
+          </div>
+          {group.people.map((person) => (
+            <div
+              key={person.subjectEmail}
+              className="flex items-center gap-4 border-b border-border px-6 py-3 last:border-b-0"
+            >
+              <span className="min-w-0 flex-1">
+                {person.userId !== undefined ? (
+                  <Link
+                    to="/people/$userId"
+                    params={{ userId: person.userId }}
+                    className="block truncate text-[13.5px] font-semibold hover:text-[var(--color-accent)]"
+                  >
+                    {person.name ?? person.subjectEmail}
+                  </Link>
+                ) : (
+                  <span className="block truncate text-[13.5px] font-semibold">
+                    {person.name ?? person.subjectEmail}
+                  </span>
+                )}
+                <span className="block truncate text-xs text-muted-foreground">
+                  {person.title ?? person.subjectEmail} · {person.state.replace(/_/g, " ")}
+                </span>
+              </span>
+              {person.rating !== undefined && isReviewRating(person.rating) ? (
+                <span
+                  className={
+                    person.rating >= 3
+                      ? "rounded-full bg-ink-900 px-2.5 py-0.5 text-[11.5px] font-bold text-white"
+                      : "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[#5a2018]"
+                  }
+                >
+                  {REVIEW_RATING_LABELS[person.rating]}
+                </span>
+              ) : (
+                <span className="rounded-full bg-bone px-2.5 py-0.5 text-[11.5px] font-bold text-ink-500">
+                  In review
+                </span>
+              )}
+            </div>
+          ))}
+        </Card>
+      ))}
 
       <Card variant="warning" className="mt-4">
         <CardHeader>

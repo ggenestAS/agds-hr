@@ -60,7 +60,7 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
   {
     header: "Governance",
     items: [
-      { to: "/appeals", label: "Appeals", roles: LEADERSHIP },
+      { to: "/appeals", label: "Appeals", roles: EVERYONE },
       { to: "/documentation", label: "Documentation", roles: LEADERSHIP },
       { to: "/audit", label: "Audit log", roles: LEADERSHIP },
     ],

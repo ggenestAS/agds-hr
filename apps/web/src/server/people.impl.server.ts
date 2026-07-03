@@ -50,16 +50,19 @@ import {
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
 import type { AssessmentDraft } from "@agds-hr/people";
+import { CAREER_LEVELS } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
 import { ForbiddenError, NotFoundError } from "@agds-hr/shared";
 
 import type {
+  AppealsPageView,
   AppealView,
   AssessCaseDetail,
   AssessCaseSummary,
   AssessmentSaveInput,
   AuditLogRow,
   BandsView,
+  CalibrationPerson,
   CalibrationSummary,
   CompView,
   DecisionDoc,
@@ -336,7 +339,24 @@ export async function setCompHandler(input: SetCompInput): Promise<{ ok: true }>
 
 export async function calibrationHandler(): Promise<CalibrationSummary> {
   await requireSession("people.review.open");
-  const cases = await listCasesForCycle(getDbAs("admin"), REVIEW_CURRENT_CYCLE);
+  const adminDb = getDbAs("admin");
+  const [cases, attrs, admins] = await Promise.all([
+    listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+    listEmployeeAttrs(adminDb),
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+  ]);
+  const levelByEmail = new Map(attrs.map((entry) => [entry.email.toLowerCase(), entry.level]));
+  const rosterByEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      {
+        userId: admin.userId,
+        name: `${admin.firstName} ${admin.lastName}`.trim(),
+        title: admin.title,
+      },
+    ]),
+  );
+
   const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   let unrated = 0;
   const needsDecision: { subjectEmail: string; rating: number | undefined }[] = [];
@@ -351,7 +371,38 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
       needsDecision.push({ subjectEmail: entry.subjectEmail, rating: entry.rating });
     }
   }
-  return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+
+  // Compare people at the same level (design): L4 first, unassigned last.
+  const groups = [...CAREER_LEVELS].reverse().map((levelKey) => ({
+    level: levelKey as CalibrationSummary["groups"][number]["level"],
+    people: [] as CalibrationPerson[],
+  }));
+  groups.push({ level: undefined, people: [] });
+  for (const entry of cases) {
+    const email = entry.subjectEmail.toLowerCase();
+    const roster = rosterByEmail.get(email);
+    const person: CalibrationPerson = {
+      subjectEmail: entry.subjectEmail,
+      name: roster?.name,
+      userId: roster?.userId,
+      title: roster?.title,
+      state: entry.state,
+      rating: entry.rating,
+    };
+    const level = levelByEmail.get(email);
+    (groups.find((group) => group.level === level) ?? groups[groups.length - 1]!).people.push(
+      person,
+    );
+  }
+
+  return {
+    cycle: REVIEW_CURRENT_CYCLE,
+    distribution,
+    total: cases.length,
+    unrated,
+    needsDecision,
+    groups: groups.filter((group) => group.people.length > 0),
+  };
 }
 
 // Self-review handlers (design: "input, not the rating"). The subject's OWN
@@ -986,10 +1037,33 @@ const toAppealView = (row: {
   createdAt: row.createdAt.toISOString(),
 });
 
-export async function appealsListHandler(): Promise<readonly AppealView[]> {
-  await requireSession("people.appeal.manage");
-  const appeals = await listAppeals(getDbAs("admin"));
-  return appeals.map(toAppealView);
+// The Appeals surface (design M9): one page — your own appeal state + the
+// submit form inside the 30-day window for everyone; the queue for HR Admins.
+export async function appealsPageHandler(): Promise<AppealsPageView> {
+  const session = await requireSession("people.appeal.file");
+  const adminDb = getDbAs("admin");
+  const email = session.actor.email.toLowerCase();
+  const canManage = can(session.subject, "people.appeal.manage").allow;
+
+  const myCase = await getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE);
+  const myAppeal = myCase === undefined ? undefined : await getAppealForCase(adminDb, myCase.id);
+  const canAppealNow = canFileAppealNow({
+    isSubject: true,
+    appealUntilMs: myCase?.appealUntil?.getTime(),
+    nowMs: Date.now(),
+    alreadyFiled: myAppeal !== undefined,
+  });
+
+  const queue = canManage ? (await listAppeals(adminDb)).map(toAppealView) : [];
+
+  return {
+    canManage,
+    queue,
+    myAppeal: myAppeal === undefined ? undefined : toAppealView(myAppeal),
+    myCaseId: myCase?.id,
+    canAppealNow,
+    appealUntil: myCase?.appealUntil?.toISOString(),
+  };
 }
 
 export async function resolveAppealHandler(input: {

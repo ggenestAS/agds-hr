@@ -91,9 +91,9 @@ export const fileAppealFn = createServerFn({ method: "POST" })
     return fileAppealHandler(data);
   });
 
-export const appealsListFn = createServerFn({ method: "GET" }).handler(async () => {
-  const { appealsListHandler } = await import("./people.impl.server.ts");
-  return appealsListHandler();
+export const appealsPageFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { appealsPageHandler } = await import("./people.impl.server.ts");
+  return appealsPageHandler();
 });
 
 export const resolveAppealFn = createServerFn({ method: "POST" })
