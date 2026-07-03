@@ -41,6 +41,7 @@ Everything is `bun run <alias>` from the repo root. Directory roles:
 
 | Alias         | What it does                                                                 |
 | ------------- | ---------------------------------------------------------------------------- |
+| `dev`         | Local Vite dev server (**Node ≥22.12** via `scripts/dev/vite.mjs`; auto-finds `~/.nvm` if apt Node is older) |
 | `build`       | Production build of `@agds-hr/web` (Cloudflare Worker; requires Node ≥22.12) |
 | `deploy`      | Build + `wrangler deploy` to Cloudflare Workers                              |
 | `deploy:prod` | Sync secrets from `.env`, build, deploy to `hr.albertschool.com`             |

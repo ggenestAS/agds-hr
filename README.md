@@ -14,10 +14,28 @@ domain packages, day-one audit, mechanical gates for every convention.
 
 ## Setup
 
+**Node ≥22.12** is required for local dev (`@cloudflare/vite-plugin`). Bun alone
+cannot run Vite here — `bun run dev` wraps Vite under Node. On WSL, apt often
+ships Node 18; install a current Node before dev:
+
+```sh
+# Option A — nvm (recommended; repo pins .nvmrc)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
+nvm install    # reads .nvmrc (22.12.0)
+
+# Option B — NodeSource (system Node 22 on Ubuntu/Debian)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+Then:
+
 ```sh
 bun install                 # installs deps + wires lefthook hooks (prepare)
 cp .env.example .env        # fill per the comments; nothing validates at import time
 bun run db:migrate          # after scripts/db/setup-roles.sql ran once on the branch
+bun run dev                 # Vite dev server (uses Node ≥22.12)
 ```
 
 Database is Neon Postgres (EU region), one branch per developer — no local

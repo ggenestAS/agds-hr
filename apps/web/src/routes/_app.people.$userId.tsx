@@ -27,6 +27,7 @@ import type {
 } from "@agds-hr/people/types";
 import { useState } from "react";
 
+import { SelfReviewReadView } from "../components/self-review-read.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { Button } from "../components/ui/button.tsx";
 import type {
@@ -35,7 +36,6 @@ import type {
   PersonDetail,
   ReceivedCycleView,
 } from "../server/people.shared.ts";
-import { selfReviewEntries } from "../server/people.shared.ts";
 import {
   advanceReviewFn,
   compFn,
@@ -192,7 +192,6 @@ function ReceivedCycle({
   isSubject: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const selfEntries = block.self === undefined ? [] : selfReviewEntries(block.self.payload);
   return (
     <Card className="overflow-hidden">
       <button
@@ -220,19 +219,10 @@ function ReceivedCycle({
               Self-review
               {block.self !== undefined && block.self.submittedAt === undefined && " · draft"}
             </p>
-            {block.self === undefined || selfEntries.length === 0 ? (
-              <p className="text-muted-foreground">
-                {block.self === undefined ? "No self-review yet." : "No content yet."}
-              </p>
+            {block.self === undefined ? (
+              <p className="text-muted-foreground">No self-review yet.</p>
             ) : (
-              <div className="space-y-3">
-                {selfEntries.map((entry) => (
-                  <div key={entry.label}>
-                    <p className="text-[12px] font-semibold">{entry.label}</p>
-                    <p className="text-[13px] leading-relaxed text-ink-700">{entry.value}</p>
-                  </div>
-                ))}
-              </div>
+              <SelfReviewReadView payload={block.self.payload} />
             )}
           </div>
 
@@ -348,7 +338,7 @@ function PersonDetailPage() {
             {person.employmentType !== "employee" && (
               <span>{EMPLOYMENT_TYPE_LABELS[person.employmentType]}</span>
             )}
-            {person.country !== undefined && <span>{person.country}</span>}
+            {person.campus !== undefined && <span>{person.campus}</span>}
             {person.managers[0] !== undefined && <span>Functional: {person.managers[0].name}</span>}
             {person.localManager !== undefined && <span>Local: {person.localManager.name}</span>}
           </div>

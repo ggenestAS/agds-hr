@@ -453,6 +453,139 @@ export function selfReviewEntries(
   return entries;
 }
 
+export type SelfReviewReadContext = {
+  readonly name: string | undefined;
+  readonly role: string | undefined;
+  readonly manager: string | undefined;
+  readonly period: string | undefined;
+};
+
+export type SelfReviewObjectiveRead = {
+  readonly index: number;
+  readonly title: string | undefined;
+  readonly target: string | undefined;
+  readonly result: string | undefined;
+};
+
+export type SelfReviewKpiRead = {
+  readonly index: number;
+  readonly name: string | undefined;
+  readonly target: string | undefined;
+  readonly actual: string | undefined;
+  readonly reading: string | undefined;
+};
+
+export type SelfReviewFieldRead = {
+  readonly label: string;
+  readonly value: string;
+};
+
+export type SelfReviewReadModel = {
+  readonly context: SelfReviewReadContext;
+  readonly objectives: readonly SelfReviewObjectiveRead[];
+  readonly kpis: readonly SelfReviewKpiRead[];
+  readonly contextNote: string | undefined;
+  readonly reflection: readonly SelfReviewFieldRead[];
+  readonly development: readonly SelfReviewFieldRead[];
+  readonly fairness: string | undefined;
+  readonly peerSuggestions: string | undefined;
+};
+
+const SELF_REVIEW_REFLECTION_READ: readonly {
+  readonly key: SelfReviewKey;
+  readonly label: string;
+}[] = [
+  { key: "d_proud", label: "Most proud of" },
+  { key: "d_short", label: "Fell short" },
+  { key: "d_feedback", label: "Feedback received" },
+  { key: "d_others", label: "Made others effective" },
+];
+
+const SELF_REVIEW_DEVELOPMENT_READ: readonly {
+  readonly key: SelfReviewKey;
+  readonly label: string;
+}[] = [
+  { key: "e_skills", label: "Skills to build" },
+  { key: "e_scope", label: "Scope to take on" },
+  { key: "e_direction", label: "Role direction" },
+  { key: "e_support", label: "Support needed" },
+];
+
+const readField = (
+  payload: Readonly<Partial<Record<SelfReviewKey, string>>>,
+  key: SelfReviewKey,
+): string | undefined => {
+  const value = (payload[key] ?? "").trim();
+  return value === "" ? undefined : value;
+};
+
+// Structured projection for read surfaces — groups objectives/KPIs and mirrors
+// the self-review form sections instead of a flat label list.
+export function projectSelfReviewReadModel(
+  payload: Readonly<Partial<Record<SelfReviewKey, string>>>,
+): SelfReviewReadModel {
+  const objectives = SELF_REVIEW_OBJECTIVE_ROWS.map((row, index) => ({
+    index: index + 1,
+    title: readField(payload, row.obj),
+    target: readField(payload, row.target),
+    result: readField(payload, row.result),
+  })).filter(
+    (row) => row.title !== undefined || row.target !== undefined || row.result !== undefined,
+  );
+
+  const kpis = SELF_REVIEW_KPI_ROWS.map((row, index) => ({
+    index: index + 1,
+    name: readField(payload, row.name),
+    target: readField(payload, row.target),
+    actual: readField(payload, row.actual),
+    reading: readField(payload, row.reading),
+  })).filter(
+    (row) =>
+      row.name !== undefined ||
+      row.target !== undefined ||
+      row.actual !== undefined ||
+      row.reading !== undefined,
+  );
+
+  const reflection = SELF_REVIEW_REFLECTION_READ.flatMap((entry) => {
+    const value = readField(payload, entry.key);
+    return value === undefined ? [] : [{ label: entry.label, value }];
+  });
+
+  const development = SELF_REVIEW_DEVELOPMENT_READ.flatMap((entry) => {
+    const value = readField(payload, entry.key);
+    return value === undefined ? [] : [{ label: entry.label, value }];
+  });
+
+  return {
+    context: {
+      name: readField(payload, "sr_name"),
+      role: readField(payload, "sr_role"),
+      manager: readField(payload, "sr_manager"),
+      period: readField(payload, "sr_period"),
+    },
+    objectives,
+    kpis,
+    contextNote: readField(payload, "c_context"),
+    reflection,
+    development,
+    fairness: readField(payload, "f_fair"),
+    peerSuggestions: readField(payload, "sr_peers"),
+  };
+}
+
+export function selfReviewReadModelHasContent(model: SelfReviewReadModel): boolean {
+  return (
+    model.objectives.length > 0 ||
+    model.kpis.length > 0 ||
+    model.contextNote !== undefined ||
+    model.reflection.length > 0 ||
+    model.development.length > 0 ||
+    model.fairness !== undefined ||
+    model.peerSuggestions !== undefined
+  );
+}
+
 export const selfReviewPayloadSchema = z.object({
   payload: z.partialRecord(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
 });
@@ -690,11 +823,17 @@ export type PeerCaseView = {
 // subject never sees peer-input content about themselves. `hasManagerSet` =
 // the manager already created/approved live requests, so the propose form
 // yields to a plain status list.
+export type PeerApproverKind = "manager" | "co_founder";
+
 export type MyPeerCaseView = {
   readonly caseId: string | undefined;
   readonly inReviewCycle: boolean;
   readonly canPropose: boolean;
   readonly hasManagerSet: boolean;
+  // Who approves the subject's proposals: their manager, or a co-founder when
+  // they have no reporting line in the identity graph.
+  readonly approverKind: PeerApproverKind;
+  readonly pendingProposals: number;
   readonly requests: readonly {
     readonly requesteeEmail: string;
     readonly requesteeName: string | undefined;

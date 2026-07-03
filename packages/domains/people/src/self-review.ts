@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
@@ -37,6 +37,24 @@ export async function getSelfReviewByCase(
     .where(eq(selfReview.caseId, caseId))
     .limit(1);
   return row === undefined ? undefined : rowToSelfReview(row);
+}
+
+export async function listSelfReviewsByCases(
+  db: DrizzleExecutor,
+  caseIds: readonly string[],
+): Promise<readonly SelfReview[]> {
+  if (caseIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({
+      caseId: selfReview.caseId,
+      payload: selfReview.payload,
+      submittedAt: selfReview.submittedAt,
+    })
+    .from(selfReview)
+    .where(inArray(selfReview.caseId, [...caseIds]));
+  return rows.map(rowToSelfReview);
 }
 
 export async function saveSelfReview(

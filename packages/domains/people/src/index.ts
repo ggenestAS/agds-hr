@@ -71,6 +71,7 @@ export {
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
 export {
   getSelfReviewByCase,
+  listSelfReviewsByCases,
   reopenSelfReview,
   saveSelfReview,
   submitSelfReview,
@@ -89,6 +90,7 @@ export {
   declinePeerRequest,
   getPeerRequestById,
   listPeerRequestsForCase,
+  listPeerRequestsForCases,
   listPeerRequestsForRequestee,
   proposePeerRequests,
   rejectPeerRequest,

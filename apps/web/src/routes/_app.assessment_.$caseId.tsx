@@ -15,6 +15,7 @@ import type { EvaluationDimension, PeerKind, ReviewRating } from "@agds-hr/peopl
 
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
+import { SelfReviewReadView } from "../components/self-review-read.tsx";
 import type { AssessCaseDetail } from "../server/people.shared.ts";
 import { selfReviewEntries } from "../server/people.shared.ts";
 import { assessDetailFn, assessSaveFn, assessSubmitFn } from "../server/people.functions.ts";
@@ -247,7 +248,6 @@ function AssessCasePage() {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<AssessTab>("yours");
 
-  const selfEntries = selfReviewEntries(detail.selfReview);
   const submitted = detail.assessment?.submittedAt !== undefined;
   const lowRating = draft.proposedRating !== undefined && draft.proposedRating <= 2;
   const complete = isComplete(draft);
@@ -697,20 +697,7 @@ function AssessCasePage() {
             </p>
           </CardHeader>
           <CardContent className="text-sm">
-            {selfEntries.length === 0 ? (
-              <p className="text-muted-foreground">No self-review content yet.</p>
-            ) : (
-              <div className="space-y-4">
-                {selfEntries.map((entry) => (
-                  <div key={entry.label}>
-                    <p className="text-[12.5px] font-semibold">{entry.label}</p>
-                    <p className="mt-0.5 text-[13.5px] leading-relaxed text-ink-700">
-                      {entry.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <SelfReviewReadView payload={detail.selfReview} />
           </CardContent>
         </Card>
       )}

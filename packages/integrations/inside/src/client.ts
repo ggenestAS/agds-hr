@@ -7,6 +7,21 @@ import { readOptional, type EnvSource } from "@agds-hr/env";
 // the user-directory endpoint accepts.
 export const INSIDE_BASE_URL = "https://api-inside.albertschool.com";
 
+// Workers outbound fetch has no default timeout; a slow Inside response leaves route
+// loaders pending forever. Fail fast so the UI can surface an error or degrade.
+const INSIDE_FETCH_TIMEOUT_MS = 10_000;
+
+async function insideFetch(
+  url: string,
+  apiKey: string,
+  fetchImpl: typeof fetch,
+): Promise<Response> {
+  return fetchImpl(url, {
+    headers: { "X-API-Key": apiKey },
+    signal: AbortSignal.timeout(INSIDE_FETCH_TIMEOUT_MS),
+  });
+}
+
 export function isInsideConfigured(env: EnvSource = process.env): boolean {
   return readOptional("INSIDE_API_KEY", env) !== undefined;
 }
@@ -57,9 +72,11 @@ export async function listAdminDirectory(
   const baseUrl = options.baseUrl ?? INSIDE_BASE_URL;
   const limit = options.limit ?? 1000;
 
-  const response = await fetchImpl(`${baseUrl}/user/user-directory?role=ADMIN&limit=${limit}`, {
-    headers: { "X-API-Key": apiKey },
-  });
+  const response = await insideFetch(
+    `${baseUrl}/user/user-directory?role=ADMIN&limit=${limit}`,
+    apiKey,
+    fetchImpl,
+  );
   if (!response.ok) {
     throw new Error(`inside_request_failed: user-directory returned ${response.status}`);
   }
@@ -111,9 +128,7 @@ export async function listOrgTree(
   const fetchImpl = options.fetchImpl ?? fetch;
   const baseUrl = options.baseUrl ?? INSIDE_BASE_URL;
 
-  const response = await fetchImpl(`${baseUrl}/officer/org-tree`, {
-    headers: { "X-API-Key": apiKey },
-  });
+  const response = await insideFetch(`${baseUrl}/officer/org-tree`, apiKey, fetchImpl);
   if (!response.ok) {
     throw new Error(`inside_request_failed: org-tree returned ${response.status}`);
   }

@@ -2,10 +2,10 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { PeerKind, PeerRequestStatus } from "@agds-hr/people/types";
 
-import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
+import { StackedRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
-import type { PeerCaseView, PeerPageView } from "../server/people.shared.ts";
+import type { PeerCaseView, PeerPageView, PeerApproverKind } from "../server/people.shared.ts";
 import {
   peerApproveFn,
   peerPageFn,
@@ -22,7 +22,17 @@ import {
 // org graph), watch the quota fill, reopen submitted input.
 export const Route = createFileRoute("/_app/peer-input")({
   loader: () => peerPageFn(),
-  pendingComponent: () => <TwoColumnRoutePending width="4xl" />,
+  pendingComponent: () => <StackedRoutePending width="4xl" />,
+  errorComponent: ({ error }) => (
+    <div className="mx-auto max-w-4xl p-6">
+      <h1 className="font-display text-2xl font-medium tracking-tight">Peer input</h1>
+      <p className="mt-3 text-sm text-[var(--color-accent-dk)]">
+        This page could not load. Try refreshing; if it persists, the directory service may be
+        unreachable.
+      </p>
+      <p className="mt-2 text-xs text-muted-foreground">{error.message}</p>
+    </div>
+  ),
   component: PeerInputPage,
 });
 
@@ -62,24 +72,37 @@ const initials = (name: string): string =>
     .map((part) => part.charAt(0).toUpperCase())
     .join("");
 
+const approverPhrase = (kind: PeerApproverKind): string =>
+  kind === "manager" ? "your manager" : "a co-founder";
+
+function StatusPill({
+  status,
+  approverKind,
+}: {
+  status: PeerRequestStatus;
+  approverKind?: PeerApproverKind;
+}) {
+  const meta = STATUS_META[status];
+  const label =
+    status === "proposed" && approverKind === "co_founder"
+      ? "awaiting co-founder approval"
+      : meta.label;
+  return (
+    <span
+      className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.pill}`}
+    >
+      <span className={`size-1.5 rounded-full ${meta.dot}`} />
+      {label}
+    </span>
+  );
+}
+
 function Avatar({ name, size = 9 }: { name: string; size?: 8 | 9 }) {
   return (
     <span
       className={`flex ${size === 9 ? "size-9 text-[12px]" : "size-8 text-[11px]"} shrink-0 items-center justify-center rounded-full bg-ink-100 font-bold text-ink-700`}
     >
       {initials(name)}
-    </span>
-  );
-}
-
-function StatusPill({ status }: { status: PeerRequestStatus }) {
-  const meta = STATUS_META[status];
-  return (
-    <span
-      className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.pill}`}
-    >
-      <span className={`size-1.5 rounded-full ${meta.dot}`} />
-      {meta.label}
     </span>
   );
 }
@@ -267,7 +290,8 @@ function PeerInputPage() {
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Peer input</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
         Peer input is <strong>named</strong>, never anonymous — and it is never shown to the person
-        it describes. You can suggest who reviews you; your manager makes the final call.
+        it describes. You can suggest who reviews you; {approverPhrase(data.myCase.approverKind)}{" "}
+        makes the final call.
       </p>
 
       {/* tabs */}
@@ -300,7 +324,7 @@ function PeerInputPage() {
             <CardTitle>Who reviews you</CardTitle>
             <p className="text-sm text-muted-foreground">
               {data.myCase.canPropose
-                ? "Suggest colleagues who saw your work firsthand — your manager approves the final list."
+                ? `Suggest colleagues who saw your work firsthand — ${approverPhrase(data.myCase.approverKind)} approves the final list.`
                 : "Where each of your reviewers stands. Their input is never shown to you."}
             </p>
           </CardHeader>
@@ -309,6 +333,13 @@ function PeerInputPage() {
               <p className="text-muted-foreground">You are not in the review cycle.</p>
             ) : (
               <>
+                {data.myCase.pendingProposals > 0 && data.myCase.approverKind === "co_founder" && (
+                  <p className="rounded-[10px] bg-[var(--color-warning-surface)] px-3 py-2 text-xs text-[var(--color-warning)]">
+                    {data.myCase.pendingProposals === 1
+                      ? "One proposal is waiting for a co-founder to approve it on the My team tab — you cannot approve your own reviewers."
+                      : `${data.myCase.pendingProposals} proposals are waiting for a co-founder to approve them on the My team tab — you cannot approve your own reviewers.`}
+                  </p>
+                )}
                 {data.myCase.requests.length > 0 && (
                   <div className="divide-y divide-border">
                     {data.myCase.requests.map((request) => (
@@ -322,7 +353,10 @@ function PeerInputPage() {
                             {KIND_LABEL[request.kind]}
                           </span>
                         </span>
-                        <StatusPill status={request.status} />
+                        <StatusPill
+                          status={request.status}
+                          approverKind={data.myCase.approverKind}
+                        />
                       </div>
                     ))}
                   </div>
@@ -348,7 +382,10 @@ function PeerInputPage() {
                 {!data.myCase.canPropose && data.myCase.requests.length === 0 && (
                   <p className="text-muted-foreground">
                     No peer reviews about you yet
-                    {data.myCase.hasManagerSet ? "" : " — your manager sets the list"}.
+                    {data.myCase.hasManagerSet
+                      ? ""
+                      : ` — ${approverPhrase(data.myCase.approverKind)} sets the list`}
+                    .
                   </p>
                 )}
               </>

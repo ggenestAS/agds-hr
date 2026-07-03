@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# local worker env for `bun run dev` (symlink to the root .env)
+.dev.vars
 
 # build output
 dist/

@@ -157,7 +157,7 @@ All 13 views of the imported design are implemented, wired to real data:
 - O — employee record: dark hero + tabs (Evaluation with the job-architecture
   ladder and assessed dimensions; Review with the state controls, self-review,
   assessment proposal, appeal; Compensation; History timeline).
-- P — directory (country chips, ladder names, rating chips), calibration
+- P — directory (campus chips, ladder names, rating chips), calibration
   grouped by level, and `/appeals` as one surface (own appeal + windowed submit
   form for everyone; HR queue + written resolution for Admins).
 - Q — employment types + review participation

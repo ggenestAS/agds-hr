@@ -8,8 +8,8 @@ import type { DirectoryEntry } from "../server/people.shared.ts";
 import { listDirectoryFn } from "../server/people.functions.ts";
 
 // The People directory (design), sourced from the Albert Inside roster merged
-// with agds-hr-native level/path and the current-cycle rating. Country filter
-// chips; level shown with the design's ladder names; rating as a chip.
+// with agds-hr-native level/path. Campus filter chips; level shown with the
+// design's ladder names.
 export const Route = createFileRoute("/_app/people/")({
   loader: () => listDirectoryFn(),
   pendingComponent: () => <TableRoutePending width="5xl" columns={5} />,
@@ -18,18 +18,80 @@ export const Route = createFileRoute("/_app/people/")({
 
 const PATH_LABEL: Record<string, string> = { ic: "IC path", manager: "Management" };
 
+type SortKey = "name" | "level" | "campus" | "functionalManager" | "localManager";
+
+// Missing values sort last regardless of direction, so "—" rows never bury
+// the informative ones.
+const SORT_VALUE: Record<SortKey, (row: DirectoryEntry) => string | undefined> = {
+  name: (row) => row.name,
+  level: (row) => row.level,
+  campus: (row) => row.campus,
+  functionalManager: (row) => row.functionalManagerName,
+  localManager: (row) => row.localManagerName,
+};
+
+function SortHeader({
+  label,
+  sortKey,
+  active,
+  direction,
+  onSort,
+}: {
+  label: string;
+  sortKey: SortKey;
+  active: boolean;
+  direction: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+}) {
+  return (
+    <th className="px-5 py-3.5 font-semibold">
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 uppercase tracking-[0.13em] hover:text-foreground"
+      >
+        {label}
+        <span
+          aria-hidden
+          className={`text-[8px] leading-none ${active ? "text-foreground" : "text-ink-300"}`}
+        >
+          {active ? (direction === "asc" ? "▲" : "▼") : "▲▼"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
 function People() {
   const directory: readonly DirectoryEntry[] = Route.useLoaderData();
   const [filter, setFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const countries = [
+  const onSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDirection("asc");
+    }
+  };
+
+  const campuses = [
     ...new Set(
-      directory
-        .map((row) => row.country)
-        .filter((country): country is string => country !== undefined),
+      directory.map((row) => row.campus).filter((campus): campus is string => campus !== undefined),
     ),
   ].sort((a, b) => a.localeCompare(b));
-  const visible = filter === "all" ? directory : directory.filter((row) => row.country === filter);
+  const filtered = filter === "all" ? directory : directory.filter((row) => row.campus === filter);
+  const toValue = SORT_VALUE[sortKey];
+  const visible = [...filtered].sort((left, right) => {
+    const a = toValue(left);
+    const b = toValue(right);
+    if (a === undefined || b === undefined) {
+      return a === b ? 0 : a === undefined ? 1 : -1;
+    }
+    return sortDirection === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  });
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -45,20 +107,20 @@ function People() {
         )}
       </div>
 
-      {countries.length > 1 && (
+      {campuses.length > 1 && (
         <div className="mt-5 flex flex-wrap gap-2">
-          {["all", ...countries].map((country) => (
+          {["all", ...campuses].map((campus) => (
             <button
-              key={country}
+              key={campus}
               type="button"
-              onClick={() => setFilter(country)}
+              onClick={() => setFilter(campus)}
               className={
-                filter === country
+                filter === campus
                   ? "rounded-full border border-ink-900 bg-ink-900 px-4 py-1.5 text-xs font-semibold text-white"
                   : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-500"
               }
             >
-              {country === "all" ? "Everyone" : country}
+              {campus === "all" ? "Everyone" : campus}
             </button>
           ))}
         </div>
@@ -76,11 +138,24 @@ function People() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-[10.5px] uppercase tracking-[0.13em] text-muted-foreground">
-                  <th className="px-5 py-3.5 font-semibold">Person</th>
-                  <th className="px-5 py-3.5 font-semibold">Level · Path</th>
-                  <th className="px-5 py-3.5 font-semibold">Country</th>
-                  <th className="px-5 py-3.5 font-semibold">Functional manager</th>
-                  <th className="px-5 py-3.5 font-semibold">Local manager</th>
+                  {(
+                    [
+                      ["Person", "name"],
+                      ["Level · Path", "level"],
+                      ["Campus", "campus"],
+                      ["Functional manager", "functionalManager"],
+                      ["Local manager", "localManager"],
+                    ] as const
+                  ).map(([label, key]) => (
+                    <SortHeader
+                      key={key}
+                      label={label}
+                      sortKey={key}
+                      active={sortKey === key}
+                      direction={sortDirection}
+                      onSort={onSort}
+                    />
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -117,15 +192,10 @@ function People() {
                       )}
                     </td>
                     <td className="px-5 py-3.5">
-                      {row.country === undefined ? (
+                      {row.campus === undefined ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className="flex items-center gap-2">
-                          <span className="rounded bg-bone px-1.5 py-0.5 text-[9.5px] font-bold tracking-wider text-ink-700">
-                            {row.country.slice(0, 2).toUpperCase()}
-                          </span>
-                          {row.country}
-                        </span>
+                        <span className="font-medium text-ink-800">{row.campus}</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5">{row.functionalManagerName ?? "—"}</td>

@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
@@ -56,6 +56,21 @@ export async function listPeerRequestsForCase(
     .select(SELECT)
     .from(peerRequest)
     .where(eq(peerRequest.caseId, caseId))
+    .orderBy(desc(peerRequest.createdAt));
+  return rows.map(rowToPeerRequest);
+}
+
+export async function listPeerRequestsForCases(
+  db: DrizzleExecutor,
+  caseIds: readonly string[],
+): Promise<readonly PeerRequest[]> {
+  if (caseIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select(SELECT)
+    .from(peerRequest)
+    .where(inArray(peerRequest.caseId, [...caseIds]))
     .orderBy(desc(peerRequest.createdAt));
   return rows.map(rowToPeerRequest);
 }

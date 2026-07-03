@@ -40,12 +40,14 @@ import {
   getAssessmentByCase,
   getPeerRequestById,
   getSelfReviewByCase,
+  listSelfReviewsByCases,
   approvePeerRequest,
   isPeerQuotaMet,
   proposePeerRequests,
   rejectPeerRequest,
   reopenPeerRequest,
   listPeerRequestsForCase,
+  listPeerRequestsForCases,
   listPeerRequestsForRequestee,
   openCase,
   peerInputQuota,
@@ -221,6 +223,13 @@ async function managedEmailSets(
 const LEADERSHIP_ROLES = ["founder", "admin", "developer"] as const;
 const isLeadership = (roles: readonly string[]): boolean =>
   LEADERSHIP_ROLES.some((role) => roles.includes(role));
+
+const resolvePeerApproverKind = (
+  subject: Awaited<ReturnType<typeof requireSession>>["subject"],
+): "manager" | "co_founder" => {
+  const { reportsTo, localReportsTo } = subject.relationships;
+  return reportsTo.length > 0 || localReportsTo.length > 0 ? "manager" : "co_founder";
+};
 
 const toAssessmentView = (
   row: NonNullable<Awaited<ReturnType<typeof getAssessmentByCase>>>,
@@ -772,6 +781,31 @@ export async function selfReviewReopenHandler(): Promise<{ ok: true }> {
 // to the person being reviewed: the reviewer view structurally excludes the
 // actor's OWN case, so nobody (including founders) reads peer input about
 // themselves through this surface.
+// Inside roster/org calls are best-effort on this page: a slow or unreachable
+// Inside API must not leave the route loader pending forever (Workers fetch
+// has no default timeout — see @agds-hr/inside client).
+async function loadInsideDirectory(): Promise<readonly InsideAdmin[]> {
+  if (!isInsideConfigured()) {
+    return [];
+  }
+  try {
+    return await listAdminDirectory({ limit: 1000 });
+  } catch {
+    return [];
+  }
+}
+
+async function loadInsideOrgTree(): Promise<readonly OrgNode[]> {
+  if (!isInsideConfigured()) {
+    return [];
+  }
+  try {
+    return await listOrgTree();
+  } catch {
+    return [];
+  }
+}
+
 export async function peerPageHandler(): Promise<PeerPageView> {
   const session = await requireSession("people.peer.respond");
   const adminDb = getDbAs("admin");
@@ -783,8 +817,8 @@ export async function peerPageHandler(): Promise<PeerPageView> {
 
   const [forYou, admins, orgNodes, managed, myAttrs, myReviewCase] = await Promise.all([
     listPeerRequestsForRequestee(adminDb, effectiveEmail),
-    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
-    isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
+    loadInsideDirectory(),
+    loadInsideOrgTree(),
     managedEmailSets(adminDb, session.subject.id),
     getEmployeeByEmail(adminDb, effectiveEmail),
     getCaseBySubject(adminDb, effectiveEmail, REVIEW_CURRENT_CYCLE),
@@ -809,6 +843,8 @@ export async function peerPageHandler(): Promise<PeerPageView> {
   const myRequests =
     myReviewCase === undefined ? [] : await listPeerRequestsForCase(adminDb, myReviewCase.id);
   const hasManagerSet = myRequests.some((request) => request.status !== "proposed");
+  const pendingProposals = myRequests.filter((request) => request.status === "proposed").length;
+  const approverKind = resolvePeerApproverKind(session.subject);
   const myCaseOpenForPeers =
     myReviewCase === undefined ||
     (myReviewCase.decidedAt === undefined &&
@@ -818,6 +854,8 @@ export async function peerPageHandler(): Promise<PeerPageView> {
     inReviewCycle,
     canPropose: inReviewCycle && myCaseOpenForPeers && !hasManagerSet,
     hasManagerSet,
+    approverKind,
+    pendingProposals,
     requests: myRequests.map((request) => ({
       requesteeEmail: request.requesteeEmail,
       requesteeName: nameByEmail.get(request.requesteeEmail),
@@ -839,37 +877,49 @@ export async function peerPageHandler(): Promise<PeerPageView> {
         entry.subjectEmail.toLowerCase() !== effectiveEmail &&
         (leadership || managed.all.has(entry.subjectEmail.toLowerCase())),
     );
-    cases = await Promise.all(
-      inScope.map(async (entry) => {
-        const [requests, selfReview] = await Promise.all([
-          listPeerRequestsForCase(adminDb, entry.caseId),
-          getSelfReviewByCase(adminDb, entry.caseId),
-        ]);
-        const peerSuggestions = (selfReview?.payload["sr_peers"] ?? "").trim();
-        const quota = resolvePeerInputQuota(entry.subjectEmail, orgNodes, userIdByEmail);
-        return {
-          caseId: entry.caseId,
-          subjectEmail: entry.subjectEmail,
-          subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
-          state: entry.state,
-          quota,
-          quotaMet: isPeerQuotaMet(requests, quota),
-          requests: requests.map((request) => ({
-            id: request.id,
-            requesteeEmail: request.requesteeEmail,
-            requesteeName: nameByEmail.get(request.requesteeEmail),
-            kind: request.kind,
-            status: request.status,
-            declineReason: request.declineReason,
-            submittedAt: request.submittedAt?.toISOString(),
-            input: request.input,
-          })),
-          peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
-          teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
-          direct: managed.direct.has(entry.subjectEmail.toLowerCase()),
-        };
-      }),
-    );
+    const caseIds = inScope.map((entry) => entry.caseId);
+    const [allRequests, allSelfReviews] = await Promise.all([
+      listPeerRequestsForCases(adminDb, caseIds),
+      listSelfReviewsByCases(adminDb, caseIds),
+    ]);
+    const requestsByCase = new Map<string, (typeof allRequests)[number][]>();
+    for (const request of allRequests) {
+      const bucket = requestsByCase.get(request.caseId);
+      if (bucket === undefined) {
+        requestsByCase.set(request.caseId, [request]);
+      } else {
+        bucket.push(request);
+      }
+    }
+    const selfReviewByCase = new Map(allSelfReviews.map((entry) => [entry.caseId, entry]));
+
+    cases = inScope.map((entry) => {
+      const requests = requestsByCase.get(entry.caseId) ?? [];
+      const selfReview = selfReviewByCase.get(entry.caseId);
+      const peerSuggestions = (selfReview?.payload["sr_peers"] ?? "").trim();
+      const quota = resolvePeerInputQuota(entry.subjectEmail, orgNodes, userIdByEmail);
+      return {
+        caseId: entry.caseId,
+        subjectEmail: entry.subjectEmail,
+        subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
+        state: entry.state,
+        quota,
+        quotaMet: isPeerQuotaMet(requests, quota),
+        requests: requests.map((request) => ({
+          id: request.id,
+          requesteeEmail: request.requesteeEmail,
+          requesteeName: nameByEmail.get(request.requesteeEmail),
+          kind: request.kind,
+          status: request.status,
+          declineReason: request.declineReason,
+          submittedAt: request.submittedAt?.toISOString(),
+          input: request.input,
+        })),
+        peerSuggestions: peerSuggestions === "" ? undefined : peerSuggestions,
+        teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
+        direct: managed.direct.has(entry.subjectEmail.toLowerCase()),
+      };
+    });
   }
 
   return {
@@ -923,6 +973,9 @@ async function assertManagesRequestSubject(
   const request = await getPeerRequestById(adminDb, requestId);
   if (request === undefined) {
     throw new NotFoundError("peer request", requestId);
+  }
+  if (request.subjectEmail.toLowerCase() === session.subject.email.toLowerCase()) {
+    throw new ForbiddenError(action, "own_review");
   }
   if (isLeadership(session.subject.roles)) {
     return;
