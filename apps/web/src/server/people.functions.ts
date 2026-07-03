@@ -11,6 +11,7 @@ import {
   peerSubmitSchema,
   resolveAppealSchema,
   selfReviewPayloadSchema,
+  setBandSchema,
   setCompSchema,
   setEmployeeAttrsSchema,
   setRatingSchema,
@@ -112,6 +113,13 @@ export const bandsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { bandsHandler } = await import("./people.impl.server.ts");
   return bandsHandler();
 });
+
+export const setBandFn = createServerFn({ method: "POST" })
+  .validator(setBandSchema)
+  .handler(async ({ data }) => {
+    const { setBandHandler } = await import("./people.impl.server.ts");
+    return setBandHandler(data);
+  });
 
 export const auditLogFn = createServerFn({ method: "GET" }).handler(async () => {
   const { auditLogHandler } = await import("./people.impl.server.ts");

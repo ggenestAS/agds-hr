@@ -46,6 +46,7 @@ import {
   REVIEW_TRANSITIONS,
   setCaseRating,
   signDecision,
+  upsertBand,
   upsertCompRecommendation,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
@@ -75,6 +76,7 @@ import type {
   PersonDetail,
   SelfReviewPayloadInput,
   SelfReviewView,
+  SetBandInput,
   SignPageView,
   SetCompInput,
   SetEmployeeAttrsInput,
@@ -891,15 +893,36 @@ export async function decisionsHandler(): Promise<readonly DecisionDoc[]> {
 
 // Salary bands + country coefficients (design: "Internal — used by CEO, COO &
 // leadership"). Band figures are reference config, not a person's comp, so a
-// normal (leadership-gated) read rather than an audited one.
+// normal (leadership-gated) read rather than an audited one. Founders edit the
+// figures in place (people.band.manage); every write is audited.
 export async function bandsHandler(): Promise<BandsView> {
-  await requireSession("people.comp.read");
+  const session = await requireSession("people.comp.read");
   const adminDb = getDbAs("admin");
   const [bands, coefficients] = await Promise.all([
     listBands(adminDb),
     listCountryCoefficients(adminDb),
   ]);
-  return { bands, coefficients };
+  return {
+    bands,
+    coefficients,
+    canManageBands: can(session.subject, "people.band.manage").allow,
+  };
+}
+
+export async function setBandHandler(input: SetBandInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.band.manage");
+  await upsertBand(
+    getDbAs("admin"),
+    {
+      roleFamily: input.roleFamily.trim(),
+      level: input.level,
+      minEur: input.minEur,
+      midEur: input.midEur,
+      maxEur: input.maxEur,
+    },
+    auditContext(session),
+  );
+  return { ok: true };
 }
 
 // The Overview surface (design): reviewers get stat tiles, the calibrated

@@ -40,13 +40,19 @@ export type {
   AppealCategory,
   AppealStatus,
 } from "./types.ts";
-export type { CountryCoefficient, DecisionSummary, UpsertCompInput } from "./compensation.ts";
+export type {
+  CountryCoefficient,
+  DecisionSummary,
+  UpsertBandInput,
+  UpsertCompInput,
+} from "./compensation.ts";
 export {
   getBand,
   getCompRecommendation,
   listBands,
   listCountryCoefficients,
   listDecisionSummaries,
+  upsertBand,
   upsertCompRecommendation,
 } from "./compensation.ts";
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
@@ -101,6 +107,7 @@ export {
   canAdvanceReview,
   canFileAppeal,
   canManageAppeals,
+  canManageBands,
   canManageComp,
   canManageEmployee,
   canOpenReview,

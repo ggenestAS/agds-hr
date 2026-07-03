@@ -10,6 +10,7 @@ import {
   canAdvanceReview,
   canFileAppeal,
   canManageAppeals,
+  canManageBands,
   canManageEmployee,
   canOpenReview,
   canRateReview,
@@ -63,4 +64,5 @@ export function registerPolicies(): void {
   registerPolicy("people.peer.request", (user) => canRequestPeerInput(user));
   registerPolicy("people.peer.respond", (user) => canRespondPeerInput(user));
   registerPolicy("people.assessment.write", (user) => canWriteAssessment(user));
+  registerPolicy("people.band.manage", (user) => canManageBands(user));
 }

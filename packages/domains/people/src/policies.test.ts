@@ -7,6 +7,7 @@ import {
   canAdvanceReview,
   canFileAppeal,
   canManageAppeals,
+  canManageBands,
   canManageEmployee,
   canOpenReview,
   canRateReview,
@@ -76,6 +77,17 @@ describe("people policies", () => {
 
   test("filing an appeal is open to anyone (handler enforces ownership + window)", () => {
     expect(canFileAppeal(userWith(["staff"])).allow).toBe(true);
+  });
+
+  test("band figures are founder-editable only (plus developer break-glass)", () => {
+    expect(canManageBands(userWith(["founder"])).allow).toBe(true);
+    expect(canManageBands(userWith(["developer"])).allow).toBe(true);
+    expect(canManageBands(userWith(["admin"])).allow).toBe(false);
+    expect(canManageBands(userWith(["manager"])).allow).toBe(false);
+    expect(canManageBands(userWith(["staff"]))).toEqual({
+      allow: false,
+      reason: "founder_required",
+    });
   });
 
   test("managing appeals is HR-admin only (admin/developer)", () => {

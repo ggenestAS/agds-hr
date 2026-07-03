@@ -92,3 +92,9 @@ export function canRespondPeerInput(_user: User): PolicyDecision {
 export function canWriteAssessment(user: User): PolicyDecision {
   return hasAny(user, ["manager", "founder", "developer"]) ? ALLOW : DENY("reviewer_required");
 }
+
+// Band figures are set by the founders (design: bands are built and owned by
+// CEO & COO); developer is the usual break-glass.
+export function canManageBands(user: User): PolicyDecision {
+  return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
+}

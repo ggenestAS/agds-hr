@@ -158,7 +158,8 @@ export type PersonDetail = {
 };
 
 // The Salary bands surface (design): France-reference bands per role family &
-// level, plus country coefficients in basis points. Leadership-only.
+// level, plus country coefficients in basis points. Leadership-only to read;
+// founders edit the figures in place.
 export type BandsView = {
   readonly bands: readonly {
     readonly roleFamily: string;
@@ -168,7 +169,21 @@ export type BandsView = {
     readonly maxEur: number;
   }[];
   readonly coefficients: readonly { readonly country: string; readonly coefficientBp: number }[];
+  readonly canManageBands: boolean;
 };
+
+export const setBandSchema = z
+  .object({
+    roleFamily: z.string().min(1).max(100),
+    level: z.enum(CAREER_LEVELS),
+    minEur: z.number().int().min(0).max(10_000_000),
+    midEur: z.number().int().min(0).max(10_000_000),
+    maxEur: z.number().int().min(0).max(10_000_000),
+  })
+  .refine((band) => band.minEur <= band.midEur && band.midEur <= band.maxEur, {
+    message: "band range must satisfy min ≤ mid ≤ max",
+  });
+export type SetBandInput = z.infer<typeof setBandSchema>;
 
 // The self-review form (design): sections A–F, all free text. A closed key set
 // so the payload stays a validated string map rather than arbitrary JSON.

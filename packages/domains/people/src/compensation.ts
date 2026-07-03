@@ -2,6 +2,7 @@ import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
+import { ConflictError } from "@agds-hr/shared";
 
 import { band, compRecommendation, countryCoefficient, reviewCase } from "./db/schema.ts";
 import type { Band, CareerLevel, CompRecommendation, ReviewRating } from "./types.ts";
@@ -40,6 +41,52 @@ export async function listBands(db: DrizzleExecutor): Promise<readonly Band[]> {
     })
     .from(band)
     .orderBy(asc(band.roleFamily), asc(band.level));
+}
+
+// Founders maintain the band figures from the Salary bands surface. Upsert by
+// [role_family, level]; a degenerate range (min > mid or mid > max) is rejected
+// here so no client can write an inverted band. Audited.
+export type UpsertBandInput = {
+  readonly roleFamily: string;
+  readonly level: CareerLevel;
+  readonly minEur: number;
+  readonly midEur: number;
+  readonly maxEur: number;
+};
+
+export async function upsertBand(
+  db: DrizzleDb,
+  input: UpsertBandInput,
+  context: AuditContext,
+): Promise<void> {
+  if (!(input.minEur <= input.midEur && input.midEur <= input.maxEur)) {
+    throw new ConflictError("band_range_inverted");
+  }
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(band)
+      .values({
+        roleFamily: input.roleFamily,
+        level: input.level,
+        minEur: input.minEur,
+        midEur: input.midEur,
+        maxEur: input.maxEur,
+      })
+      .onConflictDoUpdate({
+        target: [band.roleFamily, band.level],
+        set: { minEur: input.minEur, midEur: input.midEur, maxEur: input.maxEur },
+      });
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.band.updated",
+      resourceId: `${input.roleFamily}:${input.level}`,
+      payload: { minEur: input.minEur, midEur: input.midEur, maxEur: input.maxEur },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
 }
 
 export type CountryCoefficient = {

@@ -1,13 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CAREER_LEVEL_META } from "@agds-hr/people/types";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { CAREER_LEVELS, CAREER_LEVEL_META } from "@agds-hr/people/types";
+import type { CareerLevel } from "@agds-hr/people/types";
 
+import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { BandsView } from "../server/people.shared.ts";
-import { bandsFn } from "../server/people.functions.ts";
+import { bandsFn, setBandFn } from "../server/people.functions.ts";
 
 // Salary bands surface (design): France-reference bands by role family & level
 // with a min–mid–max bar, country coefficients, and the phased-transparency
-// roadmap. Internal — the loader enforces the people.comp.read gate.
+// roadmap. Internal — the loader enforces the people.comp.read gate. Founders
+// edit the figures in place (people.band.manage); every write is audited.
 export const Route = createFileRoute("/_app/bands")({
   loader: () => bandsFn(),
   component: Bands,
@@ -24,9 +28,96 @@ const PHASES = [
 
 const fmtEur = (value: number): string => `€${value.toLocaleString("en-US")}`;
 
+type BandDraft = { minEur: string; midEur: string; maxEur: string };
+
+const numCls =
+  "block w-24 rounded-[10px] border border-border bg-card px-2 py-1.5 text-sm tabular-nums outline-none focus:border-[var(--color-accent)]";
+
 function Bands() {
   const data: BandsView = Route.useLoaderData();
+  const router = useRouter();
   const scaleMax = Math.max(1, ...data.bands.map((band) => band.maxEur)) * 1.05;
+
+  const [busy, setBusy] = useState(false);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState<BandDraft>({ minEur: "", midEur: "", maxEur: "" });
+  const [adding, setAdding] = useState(false);
+  const [newFamily, setNewFamily] = useState("");
+  const [newLevel, setNewLevel] = useState<CareerLevel>("L1");
+
+  const run = async (action: () => Promise<unknown>) => {
+    setBusy(true);
+    try {
+      await action();
+      await router.invalidate();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const draftValid = (): boolean => {
+    const min = Number(draft.minEur);
+    const mid = Number(draft.midEur);
+    const max = Number(draft.maxEur);
+    return (
+      Number.isInteger(min) &&
+      Number.isInteger(mid) &&
+      Number.isInteger(max) &&
+      min >= 0 &&
+      min <= mid &&
+      mid <= max
+    );
+  };
+
+  const saveBand = (roleFamily: string, level: CareerLevel) =>
+    run(async () => {
+      await setBandFn({
+        data: {
+          roleFamily,
+          level,
+          minEur: Number(draft.minEur),
+          midEur: Number(draft.midEur),
+          maxEur: Number(draft.maxEur),
+        },
+      });
+      setEditingKey(null);
+      setAdding(false);
+      setNewFamily("");
+    });
+
+  const startEdit = (key: string, band: { minEur: number; midEur: number; maxEur: number }) => {
+    setEditingKey(key);
+    setAdding(false);
+    setDraft({
+      minEur: String(band.minEur),
+      midEur: String(band.midEur),
+      maxEur: String(band.maxEur),
+    });
+  };
+
+  const editorFields = (
+    <div className="flex flex-wrap items-end gap-2">
+      {(
+        [
+          ["minEur", "Min"],
+          ["midEur", "Mid"],
+          ["maxEur", "Max"],
+        ] as const
+      ).map(([key, label]) => (
+        <label key={key} className="text-xs">
+          <span className="mb-1 block font-semibold text-ink-700">{label} €</span>
+          <input
+            value={draft[key]}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, [key]: event.target.value.replace(/\D/g, "") }))
+            }
+            inputMode="numeric"
+            className={numCls}
+          />
+        </label>
+      ))}
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-4xl p-6">
@@ -38,45 +129,136 @@ function Bands() {
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Bands by role family & level</CardTitle>
+            <div className="flex items-baseline justify-between gap-3">
+              <CardTitle>Bands by role family & level</CardTitle>
+              {data.canManageBands && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-dk)]"
+                  onClick={() => {
+                    setAdding((value) => !value);
+                    setEditingKey(null);
+                    setDraft({ minEur: "", midEur: "", maxEur: "" });
+                  }}
+                >
+                  {adding ? "Close" : "+ Add band"}
+                </button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">
               France reference · adjust by country coefficient. Internal — used by CEO, COO &
               leadership.
+              {data.canManageBands && " Edits are recorded in the audit trail."}
             </p>
           </CardHeader>
           <CardContent>
+            {adding && (
+              <div className="mb-5 space-y-3 rounded-[14px] bg-cream p-4">
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="min-w-40 flex-1 text-xs">
+                    <span className="mb-1 block font-semibold text-ink-700">Role family</span>
+                    <input
+                      value={newFamily}
+                      onChange={(event) => setNewFamily(event.target.value)}
+                      placeholder="e.g. Operations"
+                      maxLength={100}
+                      className="block w-full rounded-[10px] border border-border bg-card px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
+                    />
+                  </label>
+                  <label className="text-xs">
+                    <span className="mb-1 block font-semibold text-ink-700">Level</span>
+                    <select
+                      value={newLevel}
+                      onChange={(event) => setNewLevel(event.target.value as CareerLevel)}
+                      className="block rounded-[10px] border border-border bg-card px-2 py-1.5 text-sm"
+                    >
+                      {CAREER_LEVELS.map((value) => (
+                        <option key={value} value={value}>
+                          {value} · {CAREER_LEVEL_META[value].name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {editorFields}
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy || newFamily.trim().length === 0 || !draftValid()}
+                    onClick={() => void saveBand(newFamily.trim(), newLevel)}
+                  >
+                    Save band
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {data.bands.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No bands configured yet. Band figures are entered per role family & level as the job
-                architecture is calibrated (phase 1 of the transparency roadmap).
+                No bands configured yet.
+                {data.canManageBands && " Use “Add band” to enter the first figures."}
               </p>
             ) : (
               <div className="space-y-4">
-                {data.bands.map((band) => (
-                  <div key={`${band.roleFamily}-${band.level}`}>
-                    <div className="mb-1.5 flex items-baseline justify-between">
-                      <span className="text-sm font-semibold">
-                        {band.roleFamily} — {band.level} {CAREER_LEVEL_META[band.level].name}
-                      </span>
-                      <span className="text-xs tabular-nums text-muted-foreground">
-                        {fmtEur(band.minEur)} – {fmtEur(band.maxEur)}
-                      </span>
+                {data.bands.map((band) => {
+                  const key = `${band.roleFamily}-${band.level}`;
+                  const editing = editingKey === key;
+                  return (
+                    <div key={key}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                        <span className="text-sm font-semibold">
+                          {band.roleFamily} — {band.level} {CAREER_LEVEL_META[band.level].name}
+                        </span>
+                        <span className="flex items-baseline gap-3">
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {fmtEur(band.minEur)} – mid {fmtEur(band.midEur)} –{" "}
+                            {fmtEur(band.maxEur)}
+                          </span>
+                          {data.canManageBands && (
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-muted-foreground underline hover:text-foreground"
+                              onClick={() => (editing ? setEditingKey(null) : startEdit(key, band))}
+                            >
+                              {editing ? "Cancel" : "Edit"}
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                      {editing ? (
+                        <div className="flex flex-wrap items-end gap-3 rounded-[14px] bg-cream p-3.5">
+                          {editorFields}
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={busy || !draftValid()}
+                            onClick={() => void saveBand(band.roleFamily, band.level)}
+                          >
+                            Save
+                          </Button>
+                          {!draftValid() && (
+                            <span className="text-xs text-muted-foreground">min ≤ mid ≤ max</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="relative h-2.5 rounded-full bg-bone">
+                          <div
+                            className="absolute bottom-0 top-0 rounded-full bg-ink-700"
+                            style={{
+                              left: `${(band.minEur / scaleMax) * 100}%`,
+                              width: `${((band.maxEur - band.minEur) / scaleMax) * 100}%`,
+                            }}
+                          />
+                          <div
+                            className="absolute -bottom-0.5 -top-0.5 w-0.5 bg-[var(--color-accent)]"
+                            style={{ left: `${(band.midEur / scaleMax) * 100}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                    <div className="relative h-2.5 rounded-full bg-bone">
-                      <div
-                        className="absolute bottom-0 top-0 rounded-full bg-ink-700"
-                        style={{
-                          left: `${(band.minEur / scaleMax) * 100}%`,
-                          width: `${((band.maxEur - band.minEur) / scaleMax) * 100}%`,
-                        }}
-                      />
-                      <div
-                        className="absolute -bottom-0.5 -top-0.5 w-0.5 bg-[var(--color-accent)]"
-                        style={{ left: `${(band.midEur / scaleMax) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
