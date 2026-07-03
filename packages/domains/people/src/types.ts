@@ -184,6 +184,91 @@ export type CompRecommendation = {
   readonly rationale: string | undefined;
 };
 
+// --- Review inputs (self-review, peer input, assessment) --------------------
+// The five shared evaluation dimensions (design), rated 1–4 against level.
+export const EVALUATION_DIMENSIONS = [
+  "impact",
+  "ownership",
+  "quality",
+  "collaboration",
+  "culture",
+] as const;
+export type EvaluationDimension = (typeof EVALUATION_DIMENSIONS)[number];
+export const EVALUATION_DIMENSION_LABELS: Record<EvaluationDimension, string> = {
+  impact: "Impact",
+  ownership: "Ownership",
+  quality: "Quality & rigor",
+  collaboration: "Collaboration",
+  culture: "Culture & judgment",
+};
+
+// Peer input is NAMED — never anonymous, never shown to the person being
+// reviewed (design M5). Requestees are LT peers, own-team, or cross-team.
+export const PEER_KINDS = ["lt", "team", "cross"] as const;
+export type PeerKind = (typeof PEER_KINDS)[number];
+
+export const PEER_REQUEST_STATUSES = ["pending", "submitted", "declined"] as const;
+export type PeerRequestStatus = (typeof PEER_REQUEST_STATUSES)[number];
+
+export type PeerRequest = {
+  readonly id: string;
+  readonly caseId: string;
+  readonly requesteeEmail: string;
+  readonly kind: PeerKind;
+  readonly status: PeerRequestStatus;
+  readonly declineReason: string | undefined;
+  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly submittedAt: Date | undefined;
+  readonly createdAt: Date;
+};
+
+export type SelfReview = {
+  readonly caseId: string;
+  readonly payload: Readonly<Record<string, string>>;
+  readonly submittedAt: Date | undefined;
+};
+
+// The manager assessment (design M6): per-dimension score + narrative +
+// evidence, an overall narrative, the proposed rating, and the comp
+// recommendation TYPE (amounts are set by Admins at sign-off).
+export type AssessmentDimension = {
+  readonly score: ReviewRating;
+  readonly narrative: string;
+  readonly evidence: string;
+};
+
+export type Assessment = {
+  readonly caseId: string;
+  readonly dims: Readonly<Partial<Record<EvaluationDimension, AssessmentDimension>>>;
+  readonly narrative: string;
+  readonly proposedRating: ReviewRating | undefined;
+  readonly promoProposed: boolean;
+  readonly compRec: string;
+  readonly p6Acknowledged: boolean;
+  readonly submittedAt: Date | undefined;
+};
+
+// An assessment may only be submitted when every dimension has a score, a
+// narrative, and at least one piece of evidence — and a low proposed rating
+// (P6 trigger) has been explicitly acknowledged (design: "Assessments must be
+// evidence-based; vague impressions are not sufficient").
+export function canSubmitAssessment(input: {
+  readonly dims: Readonly<Partial<Record<EvaluationDimension, AssessmentDimension>>>;
+  readonly proposedRating: ReviewRating | undefined;
+  readonly p6Acknowledged: boolean;
+}): boolean {
+  const complete = EVALUATION_DIMENSIONS.every((dimension) => {
+    const entry = input.dims[dimension];
+    return (
+      entry !== undefined && entry.narrative.trim().length > 0 && entry.evidence.trim().length > 0
+    );
+  });
+  if (!complete || input.proposedRating === undefined) {
+    return false;
+  }
+  return isP6Triggered(input.proposedRating) ? input.p6Acknowledged : true;
+}
+
 // --- Appeals ---------------------------------------------------------------
 // What is being appealed (design: Rating / Raise / Band placement / Exception).
 export const APPEAL_CATEGORIES = ["rating", "raise", "band", "exception"] as const;

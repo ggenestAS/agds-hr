@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   integer,
+  jsonb,
   pgSchema,
   text,
   timestamp,
@@ -17,6 +18,8 @@ import {
   APPEAL_STATUSES,
   CAREER_LEVELS,
   CAREER_PATHS,
+  PEER_KINDS,
+  PEER_REQUEST_STATUSES,
   REVIEW_STATES,
 } from "../types.ts";
 
@@ -180,4 +183,87 @@ export const reviewSignoff = peopleSchema.table(
     signedAt: timestamp("signed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [unique("review_signoff_case_founder").on(table.caseId, table.founderUserId)],
+);
+
+// The subject's self-review (design: "input, not the rating"). One per case;
+// free-text sections stored as a validated string map. `submitted_at` is the
+// sent-to-manager marker — drafts autosave locally, the server copy is written
+// on explicit save/submit (bounded, audited mutations).
+export const selfReview = peopleSchema.table(
+  "self_review",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").notNull().default({}),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("self_review_case").on(table.caseId)],
+);
+
+// Peer input requests (design M5): NAMED input — never anonymous, never shown
+// to the person being reviewed. One request per requestee per case; the five-
+// dimension free-text input lands on the same row at submission. Declines are
+// allowed but logged with a reason.
+export const peerKindEnum = peopleSchema.enum("peer_kind", PEER_KINDS);
+export const peerRequestStatusEnum = peopleSchema.enum(
+  "peer_request_status",
+  PEER_REQUEST_STATUSES,
+);
+
+export const peerRequest = peopleSchema.table(
+  "peer_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    requesteeEmail: text("requestee_email").notNull(),
+    kind: peerKindEnum("kind").notNull(),
+    status: peerRequestStatusEnum("status").notNull().default("pending"),
+    declineReason: text("decline_reason"),
+    input: jsonb("input").notNull().default({}),
+    requestedBy: uuid("requested_by").notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("peer_request_case_requestee").on(table.caseId, table.requesteeEmail)],
+);
+
+// The manager assessment (design M6): evidence-based — per-dimension score,
+// narrative, and evidence, plus the proposed rating and the comp-recommendation
+// TYPE (amounts are set by Admins at sign-off). Submission gates (every
+// evidence field complete, P6 acknowledgment for low ratings) are enforced by
+// the pure canSubmitAssessment helper at the DAL/handler layer.
+export const assessment = peopleSchema.table(
+  "assessment",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => reviewCase.id, { onDelete: "cascade" }),
+    dims: jsonb("dims").notNull().default({}),
+    narrative: text("narrative").notNull().default(""),
+    proposedRating: integer("proposed_rating"),
+    promoProposed: boolean("promo_proposed").notNull().default(false),
+    compRec: text("comp_rec").notNull().default(""),
+    p6Acknowledged: boolean("p6_acknowledged").notNull().default(false),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("assessment_case").on(table.caseId)],
 );

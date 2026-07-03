@@ -15,8 +15,12 @@ import {
   canRateReview,
   canManageComp,
   canReadDirectory,
+  canRequestPeerInput,
+  canRespondPeerInput,
   canSignDecision,
   canViewComp,
+  canWriteAssessment,
+  canWriteSelfReview,
 } from "@agds-hr/people";
 import type { ReviewState } from "@agds-hr/people/types";
 import { ALLOW, type UserId } from "@agds-hr/shared";
@@ -55,4 +59,8 @@ export function registerPolicies(): void {
   registerPolicy("people.appeal.file", (user) => canFileAppeal(user));
   registerPolicy("people.appeal.manage", (user) => canManageAppeals(user));
   registerPolicy("audit.log.read", (user) => canReadAuditLog(user));
+  registerPolicy("people.selfreview.write", (user) => canWriteSelfReview(user));
+  registerPolicy("people.peer.request", (user) => canRequestPeerInput(user));
+  registerPolicy("people.peer.respond", (user) => canRespondPeerInput(user));
+  registerPolicy("people.assessment.write", (user) => canWriteAssessment(user));
 }

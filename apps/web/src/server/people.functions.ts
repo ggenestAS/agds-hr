@@ -6,6 +6,7 @@ import {
   fileAppealSchema,
   openReviewSchema,
   resolveAppealSchema,
+  selfReviewPayloadSchema,
   setCompSchema,
   setEmployeeAttrsSchema,
   setRatingSchema,
@@ -116,4 +117,28 @@ export const auditLogFn = createServerFn({ method: "GET" }).handler(async () => 
 export const decisionsFn = createServerFn({ method: "GET" }).handler(async () => {
   const { decisionsHandler } = await import("./people.impl.server.ts");
   return decisionsHandler();
+});
+
+export const selfReviewGetFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { selfReviewGetHandler } = await import("./people.impl.server.ts");
+  return selfReviewGetHandler();
+});
+
+export const selfReviewSaveFn = createServerFn({ method: "POST" })
+  .validator(selfReviewPayloadSchema)
+  .handler(async ({ data }) => {
+    const { selfReviewSaveHandler } = await import("./people.impl.server.ts");
+    return selfReviewSaveHandler(data);
+  });
+
+export const selfReviewSubmitFn = createServerFn({ method: "POST" })
+  .validator(selfReviewPayloadSchema)
+  .handler(async ({ data }) => {
+    const { selfReviewSubmitHandler } = await import("./people.impl.server.ts");
+    return selfReviewSubmitHandler(data);
+  });
+
+export const selfReviewReopenFn = createServerFn({ method: "POST" }).handler(async () => {
+  const { selfReviewReopenHandler } = await import("./people.impl.server.ts");
+  return selfReviewReopenHandler();
 });

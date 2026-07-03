@@ -143,6 +143,56 @@ export type BandsView = {
   readonly coefficients: readonly { readonly country: string; readonly coefficientBp: number }[];
 };
 
+// The self-review form (design): sections A–F, all free text. A closed key set
+// so the payload stays a validated string map rather than arbitrary JSON.
+export const SELF_REVIEW_KEYS = [
+  "sr_name",
+  "sr_role",
+  "sr_manager",
+  "sr_period",
+  "o1_obj",
+  "o1_target",
+  "o1_result",
+  "o2_obj",
+  "o2_target",
+  "o2_result",
+  "o3_obj",
+  "o3_target",
+  "o3_result",
+  "k1_name",
+  "k1_target",
+  "k1_actual",
+  "k1_reading",
+  "k2_name",
+  "k2_target",
+  "k2_actual",
+  "k2_reading",
+  "c_context",
+  "d_proud",
+  "d_short",
+  "d_feedback",
+  "d_others",
+  "e_skills",
+  "e_scope",
+  "e_direction",
+  "e_support",
+  "f_fair",
+] as const;
+export type SelfReviewKey = (typeof SELF_REVIEW_KEYS)[number];
+
+export const selfReviewPayloadSchema = z.object({
+  payload: z.record(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
+});
+export type SelfReviewPayloadInput = z.infer<typeof selfReviewPayloadSchema>;
+
+export type SelfReviewView = {
+  readonly caseId: string | undefined;
+  readonly payload: Readonly<Partial<Record<SelfReviewKey, string>>>;
+  readonly submittedAt: string | undefined;
+  readonly managerName: string | undefined;
+  readonly locked: boolean;
+};
+
 // The Audit log surface (design P9): append-only trail, leadership-read-only.
 export type AuditLogRow = {
   readonly id: string;

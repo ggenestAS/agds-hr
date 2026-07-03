@@ -27,8 +27,12 @@ import {
   listDecisionSummaries,
   listEmployeeAttrs,
   listRatingsForCycle,
+  getSelfReviewByCase,
   openCase,
+  reopenSelfReview,
   resolveAppeal,
+  saveSelfReview,
+  submitSelfReview,
   REVIEW_CURRENT_CYCLE,
   REVIEW_TRANSITIONS,
   setCaseRating,
@@ -49,6 +53,8 @@ import type {
   DirectoryEntry,
   OverviewData,
   PersonDetail,
+  SelfReviewPayloadInput,
+  SelfReviewView,
   SetCompInput,
   SetEmployeeAttrsInput,
 } from "./people.shared.ts";
@@ -284,6 +290,99 @@ export async function calibrationHandler(): Promise<CalibrationSummary> {
     }
   }
   return { cycle: REVIEW_CURRENT_CYCLE, distribution, total: cases.length, unrated, needsDecision };
+}
+
+// Self-review handlers (design: "input, not the rating"). The subject's OWN
+// form: the case is looked up by the actor's email, never by a client-supplied
+// id, so ownership is structural. Saving/submitting auto-opens the case
+// (idempotent) — the self-review is how a cycle starts for most people.
+export async function selfReviewGetHandler(): Promise<SelfReviewView> {
+  const session = await requireSession("people.selfreview.write");
+  const adminDb = getDbAs("admin");
+  const email = session.actor.email.toLowerCase();
+  const reviewCase = await getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE);
+  const selfReview =
+    reviewCase === undefined ? undefined : await getSelfReviewByCase(adminDb, reviewCase.id);
+
+  let managerName: string | undefined;
+  if (isInsideConfigured()) {
+    const [admins, orgNodes] = await Promise.all([
+      listAdminDirectory({ limit: 1000 }),
+      listOrgTree(),
+    ]);
+    const me = admins.find((admin) => admin.email.toLowerCase() === email);
+    if (me !== undefined) {
+      const chain = managementChain(orgNodes, me.userId);
+      const first = chain[0];
+      managerName = first === undefined ? undefined : `${first.firstName} ${first.lastName}`.trim();
+    }
+  }
+
+  return {
+    caseId: reviewCase?.id,
+    payload: (selfReview?.payload ?? {}) as SelfReviewView["payload"],
+    submittedAt: selfReview?.submittedAt?.toISOString(),
+    managerName,
+    locked: reviewCase?.decidedAt !== undefined,
+  };
+}
+
+async function ensureOwnCase(session: Awaited<ReturnType<typeof requireSession>>) {
+  const adminDb = getDbAs("admin");
+  const email = session.actor.email.toLowerCase();
+  return openCase(adminDb, email, REVIEW_CURRENT_CYCLE, auditContext(session));
+}
+
+const cleanPayload = (payload: SelfReviewPayloadInput["payload"]): Record<string, string> =>
+  Object.fromEntries(Object.entries(payload).filter(([, value]) => value !== undefined)) as Record<
+    string,
+    string
+  >;
+
+export async function selfReviewSaveHandler(input: SelfReviewPayloadInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.selfreview.write");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await ensureOwnCase(session);
+  const existing = await getSelfReviewByCase(adminDb, reviewCase.id);
+  if (existing?.submittedAt !== undefined) {
+    throw new ForbiddenError("people.selfreview.write", "already_submitted");
+  }
+  await saveSelfReview(adminDb, reviewCase.id, cleanPayload(input.payload), auditContext(session));
+  return { ok: true };
+}
+
+export async function selfReviewSubmitHandler(
+  input: SelfReviewPayloadInput,
+): Promise<{ ok: true }> {
+  const session = await requireSession("people.selfreview.write");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await ensureOwnCase(session);
+  const existing = await getSelfReviewByCase(adminDb, reviewCase.id);
+  if (existing?.submittedAt !== undefined) {
+    throw new ForbiddenError("people.selfreview.write", "already_submitted");
+  }
+  await submitSelfReview(
+    adminDb,
+    reviewCase.id,
+    cleanPayload(input.payload),
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+export async function selfReviewReopenHandler(): Promise<{ ok: true }> {
+  const session = await requireSession("people.selfreview.write");
+  const adminDb = getDbAs("admin");
+  const email = session.actor.email.toLowerCase();
+  const reviewCase = await getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review case", email);
+  }
+  if (reviewCase.decidedAt !== undefined) {
+    throw new ForbiddenError("people.selfreview.write", "decision_delivered");
+  }
+  await reopenSelfReview(adminDb, reviewCase.id, auditContext(session));
+  return { ok: true };
 }
 
 // The Audit log surface (P9): the append-only trail, newest first, with actor

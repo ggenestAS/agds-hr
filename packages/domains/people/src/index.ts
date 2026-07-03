@@ -50,6 +50,28 @@ export {
   upsertCompRecommendation,
 } from "./compensation.ts";
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
+export {
+  getSelfReviewByCase,
+  reopenSelfReview,
+  saveSelfReview,
+  submitSelfReview,
+} from "./self-review.ts";
+export {
+  EVALUATION_DIMENSIONS,
+  EVALUATION_DIMENSION_LABELS,
+  PEER_KINDS,
+  PEER_REQUEST_STATUSES,
+  canSubmitAssessment,
+} from "./types.ts";
+export type {
+  Assessment,
+  AssessmentDimension,
+  EvaluationDimension,
+  PeerKind,
+  PeerRequest,
+  PeerRequestStatus,
+  SelfReview,
+} from "./types.ts";
 export type { EmployeeAttrs, UpsertEmployeeInput } from "./dal.ts";
 export { getEmployeeByEmail, listEmployeeAttrs, upsertEmployeeByEmail } from "./dal.ts";
 export {
@@ -73,6 +95,10 @@ export {
   canOpenReview,
   canRateReview,
   canReadDirectory,
+  canRequestPeerInput,
+  canRespondPeerInput,
   canSignDecision,
   canViewComp,
+  canWriteAssessment,
+  canWriteSelfReview,
 } from "./policies.ts";

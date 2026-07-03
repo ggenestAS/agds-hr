@@ -69,3 +69,26 @@ export function canFileAppeal(_user: User): PolicyDecision {
 export function canManageAppeals(user: User): PolicyDecision {
   return hasAny(user, ["admin", "developer"]) ? ALLOW : DENY("appeals_admin_required");
 }
+
+// Anyone may write their OWN self-review; the handler enforces ownership (the
+// case is looked up by the actor's email) and the not-yet-submitted guard.
+export function canWriteSelfReview(_user: User): PolicyDecision {
+  return ALLOW;
+}
+
+// Peer input: creating requests is a reviewer action; responding is open to
+// any authenticated user (the handler checks the request is addressed to them).
+export function canRequestPeerInput(user: User): PolicyDecision {
+  return hasAny(user, ["manager", "founder", "admin", "developer"])
+    ? ALLOW
+    : DENY("reviewer_required");
+}
+
+export function canRespondPeerInput(_user: User): PolicyDecision {
+  return ALLOW;
+}
+
+// The manager assessment is written by the same set that may rate.
+export function canWriteAssessment(user: User): PolicyDecision {
+  return hasAny(user, ["manager", "founder", "developer"]) ? ALLOW : DENY("reviewer_required");
+}

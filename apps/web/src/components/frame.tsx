@@ -23,6 +23,7 @@ type NavEntry = {
   readonly to:
     | "/dashboard"
     | "/people"
+    | "/self-review"
     | "/calibration"
     | "/appeals"
     | "/compensation"
@@ -39,6 +40,7 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
     items: [
       { to: "/dashboard", label: "Overview", roles: EVERYONE },
       { to: "/people", label: "People", roles: EVERYONE },
+      { to: "/self-review", label: "Self-review", roles: EVERYONE },
       { to: "/calibration", label: "Calibration", roles: REVIEWERS },
     ],
   },
