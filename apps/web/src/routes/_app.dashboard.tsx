@@ -92,24 +92,6 @@ function Overview() {
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Overview</h1>
 
-      {data.isReviewer && data.stats.length > 0 && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {data.stats.map((stat) => (
-            <Card key={stat.label}>
-              <CardContent className="pt-5">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  {stat.label}
-                </div>
-                <div className="mt-2 font-display text-3xl font-semibold tabular-nums tracking-tight">
-                  {stat.value}
-                </div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{stat.sub}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[1.35fr_1fr]">
         <Card>
           <CardHeader>

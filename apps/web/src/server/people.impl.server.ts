@@ -1,7 +1,12 @@
 import { listEvents } from "@agds-hr/audit";
 import { can } from "@agds-hr/auth";
 import { getDbAs } from "@agds-hr/db";
-import { canStartImpersonation, listUsers } from "@agds-hr/identity";
+import {
+  canStartImpersonation,
+  listReportingEdges,
+  listUsers,
+  managedUserIds,
+} from "@agds-hr/identity";
 import {
   isInsideConfigured,
   listAdminDirectory,
@@ -27,13 +32,19 @@ import {
   getEmployeeByEmail,
   getSignoffs,
   listAppeals,
+  listAssessmentsByAuthor,
+  listCasesBySubject,
   listCasesForCycle,
   listDecisionSummaries,
   listEmployeeAttrs,
   listRatingsForCycle,
   getAssessmentByCase,
+  getPeerRequestById,
   getSelfReviewByCase,
+  approvePeerRequest,
   isPeerQuotaMet,
+  proposePeerRequests,
+  reopenPeerRequest,
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
   openCase,
@@ -70,7 +81,7 @@ import type {
   AppealsPageView,
   AppealView,
   AssessCaseDetail,
-  AssessCaseSummary,
+  AssessReportRow,
   AssessmentSaveInput,
   AuditLogRow,
   BandsView,
@@ -79,12 +90,18 @@ import type {
   CompView,
   DecisionDoc,
   DirectoryEntry,
+  GivenAsManagerView,
+  GivenAsPeerView,
+  MyPeerCaseView,
   OverviewData,
   PeerCaseView,
   PeerPageView,
+  PeerProposeInput,
   PeerRequestCreateInput,
   PeerSubmitInput,
+  PeerAnswerView,
   PersonDetail,
+  ReceivedCycleView,
   SelfReviewPayloadInput,
   SelfReviewView,
   SetBandInput,
@@ -149,6 +166,44 @@ export async function listDirectoryHandler(): Promise<readonly DirectoryEntry[]>
   });
 }
 
+// The viewer's managed set (improve-ux plan): everyone reachable through
+// EITHER reporting line, any depth — as lowercase emails, since people-domain
+// records key by email. Small org, so loading all edges + users is cheap.
+async function managedEmailSets(
+  adminDb: ReturnType<typeof getDbAs>,
+  viewerUserId: UserId,
+): Promise<{ readonly direct: ReadonlySet<string>; readonly all: ReadonlySet<string> }> {
+  const [edges, users] = await Promise.all([
+    listReportingEdges(adminDb),
+    listUsers(adminDb, { limit: 500 }),
+  ]);
+  const sets = managedUserIds(edges, viewerUserId);
+  const emailById = new Map(users.map((entry) => [entry.id as string, entry.email.toLowerCase()]));
+  const toEmails = (ids: ReadonlySet<UserId>): ReadonlySet<string> =>
+    new Set(
+      [...ids]
+        .map((id) => emailById.get(id as string))
+        .filter((email): email is string => email !== undefined),
+    );
+  return { direct: toEmails(sets.direct), all: toEmails(sets.all) };
+}
+
+const LEADERSHIP_ROLES = ["founder", "admin", "developer"] as const;
+const isLeadership = (roles: readonly string[]): boolean =>
+  LEADERSHIP_ROLES.some((role) => roles.includes(role));
+
+const toAssessmentView = (
+  row: NonNullable<Awaited<ReturnType<typeof getAssessmentByCase>>>,
+): NonNullable<PersonDetail["received"][number]["assessment"]> => ({
+  dims: row.dims,
+  narrative: row.narrative,
+  proposedRating: row.proposedRating,
+  promoProposed: row.promoProposed,
+  compRec: row.compRec,
+  p6Acknowledged: row.p6Acknowledged,
+  submittedAt: row.submittedAt?.toISOString(),
+});
+
 export async function personDetailHandler(userId: string): Promise<PersonDetail> {
   const session = await requireSession("people.directory.read");
   const adminDb = getDbAs("admin");
@@ -160,45 +215,141 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   if (admin === undefined) {
     throw new NotFoundError("person", userId);
   }
+  const subjectEmail = admin.email.toLowerCase();
+  const nameByEmail = new Map(
+    admins.map((entry) => [
+      entry.email.toLowerCase(),
+      { name: `${entry.firstName} ${entry.lastName}`.trim(), userId: entry.userId },
+    ]),
+  );
 
-  const [attrs, reviewCase] = await Promise.all([
-    getEmployeeByEmail(adminDb, admin.email.toLowerCase()),
-    getCaseBySubject(adminDb, admin.email.toLowerCase(), REVIEW_CURRENT_CYCLE),
+  const [attrs, reviewCase, managed] = await Promise.all([
+    getEmployeeByEmail(adminDb, subjectEmail),
+    getCaseBySubject(adminDb, subjectEmail, REVIEW_CURRENT_CYCLE),
+    managedEmailSets(adminDb, session.subject.id),
   ]);
 
+  // Both reporting lines: the functional chain (existing) + direct local manager.
   const managers = managementChain(orgNodes, userId).map((node) => ({
     userId: node.userId,
     name: `${node.firstName} ${node.lastName}`.trim(),
     title: node.title,
   }));
+  const localManagerNode = (() => {
+    const localManagerId = orgNodes.find((node) => node.userId === userId)?.localManagerUserId;
+    if (localManagerId === undefined) {
+      return undefined;
+    }
+    return orgNodes.find((node) => node.userId === localManagerId);
+  })();
+  const localManager =
+    localManagerNode === undefined
+      ? undefined
+      : {
+          userId: localManagerNode.userId,
+          name: `${localManagerNode.firstName} ${localManagerNode.lastName}`.trim(),
+          title: localManagerNode.title,
+        };
 
   const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
 
-  // Record tabs: self-review is the subject's own words (subject + reviewers);
-  // the manager assessment is reviewer-only until delivery is a product need.
-  const canReviewCase = can(session.subject, "people.review.open").allow;
-  const isSubjectPerson = session.actor.email.toLowerCase() === admin.email.toLowerCase();
-  const [selfReviewRow, assessmentRow] =
-    reviewCase === undefined
-      ? [undefined, undefined]
-      : await Promise.all([
-          isSubjectPerson || canReviewCase
-            ? getSelfReviewByCase(adminDb, reviewCase.id)
-            : Promise.resolve(undefined),
-          canReviewCase ? getAssessmentByCase(adminDb, reviewCase.id) : Promise.resolve(undefined),
-        ]);
+  // Visibility (improve-ux plan): the manager graph, not roles, decides who
+  // sees a person's reviews. The subject sees their own self-review AND the
+  // manager assessment of themselves — never peer input. Anyone who manages
+  // the subject (either line, any depth) and leadership see everything.
+  const viewerEmail = session.subject.email.toLowerCase();
+  const isSubjectPerson = viewerEmail === subjectEmail;
+  const leadership = isLeadership(session.subject.roles);
+  const managesSubject = leadership || managed.all.has(subjectEmail);
+  const canSeeSelfAndAssessment = managesSubject || isSubjectPerson;
+
+  // Received reviews, one block per cycle.
+  const allCases = await listCasesBySubject(adminDb, subjectEmail);
+  const received: ReceivedCycleView[] = canSeeSelfAndAssessment
+    ? await Promise.all(
+        allCases.map(async (entry) => {
+          const [selfRow, peerRows, assessmentRow] = await Promise.all([
+            getSelfReviewByCase(adminDb, entry.id),
+            managesSubject ? listPeerRequestsForCase(adminDb, entry.id) : Promise.resolve([]),
+            getAssessmentByCase(adminDb, entry.id),
+          ]);
+          return {
+            cycle: entry.cyclePeriod,
+            state: entry.state,
+            rating: entry.rating,
+            decidedAt: entry.decidedAt?.toISOString(),
+            self:
+              selfRow === undefined
+                ? undefined
+                : {
+                    payload: selfRow.payload as NonNullable<ReceivedCycleView["self"]>["payload"],
+                    submittedAt: selfRow.submittedAt?.toISOString(),
+                  },
+            peers: managesSubject
+              ? peerRows
+                  .filter((request) => request.status === "submitted")
+                  .map((request) => ({
+                    requesteeEmail: request.requesteeEmail,
+                    requesteeName: nameByEmail.get(request.requesteeEmail)?.name,
+                    kind: request.kind,
+                    submittedAt: request.submittedAt?.toISOString(),
+                    input: request.input,
+                  }))
+              : undefined,
+            assessment: assessmentRow === undefined ? undefined : toAssessmentView(assessmentRow),
+          };
+        }),
+      )
+    : [];
+
+  // Given reviews: what this person wrote. Content is per-item gated — the
+  // viewer must be the author, manage that item's subject, or be leadership,
+  // and must never be that item's subject.
+  const [authoredAssessments, givenPeerRequests] = await Promise.all([
+    listAssessmentsByAuthor(adminDb, subjectEmail),
+    listPeerRequestsForRequestee(adminDb, subjectEmail),
+  ]);
+  const givenContentVisible = (itemSubjectEmail: string): boolean => {
+    if (viewerEmail === itemSubjectEmail) {
+      return false;
+    }
+    return isSubjectPerson || leadership || managed.all.has(itemSubjectEmail);
+  };
+  const givenAsManager: GivenAsManagerView[] = authoredAssessments
+    .filter((entry) => givenContentVisible(entry.subjectEmail.toLowerCase()))
+    .map((entry) => ({
+      cycle: entry.cyclePeriod,
+      subjectEmail: entry.subjectEmail,
+      subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase())?.name,
+      subjectUserId: nameByEmail.get(entry.subjectEmail.toLowerCase())?.userId,
+      submittedAt: entry.submittedAt?.toISOString(),
+      proposedRating: entry.proposedRating,
+      narrative: entry.narrative === "" ? undefined : entry.narrative,
+    }));
+  const givenAsPeer: GivenAsPeerView[] = givenPeerRequests
+    .filter((request) => request.status === "submitted" || request.status === "pending")
+    .filter((request) => givenContentVisible(request.subjectEmail.toLowerCase()))
+    .map((request) => ({
+      cycle: REVIEW_CURRENT_CYCLE,
+      subjectEmail: request.subjectEmail,
+      subjectName: nameByEmail.get(request.subjectEmail.toLowerCase())?.name,
+      subjectUserId: nameByEmail.get(request.subjectEmail.toLowerCase())?.userId,
+      kind: request.kind,
+      status: request.status,
+      submittedAt: request.submittedAt?.toISOString(),
+      input: request.status === "submitted" ? request.input : undefined,
+    }));
 
   // The appeal (statement/category/resolution) is visible to HR Admins and the
-  // appellant only (design) — never to an arbitrary directory viewer. The
-  // canAppeal affordance is likewise for the subject alone, within the window.
-  // The rules themselves are pure and unit-tested (canSeeAppeal/canFileAppealNow).
-  const isSubject = session.actor.email.toLowerCase() === admin.email.toLowerCase();
+  // appellant only (design) — never to an arbitrary directory viewer.
   const canManageAppeals = can(session.subject, "people.appeal.manage").allow;
   const filedAppeal =
     reviewCase === undefined ? undefined : await getAppealForCase(adminDb, reviewCase.id);
-  const appeal = canSeeAppeal({ isSubject, canManageAppeals }) ? filedAppeal : undefined;
+  const appeal = canSeeAppeal({ isSubject: isSubjectPerson, canManageAppeals })
+    ? filedAppeal
+    : undefined;
   const canAppeal = canFileAppealNow({
-    isSubject,
+    isSubject: isSubjectPerson,
     appealUntilMs: reviewCase?.appealUntil?.getTime(),
     nowMs: Date.now(),
     alreadyFiled: filedAppeal !== undefined,
@@ -233,6 +384,7 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     reviewParticipationOverride,
     inReviewCycle: participatesInReview(employmentType, reviewParticipationOverride),
     managers,
+    localManager,
     reviewCase:
       reviewCase === undefined
         ? undefined
@@ -266,24 +418,11 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
             createdAt: appeal.createdAt.toISOString(),
           },
     canAppeal,
-    selfReview:
-      selfReviewRow === undefined
-        ? undefined
-        : (selfReviewRow.payload as PersonDetail["selfReview"]),
-    selfReviewSubmittedAt: selfReviewRow?.submittedAt?.toISOString(),
-    assessment:
-      assessmentRow === undefined
-        ? undefined
-        : {
-            dims: assessmentRow.dims,
-            narrative: assessmentRow.narrative,
-            proposedRating: assessmentRow.proposedRating,
-            promoProposed: assessmentRow.promoProposed,
-            compRec: assessmentRow.compRec,
-            p6Acknowledged: assessmentRow.p6Acknowledged,
-            submittedAt: assessmentRow.submittedAt?.toISOString(),
-          },
     isSubject: isSubjectPerson,
+    managesSubject,
+    received,
+    givenAsManager,
+    givenAsPeer,
   };
 }
 
@@ -601,10 +740,14 @@ export async function peerPageHandler(): Promise<PeerPageView> {
   // actor — otherwise impersonation shows an empty "Requests for you" list.
   const effectiveEmail = session.subject.email.toLowerCase();
   const isReviewer = can(session.subject, "people.peer.request").allow;
+  const leadership = isLeadership(session.subject.roles);
 
-  const [forYou, admins] = await Promise.all([
+  const [forYou, admins, managed, myAttrs, myReviewCase] = await Promise.all([
     listPeerRequestsForRequestee(adminDb, effectiveEmail),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    managedEmailSets(adminDb, session.subject.id),
+    getEmployeeByEmail(adminDb, effectiveEmail),
+    getCaseBySubject(adminDb, effectiveEmail, REVIEW_CURRENT_CYCLE),
   ]);
   const nameByEmail = new Map(
     admins.map((admin) => [
@@ -613,6 +756,33 @@ export async function peerPageHandler(): Promise<PeerPageView> {
     ]),
   );
 
+  // The viewer's OWN case: status only, never content. The propose form yields
+  // once the manager has set (or approved) live requests.
+  const myEmploymentType = myAttrs?.employmentType ?? "employee";
+  const inReviewCycle = participatesInReview(
+    myEmploymentType,
+    myAttrs?.reviewParticipationOverride ?? null,
+  );
+  const myRequests =
+    myReviewCase === undefined ? [] : await listPeerRequestsForCase(adminDb, myReviewCase.id);
+  const hasManagerSet = myRequests.some((request) => request.status !== "proposed");
+  const myCaseOpenForPeers =
+    myReviewCase === undefined ||
+    (myReviewCase.decidedAt === undefined &&
+      (myReviewCase.state === "self_review" || myReviewCase.state === "peer_input"));
+  const myCase: MyPeerCaseView = {
+    caseId: myReviewCase?.id,
+    inReviewCycle,
+    canPropose: inReviewCycle && myCaseOpenForPeers && !hasManagerSet,
+    hasManagerSet,
+    requests: myRequests.map((request) => ({
+      requesteeEmail: request.requesteeEmail,
+      requesteeName: nameByEmail.get(request.requesteeEmail),
+      kind: request.kind,
+      status: request.status,
+    })),
+  };
+
   let cases: PeerCaseView[] = [];
   if (isReviewer) {
     const [allCases, orgNodes] = await Promise.all([
@@ -620,11 +790,14 @@ export async function peerPageHandler(): Promise<PeerPageView> {
       isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
     ]);
     const userIdByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin.userId]));
+    // Manager-graph scoping (improve-ux plan): a manager works their own
+    // reports' cases; leadership sees every case (never their own).
     const inScope = allCases.filter(
       (entry) =>
         !entry.decided &&
         (entry.state === "self_review" || entry.state === "peer_input") &&
-        entry.subjectEmail.toLowerCase() !== effectiveEmail,
+        entry.subjectEmail.toLowerCase() !== effectiveEmail &&
+        (leadership || managed.all.has(entry.subjectEmail.toLowerCase())),
     );
     cases = await Promise.all(
       inScope.map(async (entry) => {
@@ -668,6 +841,7 @@ export async function peerPageHandler(): Promise<PeerPageView> {
     })),
     isReviewer,
     cases,
+    myCase,
     directory: admins
       .filter((admin) => admin.active && admin.email.toLowerCase() !== effectiveEmail)
       .map((admin) => ({
@@ -675,6 +849,89 @@ export async function peerPageHandler(): Promise<PeerPageView> {
         name: `${admin.firstName} ${admin.lastName}`.trim(),
         title: admin.title,
       })),
+  };
+}
+
+// Staff propose peer reviewers for their OWN case; the manager approves. The
+// case auto-opens on first proposal (participation-gated in the DAL).
+export async function peerProposeHandler(input: PeerProposeInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.respond");
+  const adminDb = getDbAs("admin");
+  const email = session.subject.email.toLowerCase();
+  const reviewCase = await openCase(adminDb, email, REVIEW_CURRENT_CYCLE, auditContext(session));
+  await proposePeerRequests(
+    adminDb,
+    reviewCase.id,
+    session.actor.id,
+    input.requests.filter((request) => request.email.toLowerCase() !== email),
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+// Approve/reopen are the SUBJECT'S manager's calls (or leadership).
+async function assertManagesRequestSubject(
+  adminDb: ReturnType<typeof getDbAs>,
+  session: Awaited<ReturnType<typeof requireSession>>,
+  requestId: string,
+  action: string,
+): Promise<void> {
+  const request = await getPeerRequestById(adminDb, requestId);
+  if (request === undefined) {
+    throw new NotFoundError("peer request", requestId);
+  }
+  if (isLeadership(session.subject.roles)) {
+    return;
+  }
+  const managed = await managedEmailSets(adminDb, session.subject.id);
+  if (!managed.all.has(request.subjectEmail.toLowerCase())) {
+    throw new ForbiddenError(action, "not_subjects_manager");
+  }
+}
+
+export async function peerApproveHandler(input: {
+  readonly requestId: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.request");
+  const adminDb = getDbAs("admin");
+  await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
+  await approvePeerRequest(adminDb, input.requestId, auditContext(session));
+  return { ok: true };
+}
+
+export async function peerReopenHandler(input: {
+  readonly requestId: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.request");
+  const adminDb = getDbAs("admin");
+  await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
+  await reopenPeerRequest(adminDb, input.requestId, auditContext(session));
+  return { ok: true };
+}
+
+// The dedicated answer page's loader: requestee-only.
+export async function peerAnswerHandler(requestId: string): Promise<PeerAnswerView> {
+  const session = await requireSession("people.peer.respond");
+  const adminDb = getDbAs("admin");
+  const request = await getPeerRequestById(adminDb, requestId);
+  if (request === undefined) {
+    throw new NotFoundError("peer request", requestId);
+  }
+  if (request.requesteeEmail !== session.subject.email.toLowerCase()) {
+    throw new ForbiddenError("people.peer.respond", "not_addressed_to_you");
+  }
+  const admins = isInsideConfigured() ? await listAdminDirectory({ limit: 1000 }) : [];
+  const roster = admins.find(
+    (admin) => admin.email.toLowerCase() === request.subjectEmail.toLowerCase(),
+  );
+  return {
+    requestId: request.id,
+    subjectEmail: request.subjectEmail,
+    subjectName: roster === undefined ? undefined : `${roster.firstName} ${roster.lastName}`.trim(),
+    kind: request.kind,
+    status: request.status,
+    input: request.input,
+    submittedAt: request.submittedAt?.toISOString(),
   };
 }
 
@@ -735,31 +992,82 @@ export async function peerDeclineHandler(input: {
   return { ok: true };
 }
 
-// Assessment handlers (design M6). The reviewer's own case is excluded — no
-// one assesses themselves. Submitting writes the case rating (audited) so the
-// proposal lands in calibration.
-export async function assessListHandler(): Promise<readonly AssessCaseSummary[]> {
+// Assessment handlers (improve-ux plan): the list is the viewer's REPORTS —
+// direct (either line) first, then indirect — each with review-readiness
+// status. Leadership with no reports of their own falls back to the whole
+// roster (as indirect). No one assesses themselves.
+export async function assessListHandler(): Promise<readonly AssessReportRow[]> {
   const session = await requireSession("people.assessment.write");
   const adminDb = getDbAs("admin");
   const effectiveEmail = session.subject.email.toLowerCase();
-  const [cases, admins] = await Promise.all([
-    listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
+  const [admins, managed] = await Promise.all([
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    managedEmailSets(adminDb, session.subject.id),
   ]);
-  const nameByEmail = new Map(
-    admins.map((admin) => [
-      admin.email.toLowerCase(),
-      `${admin.firstName} ${admin.lastName}`.trim(),
-    ]),
+  const rosterByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin]));
+
+  let scope = [...managed.all].filter((email) => email !== effectiveEmail);
+  let directSet: ReadonlySet<string> = managed.direct;
+  if (scope.length === 0 && isLeadership(session.subject.roles)) {
+    scope = admins
+      .filter((admin) => admin.active)
+      .map((admin) => admin.email.toLowerCase())
+      .filter((email) => email !== effectiveEmail);
+    directSet = new Set<string>();
+  }
+
+  const rows = await Promise.all(
+    scope.map(async (email): Promise<AssessReportRow> => {
+      const roster = rosterByEmail.get(email);
+      const [attrs, reviewCase] = await Promise.all([
+        getEmployeeByEmail(adminDb, email),
+        getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE),
+      ]);
+      const [selfReview, peerRequests, assessment] =
+        reviewCase === undefined
+          ? [undefined, [] as const, undefined]
+          : await Promise.all([
+              getSelfReviewByCase(adminDb, reviewCase.id),
+              listPeerRequestsForCase(adminDb, reviewCase.id),
+              getAssessmentByCase(adminDb, reviewCase.id),
+            ]);
+      const employmentType = attrs?.employmentType ?? "employee";
+      const selfSubmitted = selfReview?.submittedAt !== undefined;
+      const peersPending = peerRequests.filter(
+        (request) => request.status === "pending" || request.status === "proposed",
+      ).length;
+      const peersSubmitted = peerRequests.filter(
+        (request) => request.status === "submitted",
+      ).length;
+      return {
+        email,
+        name: roster !== undefined ? `${roster.firstName} ${roster.lastName}`.trim() : email,
+        userId: roster?.userId,
+        title: roster?.title,
+        direct: directSet.has(email),
+        inReviewCycle: participatesInReview(
+          employmentType,
+          attrs?.reviewParticipationOverride ?? null,
+        ),
+        caseId: reviewCase?.id,
+        state: reviewCase?.state,
+        selfSubmitted,
+        peersPending,
+        peersSubmitted,
+        // Ready = evidence collection done: self-review submitted and no peer
+        // request still open. The manager can then start the assessment.
+        ready: reviewCase !== undefined && selfSubmitted && peersPending === 0,
+        assessmentSubmitted: assessment?.submittedAt !== undefined,
+      };
+    }),
   );
-  return cases
-    .filter((entry) => !entry.decided && entry.subjectEmail.toLowerCase() !== effectiveEmail)
-    .map((entry) => ({
-      caseId: entry.caseId,
-      subjectEmail: entry.subjectEmail,
-      subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
-      state: entry.state,
-    }));
+
+  return rows.sort((left, right) => {
+    if (left.direct !== right.direct) {
+      return left.direct ? -1 : 1;
+    }
+    return left.name.localeCompare(right.name);
+  });
 }
 
 export async function assessDetailHandler(caseId: string): Promise<AssessCaseDetail> {
@@ -769,30 +1077,52 @@ export async function assessDetailHandler(caseId: string): Promise<AssessCaseDet
   if (reviewCase === undefined) {
     throw new NotFoundError("review case", caseId);
   }
-  if (reviewCase.subjectEmail.toLowerCase() === session.subject.email.toLowerCase()) {
+  const subjectEmail = reviewCase.subjectEmail.toLowerCase();
+  if (subjectEmail === session.subject.email.toLowerCase()) {
     throw new ForbiddenError("people.assessment.write", "own_review");
   }
+  // Manager-graph gate: only the subject's managers (either line, any depth)
+  // and leadership may open the assessment.
+  const managed = await managedEmailSets(adminDb, session.subject.id);
+  const leadership = isLeadership(session.subject.roles);
+  if (!leadership && !managed.all.has(subjectEmail)) {
+    throw new ForbiddenError("people.assessment.write", "not_subjects_manager");
+  }
+
   const [attrs, selfReview, peerRequests, existing, admins] = await Promise.all([
-    getEmployeeByEmail(adminDb, reviewCase.subjectEmail.toLowerCase()),
+    getEmployeeByEmail(adminDb, subjectEmail),
     getSelfReviewByCase(adminDb, caseId),
     listPeerRequestsForCase(adminDb, caseId),
     getAssessmentByCase(adminDb, caseId),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
   ]);
-  const roster = admins.find(
-    (admin) => admin.email.toLowerCase() === reviewCase.subjectEmail.toLowerCase(),
+  const nameByEmail = new Map(
+    admins.map((admin) => [
+      admin.email.toLowerCase(),
+      `${admin.firstName} ${admin.lastName}`.trim(),
+    ]),
   );
   return {
     caseId,
     subjectEmail: reviewCase.subjectEmail,
-    subjectName: roster === undefined ? undefined : `${roster.firstName} ${roster.lastName}`.trim(),
+    subjectName: nameByEmail.get(subjectEmail),
     state: reviewCase.state,
     level: attrs?.level,
     path: attrs?.path,
+    direct: managed.direct.has(subjectEmail),
     selfReview: (selfReview?.payload ?? {}) as AssessCaseDetail["selfReview"],
     selfReviewSubmittedAt: selfReview?.submittedAt?.toISOString(),
     peerSubmitted: peerRequests.filter((request) => request.status === "submitted").length,
     peerDeclined: peerRequests.filter((request) => request.status === "declined").length,
+    peers: peerRequests
+      .filter((request) => request.status === "submitted")
+      .map((request) => ({
+        requesteeEmail: request.requesteeEmail,
+        requesteeName: nameByEmail.get(request.requesteeEmail),
+        kind: request.kind,
+        submittedAt: request.submittedAt?.toISOString(),
+        input: request.input,
+      })),
     priorRating: reviewCase.rating,
     assessment:
       existing === undefined
@@ -809,7 +1139,7 @@ export async function assessDetailHandler(caseId: string): Promise<AssessCaseDet
   };
 }
 
-const toDraft = (input: AssessmentSaveInput): AssessmentDraft => ({
+const toDraft = (input: AssessmentSaveInput, authorEmail: string): AssessmentDraft => ({
   dims: Object.fromEntries(
     Object.entries(input.dims).filter(([, value]) => value !== undefined),
   ) as AssessmentDraft["dims"],
@@ -819,18 +1149,29 @@ const toDraft = (input: AssessmentSaveInput): AssessmentDraft => ({
   promoProposed: input.promoProposed,
   compRec: input.compRec,
   p6Acknowledged: input.p6Acknowledged,
+  authorEmail,
 });
 
 export async function assessSaveHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
   const session = await requireSession("people.assessment.write");
-  await saveAssessment(getDbAs("admin"), input.caseId, toDraft(input), auditContext(session));
+  await saveAssessment(
+    getDbAs("admin"),
+    input.caseId,
+    toDraft(input, session.actor.email),
+    auditContext(session),
+  );
   return { ok: true };
 }
 
 export async function assessSubmitHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
   const session = await requireSession("people.assessment.write");
   const adminDb = getDbAs("admin");
-  await submitAssessment(adminDb, input.caseId, toDraft(input), auditContext(session));
+  await submitAssessment(
+    adminDb,
+    input.caseId,
+    toDraft(input, session.actor.email),
+    auditContext(session),
+  );
   if (input.proposedRating !== undefined) {
     await setCaseRating(
       adminDb,
@@ -1028,10 +1369,9 @@ export async function setBandHandler(input: SetBandInput): Promise<{ ok: true }>
   return { ok: true };
 }
 
-// The Overview surface (design): reviewers get stat tiles, the calibrated
-// rating distribution, and the needs-a-decision list; everyone gets their own
-// case status. One handler behind the directory-read gate, with the reviewer
-// extras keyed off the review-open policy.
+// The Overview surface: the cycle timeline + the viewer's own case status;
+// reviewers additionally get the calibrated rating distribution and the
+// needs-a-decision list. The stat tiles were dropped (improve-ux plan).
 export async function overviewHandler(): Promise<OverviewData> {
   const session = await requireSession("people.directory.read");
   const adminDb = getDbAs("admin");
@@ -1044,7 +1384,6 @@ export async function overviewHandler(): Promise<OverviewData> {
   ]);
 
   const distribution: Record<1 | 2 | 3 | 4, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  let delivered = 0;
   const needsDecision: OverviewData["needsDecision"][number][] = [];
   const byEmail = new Map(
     admins.map((admin) => [
@@ -1055,9 +1394,6 @@ export async function overviewHandler(): Promise<OverviewData> {
   for (const entry of cases) {
     if (entry.rating !== undefined) {
       distribution[entry.rating] += 1;
-    }
-    if (entry.decided) {
-      delivered += 1;
     }
     if ((entry.state === "calibration" || entry.state === "decision") && !entry.decided) {
       const roster = byEmail.get(entry.subjectEmail.toLowerCase());
@@ -1070,29 +1406,9 @@ export async function overviewHandler(): Promise<OverviewData> {
     }
   }
 
-  const openAppeals = isReviewer
-    ? (await listAppeals(adminDb)).filter((appeal) => appeal.status === "open").length
-    : 0;
-
   return {
     cycle: REVIEW_CURRENT_CYCLE,
     isReviewer,
-    stats: isReviewer
-      ? [
-          { label: "People in scope", value: String(admins.length), sub: "Albert Inside roster" },
-          {
-            label: "Review cases",
-            value: `${cases.length}/${admins.length || cases.length}`,
-            sub: `${cases.length - delivered} in progress`,
-          },
-          {
-            label: "Decisions delivered",
-            value: String(delivered),
-            sub: "dual founder sign-off",
-          },
-          { label: "Open appeals", value: String(openAppeals), sub: "30-day window" },
-        ]
-      : [],
     distribution,
     needsDecision,
     myCase:

@@ -264,7 +264,11 @@ export const EVALUATION_DIMENSION_LABELS: Record<EvaluationDimension, string> = 
 export const PEER_KINDS = ["lt", "team", "cross"] as const;
 export type PeerKind = (typeof PEER_KINDS)[number];
 
-export const PEER_REQUEST_STATUSES = ["pending", "submitted", "declined"] as const;
+// `proposed` = suggested by the SUBJECT for their own case, awaiting the
+// manager's approval (improve-ux plan: staff request peer inputs, reviewed by
+// the manager). Approval flips it to `pending`, which notifies the requestee.
+// Appended last to match pg's ALTER TYPE ADD VALUE ordering.
+export const PEER_REQUEST_STATUSES = ["pending", "submitted", "declined", "proposed"] as const;
 export type PeerRequestStatus = (typeof PEER_REQUEST_STATUSES)[number];
 
 // The peer-input gate (design M5): 2 cross-team submissions always; own-team
@@ -330,6 +334,7 @@ export type Assessment = {
   readonly promoProposed: boolean;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
+  readonly authorEmail: string | undefined;
   readonly submittedAt: Date | undefined;
 };
 

@@ -1,10 +1,10 @@
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { ConflictError } from "@agds-hr/shared";
 
-import { assessment } from "./db/schema.ts";
+import { assessment, reviewCase } from "./db/schema.ts";
 import {
   canSubmitAssessment,
   isReviewRating,
@@ -26,6 +26,7 @@ export type AssessmentDraft = {
   readonly promoProposed: boolean;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
+  readonly authorEmail: string;
 };
 
 const rowToAssessment = (row: {
@@ -36,6 +37,7 @@ const rowToAssessment = (row: {
   readonly promoProposed: boolean;
   readonly compRec: string;
   readonly p6Acknowledged: boolean;
+  readonly authorEmail: string | null;
   readonly submittedAt: Date | null;
 }): Assessment => ({
   caseId: row.caseId,
@@ -48,6 +50,7 @@ const rowToAssessment = (row: {
   promoProposed: row.promoProposed,
   compRec: row.compRec,
   p6Acknowledged: row.p6Acknowledged,
+  authorEmail: row.authorEmail ?? undefined,
   submittedAt: row.submittedAt ?? undefined,
 });
 
@@ -59,6 +62,7 @@ const SELECT = {
   promoProposed: assessment.promoProposed,
   compRec: assessment.compRec,
   p6Acknowledged: assessment.p6Acknowledged,
+  authorEmail: assessment.authorEmail,
   submittedAt: assessment.submittedAt,
 };
 
@@ -81,6 +85,7 @@ const draftColumns = (draft: AssessmentDraft) => ({
   promoProposed: draft.promoProposed,
   compRec: draft.compRec,
   p6Acknowledged: draft.p6Acknowledged,
+  authorEmail: draft.authorEmail.toLowerCase(),
 });
 
 export async function saveAssessment(
@@ -157,4 +162,32 @@ export async function submitAssessment(
       ...(context.ip ? { ip: context.ip } : {}),
     });
   });
+}
+
+// Assessments a person WROTE, newest first, with the case's subject and cycle —
+// the record page's "Given reviews · as manager" tab.
+export type AuthoredAssessment = Assessment & {
+  readonly subjectEmail: string;
+  readonly cyclePeriod: string;
+};
+
+export async function listAssessmentsByAuthor(
+  db: DrizzleExecutor,
+  authorEmail: string,
+): Promise<readonly AuthoredAssessment[]> {
+  const rows = await db
+    .select({
+      ...SELECT,
+      subjectEmail: reviewCase.subjectEmail,
+      cyclePeriod: reviewCase.cyclePeriod,
+    })
+    .from(assessment)
+    .innerJoin(reviewCase, eq(reviewCase.id, assessment.caseId))
+    .where(eq(assessment.authorEmail, authorEmail.toLowerCase()))
+    .orderBy(desc(assessment.updatedAt));
+  return rows.map((row) => ({
+    ...rowToAssessment(row),
+    subjectEmail: row.subjectEmail,
+    cyclePeriod: row.cyclePeriod,
+  }));
 }

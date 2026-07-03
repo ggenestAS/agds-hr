@@ -99,6 +99,26 @@ export type ReportingLineEdge = {
 
 const SYNCED_REPORTING_LINE_KINDS = [REPORTS_TO, LOCAL_REPORTS_TO] as const;
 
+// Every reporting edge of both kinds — the input to the pure manager-graph walk
+// (graph.ts managedUserIds). Small by construction (one row per person per line).
+export async function listReportingEdges(
+  db: DrizzleExecutor,
+): Promise<readonly ReportingLineEdge[]> {
+  const rows = await db
+    .select({
+      userId: userRelationship.userId,
+      relatedUserId: userRelationship.relatedUserId,
+      kind: userRelationship.kind,
+    })
+    .from(userRelationship)
+    .where(inArray(userRelationship.kind, [...SYNCED_REPORTING_LINE_KINDS]));
+  return rows.map((row) => ({
+    userId: UserId(row.userId),
+    managerUserId: UserId(row.relatedUserId),
+    kind: row.kind as ReportingLineEdge["kind"],
+  }));
+}
+
 // Replace Inside-sourced reporting lines wholesale. Inside is the source of
 // truth for both functional (`reports_to`) and local (`local_reports_to`) chains;
 // the sync deletes prior rows of those kinds before inserting the new set.

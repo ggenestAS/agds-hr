@@ -1,4 +1,4 @@
-import { and, count, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
@@ -73,6 +73,20 @@ export async function getCaseBySubject(
     .where(and(eq(reviewCase.subjectEmail, subjectEmail), eq(reviewCase.cyclePeriod, cyclePeriod)))
     .limit(1);
   return row === undefined ? undefined : rowToCase(row);
+}
+
+// Every cycle's case for one person, newest cycle first — the record page's
+// per-cycle grouping ("Received reviews").
+export async function listCasesBySubject(
+  db: DrizzleExecutor,
+  subjectEmail: string,
+): Promise<readonly ReviewCase[]> {
+  const rows = await db
+    .select(SELECT)
+    .from(reviewCase)
+    .where(eq(reviewCase.subjectEmail, subjectEmail))
+    .orderBy(desc(reviewCase.cyclePeriod));
+  return rows.map(rowToCase);
 }
 
 // Map of subjectEmail -> rating for a cycle, for the directory Rating column.

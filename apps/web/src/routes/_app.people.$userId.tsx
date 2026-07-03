@@ -18,6 +18,8 @@ import type {
   CareerLevel,
   CareerPath,
   EmploymentType,
+  EvaluationDimension,
+  PeerKind,
   ReviewParticipationOverride,
   ReviewState,
 } from "@agds-hr/people/types";
@@ -25,7 +27,13 @@ import { useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { Button } from "../components/ui/button.tsx";
-import type { CompView, PersonDetail } from "../server/people.shared.ts";
+import type {
+  AssessmentView,
+  CompView,
+  PersonDetail,
+  ReceivedCycleView,
+} from "../server/people.shared.ts";
+import { selfReviewEntries } from "../server/people.shared.ts";
 import {
   advanceReviewFn,
   compFn,
@@ -38,10 +46,11 @@ import {
 } from "../server/people.functions.ts";
 import { impersonateStartFn } from "../server/impersonation.functions.ts";
 
-// The employee record (design): dark hero + tabs — Evaluation (job
-// architecture, assessed dimensions), Review (state machine controls,
-// self-review, manager assessment, appeal), Compensation (audited reveal),
-// History (record & decision timeline).
+// The employee record (improve-ux plan): dark hero + three tabs —
+// Received reviews (per cycle: self, then peers, then manager — peers never
+// shown to the subject), Given reviews (as manager, as peer), and Info
+// (contract type, review participation, both managers, level/track, plus the
+// operational cards: case controls, compensation, appeal).
 export const Route = createFileRoute("/_app/people/$userId")({
   loader: ({ params }) => personDetailFn({ data: params.userId }),
   component: PersonDetailPage,
@@ -63,8 +72,13 @@ const APPEAL_CATEGORY_LABEL: Record<AppealCategory, string> = {
   band: "Band",
   exception: "Other",
 };
+const KIND_LABEL: Record<PeerKind, string> = {
+  lt: "LT peer",
+  team: "Own team",
+  cross: "Cross-team",
+};
 
-const TABS = ["Evaluation", "Review", "Compensation", "History"] as const;
+const TABS = ["Received reviews", "Given reviews", "Info"] as const;
 type Tab = (typeof TABS)[number];
 
 const initials = (name: string): string =>
@@ -86,10 +100,185 @@ const ratingChip = (rating: number | undefined, large = false) =>
     </span>
   ) : null;
 
+function AssessmentBlock({ assessment }: { assessment: AssessmentView }) {
+  return (
+    <div className="space-y-4 text-sm">
+      {assessment.narrative !== "" && (
+        <div className="border-l-2 border-ink-100 pl-4 leading-relaxed text-ink-700">
+          {assessment.narrative}
+        </div>
+      )}
+      <div className="space-y-3">
+        {EVALUATION_DIMENSIONS.map((dimension) => {
+          const entry = assessment.dims[dimension];
+          if (entry === undefined) {
+            return null;
+          }
+          return (
+            <div key={dimension}>
+              <div className="mb-1 flex items-baseline justify-between">
+                <span className="text-[13px] font-semibold">
+                  {EVALUATION_DIMENSION_LABELS[dimension]}
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {isReviewRating(entry.score)
+                    ? `${entry.score} · ${REVIEW_RATING_LABELS[entry.score]}`
+                    : "—"}
+                </span>
+              </div>
+              {entry.narrative !== "" && (
+                <p className="text-xs leading-relaxed text-muted-foreground">{entry.narrative}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
+        <span>
+          Proposed rating:{" "}
+          <strong className="text-foreground">
+            {assessment.proposedRating !== undefined && isReviewRating(assessment.proposedRating)
+              ? REVIEW_RATING_LABELS[assessment.proposedRating]
+              : "—"}
+          </strong>
+        </span>
+        <span>
+          Promotion:{" "}
+          <strong className="text-foreground">
+            {assessment.promoProposed ? "proposed" : "at level"}
+          </strong>
+        </span>
+        {assessment.compRec !== "" && (
+          <span>
+            Comp: <strong className="text-foreground">{assessment.compRec}</strong>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PeerInputBlock({
+  input,
+}: {
+  input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+}) {
+  return (
+    <div className="space-y-2.5">
+      {EVALUATION_DIMENSIONS.filter((dimension) => (input[dimension] ?? "") !== "").map(
+        (dimension) => (
+          <div key={dimension}>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              {EVALUATION_DIMENSION_LABELS[dimension]}
+            </p>
+            <p className="text-[13px] leading-relaxed text-ink-700">{input[dimension]}</p>
+          </div>
+        ),
+      )}
+    </div>
+  );
+}
+
+function ReceivedCycle({
+  block,
+  defaultOpen,
+  isSubject,
+}: {
+  block: ReceivedCycleView;
+  defaultOpen: boolean;
+  isSubject: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const selfEntries = block.self === undefined ? [] : selfReviewEntries(block.self.payload);
+  return (
+    <Card className="overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-3 px-6 py-4 text-left"
+      >
+        <span className="font-display text-base font-semibold">Cycle {block.cycle}</span>
+        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-accent-dk)]">
+          {STATE_LABEL[block.state]}
+        </span>
+        {block.rating !== undefined && isReviewRating(block.rating) && (
+          <span className="rounded-full bg-ink-900 px-2.5 py-0.5 text-[11px] font-bold text-white">
+            {REVIEW_RATING_LABELS[block.rating]}
+          </span>
+        )}
+        <span className="ml-auto text-xs text-muted-foreground">{open ? "Hide −" : "Show +"}</span>
+      </button>
+
+      {open && (
+        <CardContent className="space-y-5 border-t border-border pt-5 text-sm">
+          {/* 1. self */}
+          <div>
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+              Self-review
+              {block.self !== undefined && block.self.submittedAt === undefined && " · draft"}
+            </p>
+            {block.self === undefined || selfEntries.length === 0 ? (
+              <p className="text-muted-foreground">
+                {block.self === undefined ? "No self-review yet." : "No content yet."}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {selfEntries.map((entry) => (
+                  <div key={entry.label}>
+                    <p className="text-[12px] font-semibold">{entry.label}</p>
+                    <p className="text-[13px] leading-relaxed text-ink-700">{entry.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 2. peers — never rendered for the subject */}
+          {!isSubject && (
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+                Peer input · named, not shown to the subject
+              </p>
+              {block.peers === undefined ? (
+                <p className="text-muted-foreground">Visible to the subject's managers only.</p>
+              ) : block.peers.length === 0 ? (
+                <p className="text-muted-foreground">No submitted peer input.</p>
+              ) : (
+                <div className="space-y-4">
+                  {block.peers.map((peer) => (
+                    <div key={peer.requesteeEmail}>
+                      <p className="mb-1.5 text-xs font-semibold text-muted-foreground">
+                        From {peer.requesteeName ?? peer.requesteeEmail} · {KIND_LABEL[peer.kind]}
+                      </p>
+                      <PeerInputBlock input={peer.input} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. manager */}
+          <div className="border-t border-border pt-4">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+              Manager assessment
+            </p>
+            {block.assessment === undefined ? (
+              <p className="text-muted-foreground">No assessment yet.</p>
+            ) : (
+              <AssessmentBlock assessment={block.assessment} />
+            )}
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 function PersonDetailPage() {
   const person: PersonDetail = Route.useLoaderData();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("Evaluation");
+  const [tab, setTab] = useState<Tab>("Received reviews");
   const [level, setLevel] = useState<CareerLevel>(person.level ?? "L1");
   const [path, setPath] = useState<CareerPath>(person.path ?? "ic");
   const [employmentType, setEmploymentType] = useState<EmploymentType>(person.employmentType);
@@ -100,6 +289,7 @@ function PersonDetailPage() {
   const [comp, setComp] = useState<CompView | null>(null);
   const [appealCategory, setAppealCategory] = useState<AppealCategory>("rating");
   const [appealStatement, setAppealStatement] = useState("");
+  const [openGiven, setOpenGiven] = useState<string | null>(null);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -111,23 +301,14 @@ function PersonDetailPage() {
     }
   };
 
-  const visibleTabs = TABS.filter((entry) => entry !== "Compensation" || person.canViewComp);
   const reviewCase = person.reviewCase;
-  const selfEntries: readonly { label: string; value: string }[] =
-    person.selfReview === undefined
-      ? []
-      : [
-          { label: "Objective 1 · result", value: person.selfReview.o1_result ?? "" },
-          { label: "Objective 2 · result", value: person.selfReview.o2_result ?? "" },
-          { label: "Objective 3 · result", value: person.selfReview.o3_result ?? "" },
-          { label: "Objective 4 · result", value: person.selfReview.o4_result ?? "" },
-          { label: "Objective 5 · result", value: person.selfReview.o5_result ?? "" },
-          { label: "Objective 6 · result", value: person.selfReview.o6_result ?? "" },
-          { label: "Most proud of", value: person.selfReview.d_proud ?? "" },
-          { label: "Fell short", value: person.selfReview.d_short ?? "" },
-          { label: "Feedback received", value: person.selfReview.d_feedback ?? "" },
-          { label: "Support needed", value: person.selfReview.e_support ?? "" },
-        ].filter((entry) => entry.value !== "");
+  const canSeeReceived = person.isSubject || person.managesSubject;
+  const givenCycles = [
+    ...new Set([
+      ...person.givenAsManager.map((entry) => entry.cycle),
+      ...person.givenAsPeer.map((entry) => entry.cycle),
+    ]),
+  ].sort((left, right) => right.localeCompare(left));
 
   return (
     <div className="mx-auto max-w-4xl p-6">
@@ -162,15 +343,11 @@ function PersonDetailPage() {
                 : "Level unassigned"}
             </span>
             {person.employmentType !== "employee" && (
-              <span>
-                {EMPLOYMENT_TYPE_LABELS[person.employmentType]}
-                {!person.inReviewCycle && " · outside the review cycle"}
-                {!isSalaryBandApplicable(person.employmentType) && " · outside salary bands"}
-              </span>
+              <span>{EMPLOYMENT_TYPE_LABELS[person.employmentType]}</span>
             )}
             {person.country !== undefined && <span>{person.country}</span>}
-            {person.managers[0] !== undefined && <span>Reports to {person.managers[0].name}</span>}
-            {person.campus !== undefined && <span>{person.campus}</span>}
+            {person.managers[0] !== undefined && <span>Functional: {person.managers[0].name}</span>}
+            {person.localManager !== undefined && <span>Local: {person.localManager.name}</span>}
           </div>
         </div>
         {person.canImpersonate && (
@@ -181,8 +358,6 @@ function PersonDetailPage() {
               setBusy(true);
               void impersonateStartFn({ data: { email: person.email } })
                 .then(() => {
-                  // Full navigation: the whole app must re-resolve the session
-                  // as the impersonated subject.
                   window.location.assign("/dashboard");
                 })
                 .catch(() => setBusy(false));
@@ -197,7 +372,7 @@ function PersonDetailPage() {
 
       {/* tabs */}
       <div className="mb-6 mt-5 flex gap-6 border-b border-border">
-        {visibleTabs.map((entry) => (
+        {TABS.map((entry) => (
           <button
             key={entry}
             type="button"
@@ -213,237 +388,392 @@ function PersonDetailPage() {
         ))}
       </div>
 
-      {tab === "Evaluation" && (
-        <div className="grid items-start gap-5 lg:grid-cols-[1fr_1.35fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Job architecture</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Four levels · two paths. Neither path is superior.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-2.5 text-sm">
-              {CAREER_LEVELS.map((entry) => {
-                const meta = CAREER_LEVEL_META[entry];
-                const active = entry === person.level;
-                return (
-                  <div
-                    key={entry}
-                    className={
-                      active
-                        ? "flex items-center gap-3 rounded-xl border border-ink-900 bg-cream px-3.5 py-2.5"
-                        : "flex items-center gap-3 rounded-xl border border-border/60 px-3.5 py-2.5"
-                    }
-                  >
-                    <span
-                      className={
-                        active
-                          ? "flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-xs font-bold text-white"
-                          : "flex size-8 shrink-0 items-center justify-center rounded-lg bg-bone text-xs font-bold text-ink-300"
-                      }
-                    >
-                      {entry}
-                    </span>
-                    <span>
-                      <span
-                        className={
-                          active
-                            ? "block text-[13.5px] font-bold"
-                            : "block text-[13.5px] font-bold text-ink-500"
-                        }
-                      >
-                        {meta.name}
-                      </span>
-                      <span className="block font-serif text-[13px] italic text-muted-foreground">
-                        {meta.test}
-                      </span>
-                    </span>
-                  </div>
-                );
-              })}
-
-              {person.canEditAttrs && (
-                <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
-                  <label className="text-xs">
-                    Level
-                    <select
-                      value={level}
-                      onChange={(event) => setLevel(event.target.value as CareerLevel)}
-                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
-                    >
-                      {CAREER_LEVELS.map((value) => (
-                        <option key={value} value={value}>
-                          {value} · {CAREER_LEVEL_META[value].name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs">
-                    Path
-                    <select
-                      value={path}
-                      onChange={(event) => setPath(event.target.value as CareerPath)}
-                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
-                    >
-                      {CAREER_PATHS.map((value) => (
-                        <option key={value} value={value}>
-                          {PATH_LABEL[value]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs">
-                    Employment
-                    <select
-                      value={employmentType}
-                      onChange={(event) => setEmploymentType(event.target.value as EmploymentType)}
-                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
-                    >
-                      {EMPLOYMENT_TYPES.map((value) => (
-                        <option key={value} value={value}>
-                          {EMPLOYMENT_TYPE_LABELS[value]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="text-xs">
-                    Review participation
-                    <select
-                      value={reviewOverride ?? ""}
-                      onChange={(event) =>
-                        setReviewOverride(
-                          event.target.value === ""
-                            ? null
-                            : (event.target.value as ReviewParticipationOverride),
-                        )
-                      }
-                      className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
-                    >
-                      <option value="">Type default</option>
-                      {REVIEW_PARTICIPATION_OVERRIDES.map((value) => (
-                        <option key={value} value={value}>
-                          {value === "included" ? "Included" : "Excluded"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => {
-                      void run(() =>
-                        setEmployeeAttrsFn({
-                          data: {
-                            email: person.email,
-                            level,
-                            path,
-                            employmentType,
-                            reviewParticipationOverride: reviewOverride,
-                          },
-                        }),
-                      );
-                    }}
-                  >
-                    Save
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex flex-col gap-5">
+      {tab === "Received reviews" && (
+        <div className="flex flex-col gap-4">
+          {!canSeeReceived ? (
             <Card>
-              <CardHeader>
-                <div className="flex items-baseline justify-between">
-                  <CardTitle>Evaluation dimensions</CardTitle>
-                  <span className="text-xs text-muted-foreground">Rated 1–4 against level</span>
-                </div>
-              </CardHeader>
-              <CardContent className="text-sm">
-                {person.assessment === undefined ? (
-                  <p className="text-muted-foreground">
-                    The five shared dimensions are scored in the manager assessment — nothing on
-                    record yet
-                    {!person.canReview && " (visible to reviewers once assessed)"}.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {EVALUATION_DIMENSIONS.map((dimension) => {
-                      const entry = person.assessment?.dims[dimension];
-                      return (
-                        <div key={dimension}>
-                          <div className="mb-1.5 flex items-baseline justify-between">
-                            <span className="text-sm font-semibold">
-                              {EVALUATION_DIMENSION_LABELS[dimension]}
-                            </span>
-                            <span className="text-xs font-semibold text-muted-foreground">
-                              {entry !== undefined && isReviewRating(entry.score)
-                                ? `${entry.score} · ${REVIEW_RATING_LABELS[entry.score]}`
-                                : "—"}
-                            </span>
-                          </div>
-                          <div className="flex gap-1.5">
-                            {[1, 2, 3, 4].map((pip) => (
-                              <span
-                                key={pip}
-                                className={
-                                  entry !== undefined && pip <= entry.score
-                                    ? "h-1.5 flex-1 rounded-sm bg-ink-900"
-                                    : "h-1.5 flex-1 rounded-sm bg-bone"
-                                }
-                              />
-                            ))}
-                          </div>
-                          {entry !== undefined && entry.narrative !== "" && (
-                            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                              {entry.narrative}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Reviews are visible to {person.name.split(" ")[0]}, their managers (either reporting
+                line), and leadership.
               </CardContent>
             </Card>
-
+          ) : person.received.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle>Reports to</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm">
-                {person.managers.length === 0 ? (
-                  <span className="text-muted-foreground">No manager on record.</span>
-                ) : (
-                  <ol className="space-y-1">
-                    {person.managers.map((manager, index) => (
-                      <li key={manager.userId} className="flex items-baseline gap-2">
-                        <span className="text-xs tabular-nums text-muted-foreground">
-                          {index + 1}.
-                        </span>
-                        <Link
-                          to="/people/$userId"
-                          params={{ userId: manager.userId }}
-                          className="font-medium hover:text-[var(--color-accent)]"
-                        >
-                          {manager.name}
-                        </Link>
-                        {manager.title !== undefined && (
-                          <span className="text-xs text-muted-foreground">{manager.title}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                )}
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                No review cycles on record yet.
               </CardContent>
             </Card>
-          </div>
+          ) : (
+            person.received.map((block, index) => (
+              <ReceivedCycle
+                key={block.cycle}
+                block={block}
+                defaultOpen={index === 0}
+                isSubject={person.isSubject}
+              />
+            ))
+          )}
         </div>
       )}
 
-      {tab === "Review" && (
+      {tab === "Given reviews" && (
+        <div className="flex flex-col gap-4">
+          {givenCycles.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                Nothing visible here — reviews {person.name.split(" ")[0]} gave appear once
+                submitted, and only for subjects you're allowed to see.
+              </CardContent>
+            </Card>
+          ) : (
+            givenCycles.map((cycle) => {
+              const asManager = person.givenAsManager.filter((entry) => entry.cycle === cycle);
+              const asPeer = person.givenAsPeer.filter((entry) => entry.cycle === cycle);
+              return (
+                <Card key={cycle} className="overflow-hidden">
+                  <div className="flex items-center gap-3 border-b border-border bg-cream px-6 py-3.5">
+                    <span className="font-display text-base font-semibold">Cycle {cycle}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {asManager.length} as manager · {asPeer.length} as peer
+                    </span>
+                  </div>
+                  <CardContent className="space-y-5 pt-5 text-sm">
+                    {asManager.length > 0 && (
+                      <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+                          Given as manager
+                        </p>
+                        <div className="space-y-3">
+                          {asManager.map((entry) => (
+                            <div
+                              key={`${entry.cycle}-${entry.subjectEmail}`}
+                              className="rounded-[14px] border border-border p-4"
+                            >
+                              <div className="mb-1.5 flex flex-wrap items-center gap-2.5">
+                                {entry.subjectUserId !== undefined ? (
+                                  <Link
+                                    to="/people/$userId"
+                                    params={{ userId: entry.subjectUserId }}
+                                    className="text-[13.5px] font-bold hover:text-[var(--color-accent)]"
+                                  >
+                                    {entry.subjectName ?? entry.subjectEmail}
+                                  </Link>
+                                ) : (
+                                  <span className="text-[13.5px] font-bold">
+                                    {entry.subjectName ?? entry.subjectEmail}
+                                  </span>
+                                )}
+                                {entry.proposedRating !== undefined &&
+                                  isReviewRating(entry.proposedRating) && (
+                                    <span className="rounded-full bg-bone px-2.5 py-0.5 text-[10.5px] font-bold text-ink-700">
+                                      proposed {REVIEW_RATING_LABELS[entry.proposedRating]}
+                                    </span>
+                                  )}
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {entry.submittedAt !== undefined
+                                    ? `submitted ${new Date(entry.submittedAt).toLocaleDateString()}`
+                                    : "draft"}
+                                </span>
+                              </div>
+                              {entry.narrative !== undefined && (
+                                <p className="text-[13px] leading-relaxed text-ink-700">
+                                  {entry.narrative}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {asPeer.length > 0 && (
+                      <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+                          Given as peer
+                        </p>
+                        <div className="space-y-3">
+                          {asPeer.map((entry) => {
+                            const key = `${entry.cycle}-${entry.subjectEmail}`;
+                            const expanded = openGiven === key;
+                            return (
+                              <div key={key} className="rounded-[14px] border border-border p-4">
+                                <div className="flex flex-wrap items-center gap-2.5">
+                                  {entry.subjectUserId !== undefined ? (
+                                    <Link
+                                      to="/people/$userId"
+                                      params={{ userId: entry.subjectUserId }}
+                                      className="text-[13.5px] font-bold hover:text-[var(--color-accent)]"
+                                    >
+                                      {entry.subjectName ?? entry.subjectEmail}
+                                    </Link>
+                                  ) : (
+                                    <span className="text-[13.5px] font-bold">
+                                      {entry.subjectName ?? entry.subjectEmail}
+                                    </span>
+                                  )}
+                                  <span className="rounded-full bg-bone px-2 py-0.5 text-[10.5px] font-bold text-ink-700">
+                                    {KIND_LABEL[entry.kind]}
+                                  </span>
+                                  <span
+                                    className={
+                                      entry.status === "submitted"
+                                        ? "rounded-full bg-[#e4f1e9] px-2 py-0.5 text-[10.5px] font-bold text-[#1e7a46]"
+                                        : "rounded-full bg-bone px-2 py-0.5 text-[10.5px] font-bold text-ink-500"
+                                    }
+                                  >
+                                    {entry.status}
+                                  </span>
+                                  {entry.input !== undefined && (
+                                    <button
+                                      type="button"
+                                      className="ml-auto text-xs font-medium text-muted-foreground underline hover:text-foreground"
+                                      onClick={() => setOpenGiven(expanded ? null : key)}
+                                    >
+                                      {expanded ? "Hide content" : "Show content"}
+                                    </button>
+                                  )}
+                                </div>
+                                {expanded && entry.input !== undefined && (
+                                  <div className="mt-3 border-t border-border pt-3">
+                                    <PeerInputBlock input={entry.input} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {tab === "Info" && (
         <div className="flex flex-col gap-5">
+          <div className="grid items-start gap-5 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Level & path</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {person.level !== undefined ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-ink-900 bg-cream px-3.5 py-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-xs font-bold text-white">
+                      {person.level}
+                    </span>
+                    <span>
+                      <span className="block text-[13.5px] font-bold">
+                        {CAREER_LEVEL_META[person.level].name}
+                        {person.path !== undefined && (
+                          <span className="font-medium text-muted-foreground">
+                            {" "}
+                            · {PATH_LABEL[person.path]}
+                          </span>
+                        )}
+                      </span>
+                      <span className="block font-serif text-[13px] italic text-muted-foreground">
+                        {CAREER_LEVEL_META[person.level].test}
+                      </span>
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Level unassigned.</p>
+                )}
+
+                <div className="space-y-1.5 border-t border-border pt-3 text-[13px]">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Contract type</span>
+                    <span className="font-semibold">
+                      {EMPLOYMENT_TYPE_LABELS[person.employmentType]}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">In the review cycle</span>
+                    <span className="font-semibold">
+                      {person.inReviewCycle ? "Yes" : "No"}
+                      {person.reviewParticipationOverride !== null &&
+                        ` (explicit ${person.reviewParticipationOverride})`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Salary bands</span>
+                    <span className="font-semibold">
+                      {isSalaryBandApplicable(person.employmentType)
+                        ? "Band-governed"
+                        : "Outside bands"}
+                    </span>
+                  </div>
+                  {person.campus !== undefined && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Campus</span>
+                      <span className="font-semibold">{person.campus}</span>
+                    </div>
+                  )}
+                  {person.country !== undefined && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Country</span>
+                      <span className="font-semibold">{person.country}</span>
+                    </div>
+                  )}
+                </div>
+
+                {person.canEditAttrs && (
+                  <div className="flex flex-wrap items-end gap-2 border-t border-border pt-4">
+                    <label className="text-xs">
+                      Level
+                      <select
+                        value={level}
+                        onChange={(event) => setLevel(event.target.value as CareerLevel)}
+                        className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                      >
+                        {CAREER_LEVELS.map((value) => (
+                          <option key={value} value={value}>
+                            {value} · {CAREER_LEVEL_META[value].name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs">
+                      Path
+                      <select
+                        value={path}
+                        onChange={(event) => setPath(event.target.value as CareerPath)}
+                        className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                      >
+                        {CAREER_PATHS.map((value) => (
+                          <option key={value} value={value}>
+                            {PATH_LABEL[value]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs">
+                      Employment
+                      <select
+                        value={employmentType}
+                        onChange={(event) =>
+                          setEmploymentType(event.target.value as EmploymentType)
+                        }
+                        className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                      >
+                        {EMPLOYMENT_TYPES.map((value) => (
+                          <option key={value} value={value}>
+                            {EMPLOYMENT_TYPE_LABELS[value]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs">
+                      Review participation
+                      <select
+                        value={reviewOverride ?? ""}
+                        onChange={(event) =>
+                          setReviewOverride(
+                            event.target.value === ""
+                              ? null
+                              : (event.target.value as ReviewParticipationOverride),
+                          )
+                        }
+                        className="mt-1 block rounded-[10px] border border-border bg-card px-2 py-1"
+                      >
+                        <option value="">Type default</option>
+                        {REVIEW_PARTICIPATION_OVERRIDES.map((value) => (
+                          <option key={value} value={value}>
+                            {value === "included" ? "Included" : "Excluded"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => {
+                        void run(() =>
+                          setEmployeeAttrsFn({
+                            data: {
+                              email: person.email,
+                              level,
+                              path,
+                              employmentType,
+                              reviewParticipationOverride: reviewOverride,
+                            },
+                          }),
+                        );
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Managers</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Both reporting lines, from Albert Inside.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div>
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Local manager
+                  </p>
+                  {person.localManager === undefined ? (
+                    <span className="text-muted-foreground">None on record.</span>
+                  ) : (
+                    <Link
+                      to="/people/$userId"
+                      params={{ userId: person.localManager.userId }}
+                      className="font-medium hover:text-[var(--color-accent)]"
+                    >
+                      {person.localManager.name}
+                      {person.localManager.title !== undefined && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {person.localManager.title}
+                        </span>
+                      )}
+                    </Link>
+                  )}
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                    Functional chain
+                  </p>
+                  {person.managers.length === 0 ? (
+                    <span className="text-muted-foreground">No manager on record.</span>
+                  ) : (
+                    <ol className="space-y-1">
+                      {person.managers.map((manager, index) => (
+                        <li key={manager.userId} className="flex items-baseline gap-2">
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {index + 1}.
+                          </span>
+                          <Link
+                            to="/people/$userId"
+                            params={{ userId: manager.userId }}
+                            className="font-medium hover:text-[var(--color-accent)]"
+                          >
+                            {manager.name}
+                          </Link>
+                          {manager.title !== undefined && (
+                            <span className="text-xs text-muted-foreground">{manager.title}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Annual review · 2026</CardTitle>
@@ -578,96 +908,88 @@ function PersonDetailPage() {
             </CardContent>
           </Card>
 
-          <div className="grid items-start gap-5 lg:grid-cols-2">
+          {person.canViewComp && (
             <Card>
               <CardHeader>
-                <div className="flex items-center gap-2.5">
-                  <CardTitle>Self-review</CardTitle>
-                  <span className="rounded-full bg-bone px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-500">
-                    Input, not the rating
-                  </span>
-                </div>
+                <CardTitle>Compensation</CardTitle>
               </CardHeader>
-              <CardContent className="text-sm">
-                {person.selfReview === undefined || selfEntries.length === 0 ? (
-                  <p className="text-muted-foreground">
-                    {person.selfReview === undefined
-                      ? "Not visible, or no self-review on record."
-                      : "The self-review has no content yet."}
+              <CardContent className="space-y-3 text-sm">
+                {!isSalaryBandApplicable(person.employmentType) && (
+                  <p className="rounded-[10px] bg-cream px-3 py-2 text-xs text-muted-foreground">
+                    Outside salary bands — {EMPLOYMENT_TYPE_LABELS[person.employmentType]} contracts
+                    are not band-governed.
                   </p>
-                ) : (
-                  <div className="space-y-3.5">
-                    {person.selfReviewSubmittedAt === undefined && (
-                      <p className="text-xs text-muted-foreground">Draft — not yet submitted.</p>
-                    )}
-                    {selfEntries.map((entry) => (
-                      <div key={entry.label}>
-                        <p className="mb-0.5 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
-                          {entry.label}
-                        </p>
-                        <p className="leading-relaxed text-ink-700">{entry.value}</p>
-                      </div>
-                    ))}
+                )}
+                {reviewCase === undefined ? (
+                  <span className="text-muted-foreground">
+                    Compensation is recorded against the review case — none for this cycle yet.
+                  </span>
+                ) : comp === null ? (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Compensation is confidential — opening it is recorded in the audit trail.
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        const caseId = reviewCase.id;
+                        setBusy(true);
+                        void compFn({ data: { caseId } })
+                          .then((view) => setComp(view))
+                          .finally(() => setBusy(false));
+                      }}
+                    >
+                      View compensation
+                    </Button>
                   </div>
+                ) : comp.recommendation === undefined ? (
+                  <span className="text-muted-foreground">No compensation recommendation yet.</span>
+                ) : (
+                  <>
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums sm:grid-cols-4">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Current base</dt>
+                        <dd className="font-semibold">
+                          €{comp.recommendation.currentBaseEur.toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Increase</dt>
+                        <dd className="font-semibold">
+                          €{comp.recommendation.increaseEur.toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Bonus</dt>
+                        <dd className="font-semibold">
+                          €{comp.recommendation.bonusEur.toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">New base</dt>
+                        <dd className="font-semibold">
+                          €{comp.recommendation.newBaseEur.toLocaleString()}
+                        </dd>
+                      </div>
+                    </dl>
+                    {comp.recommendation.rationale !== undefined && (
+                      <div className="border-t border-border pt-3">
+                        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
+                          Decision rationale
+                        </p>
+                        <p className="leading-relaxed text-ink-700">
+                          {comp.recommendation.rationale}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
-
-            <div className="flex flex-col gap-5">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Manager assessment</CardTitle>
-                  <p className="text-sm text-muted-foreground">Evidence-based</p>
-                </CardHeader>
-                <CardContent className="text-sm">
-                  {person.assessment === undefined ? (
-                    <p className="text-muted-foreground">
-                      {person.canReview
-                        ? "No assessment on record yet — write it from the Assessment surface."
-                        : "Visible to reviewers."}
-                    </p>
-                  ) : (
-                    <div className="border-l-2 border-ink-100 pl-4 leading-relaxed text-ink-700">
-                      {person.assessment.narrative !== ""
-                        ? person.assessment.narrative
-                        : "No overall narrative yet."}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {person.assessment !== undefined && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Proposal to calibration</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between border-b border-border pb-3">
-                      <span className="text-muted-foreground">Performance rating</span>
-                      <span className="font-semibold">
-                        {person.assessment.proposedRating !== undefined &&
-                        isReviewRating(person.assessment.proposedRating)
-                          ? REVIEW_RATING_LABELS[person.assessment.proposedRating]
-                          : "—"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between border-b border-border pb-3">
-                      <span className="text-muted-foreground">Promotion readiness</span>
-                      <span className="font-semibold">
-                        {person.assessment.promoProposed ? "Promotion proposed" : "At level"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Compensation recommendation</span>
-                      <span className="font-semibold">
-                        {person.assessment.compRec !== "" ? person.assessment.compRec : "—"}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
+          )}
 
           {(person.appeal !== undefined || person.canAppeal) && (
             <Card>
@@ -761,176 +1083,6 @@ function PersonDetailPage() {
             </Card>
           )}
         </div>
-      )}
-
-      {tab === "Compensation" && person.canViewComp && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Compensation</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {!isSalaryBandApplicable(person.employmentType) && (
-              <p className="rounded-[10px] bg-cream px-3 py-2 text-xs text-muted-foreground">
-                Outside salary bands — {EMPLOYMENT_TYPE_LABELS[person.employmentType]} contracts are
-                not band-governed.
-              </p>
-            )}
-            {reviewCase === undefined ? (
-              <span className="text-muted-foreground">
-                Compensation is recorded against the review case — none for this cycle yet.
-              </span>
-            ) : comp === null ? (
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  Compensation is confidential — opening it is recorded in the audit trail.
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    const caseId = reviewCase.id;
-                    setBusy(true);
-                    void compFn({ data: { caseId } })
-                      .then((view) => setComp(view))
-                      .finally(() => setBusy(false));
-                  }}
-                >
-                  View compensation
-                </Button>
-              </div>
-            ) : comp.recommendation === undefined ? (
-              <span className="text-muted-foreground">No compensation recommendation yet.</span>
-            ) : (
-              <>
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums sm:grid-cols-4">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Current base</dt>
-                    <dd className="font-semibold">
-                      €{comp.recommendation.currentBaseEur.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Increase</dt>
-                    <dd className="font-semibold">
-                      €{comp.recommendation.increaseEur.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Bonus</dt>
-                    <dd className="font-semibold">
-                      €{comp.recommendation.bonusEur.toLocaleString()}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">New base</dt>
-                    <dd className="font-semibold">
-                      €{comp.recommendation.newBaseEur.toLocaleString()}
-                    </dd>
-                  </div>
-                </dl>
-                {comp.recommendation.rationale !== undefined && (
-                  <div className="border-t border-border pt-3">
-                    <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.1em] text-[var(--color-accent)]">
-                      Decision rationale
-                    </p>
-                    <p className="leading-relaxed text-ink-700">{comp.recommendation.rationale}</p>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {tab === "History" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Record & decision history</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            {(() => {
-              const events: { date: string; title: string; detail: string }[] = [];
-              if (person.appeal !== undefined && person.appeal.status === "resolved") {
-                events.push({
-                  date: person.appeal.createdAt,
-                  title: "Appeal resolved",
-                  detail: person.appeal.resolution ?? "",
-                });
-              }
-              if (person.appeal !== undefined) {
-                events.push({
-                  date: person.appeal.createdAt,
-                  title: `Appeal filed · ${APPEAL_CATEGORY_LABEL[person.appeal.category]}`,
-                  detail: "Visible to HR Admins and the appellant only.",
-                });
-              }
-              if (reviewCase?.decidedAt !== undefined) {
-                events.push({
-                  date: reviewCase.decidedAt,
-                  title: "Decision delivered",
-                  detail: `Dual founder sign-off complete${reviewCase.p6Triggered ? " · P6 improvement plan triggered" : ""}. Appeal window until ${
-                    reviewCase.appealUntil !== undefined
-                      ? new Date(reviewCase.appealUntil).toLocaleDateString()
-                      : "—"
-                  }.`,
-                });
-              }
-              if (person.selfReviewSubmittedAt !== undefined) {
-                events.push({
-                  date: person.selfReviewSubmittedAt,
-                  title: "Self-review submitted",
-                  detail: "Input, not the rating.",
-                });
-              }
-              if (events.length === 0) {
-                return (
-                  <p className="text-muted-foreground">
-                    Nothing on record yet for the 2026 cycle
-                    {reviewCase !== undefined &&
-                      ` — the case is at ${STATE_LABEL[reviewCase.state]}`}
-                    .
-                  </p>
-                );
-              }
-              return (
-                <div className="flex flex-col">
-                  {events.map((event, index) => (
-                    <div key={`${event.title}-${index}`} className="flex items-start gap-4">
-                      <span className="flex flex-col items-center self-stretch">
-                        <span
-                          className={
-                            index === 0
-                              ? "mt-1 size-2.5 shrink-0 rounded-full bg-[var(--color-accent)]"
-                              : "mt-1 size-2.5 shrink-0 rounded-full bg-[#1e3a8a]"
-                          }
-                        />
-                        {index < events.length - 1 && (
-                          <span
-                            className="w-0.5 flex-1 bg-[#e9e4da]"
-                            style={{ minHeight: "26px" }}
-                          />
-                        )}
-                      </span>
-                      <div className="pb-5">
-                        <p className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {new Date(event.date).toLocaleDateString()}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold">{event.title}</p>
-                        {event.detail !== "" && (
-                          <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">
-                            {event.detail}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </CardContent>
-        </Card>
       )}
     </div>
   );

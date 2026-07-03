@@ -273,6 +273,10 @@ export const assessment = peopleSchema.table(
     promoProposed: boolean("promo_proposed").notNull().default(false),
     compRec: text("comp_rec").notNull().default(""),
     p6Acknowledged: boolean("p6_acknowledged").notNull().default(false),
+    // Who wrote it (email, like every people-domain subject key) — drives the
+    // record page's "Given reviews · as manager" tab. Nullable for rows that
+    // predate the column.
+    authorEmail: text("author_email"),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

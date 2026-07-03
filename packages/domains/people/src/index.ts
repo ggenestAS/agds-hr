@@ -75,14 +75,23 @@ export {
   saveSelfReview,
   submitSelfReview,
 } from "./self-review.ts";
-export type { AssessmentDraft } from "./assessment.ts";
-export { getAssessmentByCase, saveAssessment, submitAssessment } from "./assessment.ts";
+export type { AssessmentDraft, AuthoredAssessment } from "./assessment.ts";
+export {
+  getAssessmentByCase,
+  listAssessmentsByAuthor,
+  saveAssessment,
+  submitAssessment,
+} from "./assessment.ts";
 export type { PeerRequestForRequestee } from "./peer-input.ts";
 export {
+  approvePeerRequest,
   createPeerRequests,
   declinePeerRequest,
+  getPeerRequestById,
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
+  proposePeerRequests,
+  reopenPeerRequest,
   submitPeerInput,
 } from "./peer-input.ts";
 export { PEER_CROSS_QUOTA, isPeerQuotaMet, ownTeamPeerQuota, peerInputQuota } from "./types.ts";
@@ -109,6 +118,7 @@ export {
   getCaseById,
   getCaseBySubject,
   getSignoffs,
+  listCasesBySubject,
   listCasesForCycle,
   listRatingsForCycle,
   openCase,

@@ -140,6 +140,58 @@ export type ManagerRef = {
   readonly title: string | undefined;
 };
 
+// Received reviews, one block per cycle (improve-ux plan). Visibility is
+// manager-graph-scoped: the SUBJECT sees their self-review and the manager
+// assessment of themselves but NEVER peer input; someone who manages the
+// subject (either reporting line, any depth) and leadership see everything.
+// `peers: undefined` = not visible to this viewer; `[]` = visible, none yet.
+export type ReceivedPeerView = {
+  readonly requesteeEmail: string;
+  readonly requesteeName: string | undefined;
+  readonly kind: PeerKind;
+  readonly submittedAt: string | undefined;
+  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+};
+
+export type ReceivedCycleView = {
+  readonly cycle: string;
+  readonly state: ReviewState;
+  readonly rating: number | undefined;
+  readonly decidedAt: string | undefined;
+  readonly self:
+    | {
+        readonly payload: Readonly<Partial<Record<SelfReviewKey, string>>>;
+        readonly submittedAt: string | undefined;
+      }
+    | undefined;
+  readonly peers: readonly ReceivedPeerView[] | undefined;
+  readonly assessment: AssessmentView | undefined;
+};
+
+// Reviews this person GAVE. Content is per-item gated: visible when the viewer
+// is the author themself, manages that item's subject, or is leadership — and
+// never when the viewer IS that item's subject.
+export type GivenAsManagerView = {
+  readonly cycle: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly subjectUserId: string | undefined;
+  readonly submittedAt: string | undefined;
+  readonly proposedRating: number | undefined;
+  readonly narrative: string | undefined;
+};
+
+export type GivenAsPeerView = {
+  readonly cycle: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly subjectUserId: string | undefined;
+  readonly kind: PeerKind;
+  readonly status: PeerRequestStatus;
+  readonly submittedAt: string | undefined;
+  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>> | undefined;
+};
+
 export type PersonDetail = {
   readonly userId: string;
   readonly name: string;
@@ -156,7 +208,10 @@ export type PersonDetail = {
   readonly employmentType: EmploymentType;
   readonly reviewParticipationOverride: ReviewParticipationOverride | null;
   readonly inReviewCycle: boolean;
+  // Both reporting lines (improve-ux plan): the functional chain and the
+  // direct local manager.
   readonly managers: readonly ManagerRef[];
+  readonly localManager: ManagerRef | undefined;
   readonly reviewCase: ReviewCaseView | undefined;
   readonly canEditAttrs: boolean;
   readonly canReview: boolean;
@@ -166,12 +221,11 @@ export type PersonDetail = {
   readonly canImpersonate: boolean;
   readonly appeal: AppealView | undefined;
   readonly canAppeal: boolean;
-  // The record tabs (design): the subject's self-review is visible to the
-  // subject + reviewers; the manager assessment to reviewers only.
-  readonly selfReview: Readonly<Partial<Record<SelfReviewKey, string>>> | undefined;
-  readonly selfReviewSubmittedAt: string | undefined;
-  readonly assessment: AssessmentView | undefined;
   readonly isSubject: boolean;
+  readonly managesSubject: boolean;
+  readonly received: readonly ReceivedCycleView[];
+  readonly givenAsManager: readonly GivenAsManagerView[];
+  readonly givenAsPeer: readonly GivenAsPeerView[];
 };
 
 // The Salary bands surface (design): France-reference bands per role family &
@@ -358,6 +412,43 @@ export const SELF_REVIEW_KPI_ROWS = [
   reading: SelfReviewKey;
 }[];
 
+// Ordered, labeled projection of a self-review payload for read surfaces
+// (person record, assessment). Empty fields drop out.
+export function selfReviewEntries(
+  payload: Readonly<Partial<Record<SelfReviewKey, string>>>,
+): readonly { readonly label: string; readonly value: string }[] {
+  const entries: { label: string; value: string }[] = [];
+  const push = (label: string, key: SelfReviewKey) => {
+    const value = (payload[key] ?? "").trim();
+    if (value !== "") {
+      entries.push({ label, value });
+    }
+  };
+  SELF_REVIEW_OBJECTIVE_ROWS.forEach((row, index) => {
+    push(`Objective ${index + 1}`, row.obj);
+    push(`Objective ${index + 1} · on target`, row.target);
+    push(`Objective ${index + 1} · result`, row.result);
+  });
+  SELF_REVIEW_KPI_ROWS.forEach((row, index) => {
+    push(`KPI ${index + 1}`, row.name);
+    push(`KPI ${index + 1} · target`, row.target);
+    push(`KPI ${index + 1} · actual`, row.actual);
+    push(`KPI ${index + 1} · reading`, row.reading);
+  });
+  push("Context on the year", "c_context");
+  push("Most proud of", "d_proud");
+  push("Fell short", "d_short");
+  push("Feedback received", "d_feedback");
+  push("Made others effective", "d_others");
+  push("Skills to build", "e_skills");
+  push("Scope to take on", "e_scope");
+  push("Role direction", "e_direction");
+  push("Support needed", "e_support");
+  push("Compensation fairness", "f_fair");
+  push("Suggested peer reviewers", "sr_peers");
+  return entries;
+}
+
 export const selfReviewPayloadSchema = z.object({
   payload: z.partialRecord(z.enum(SELF_REVIEW_KEYS), z.string().max(4000)),
 });
@@ -535,6 +626,29 @@ export const peerDeclineSchema = z.object({
   reason: z.string().min(1).max(1000),
 });
 
+// Staff propose requestees for their OWN case (server resolves the case from
+// the session; proposals await manager approval).
+export const peerProposeSchema = z.object({
+  requests: z
+    .array(z.object({ email: z.string().email(), kind: z.enum(PEER_KINDS) }))
+    .min(1)
+    .max(20),
+});
+export type PeerProposeInput = z.infer<typeof peerProposeSchema>;
+
+export const peerRequestIdSchema = z.object({ requestId: z.string().min(1) });
+
+// The dedicated answer page (requestee-only).
+export type PeerAnswerView = {
+  readonly requestId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly kind: PeerKind;
+  readonly status: PeerRequestStatus;
+  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly submittedAt: string | undefined;
+};
+
 export type PeerRequestView = {
   readonly id: string;
   readonly requesteeEmail: string;
@@ -559,6 +673,23 @@ export type PeerCaseView = {
   readonly peerSuggestions: string | undefined;
 };
 
+// The viewer's OWN case on the peer page (improve-ux plan): status only — a
+// subject never sees peer-input content about themselves. `hasManagerSet` =
+// the manager already created/approved live requests, so the propose form
+// yields to a plain status list.
+export type MyPeerCaseView = {
+  readonly caseId: string | undefined;
+  readonly inReviewCycle: boolean;
+  readonly canPropose: boolean;
+  readonly hasManagerSet: boolean;
+  readonly requests: readonly {
+    readonly requesteeEmail: string;
+    readonly requesteeName: string | undefined;
+    readonly kind: PeerKind;
+    readonly status: PeerRequestStatus;
+  }[];
+};
+
 export type PeerPageView = {
   readonly requestsForYou: readonly {
     readonly id: string;
@@ -570,6 +701,7 @@ export type PeerPageView = {
   }[];
   readonly isReviewer: boolean;
   readonly cases: readonly PeerCaseView[];
+  readonly myCase: MyPeerCaseView;
   readonly directory: readonly {
     readonly email: string;
     readonly name: string;
@@ -619,19 +751,34 @@ export type AssessCaseDetail = {
   readonly state: ReviewState;
   readonly level: CareerLevel | undefined;
   readonly path: CareerPath | undefined;
+  readonly direct: boolean;
   readonly selfReview: Readonly<Partial<Record<SelfReviewKey, string>>>;
   readonly selfReviewSubmittedAt: string | undefined;
   readonly peerSubmitted: number;
   readonly peerDeclined: number;
+  readonly peers: readonly ReceivedPeerView[];
   readonly priorRating: number | undefined;
   readonly assessment: AssessmentView | undefined;
 };
 
-export type AssessCaseSummary = {
-  readonly caseId: string;
-  readonly subjectEmail: string;
-  readonly subjectName: string | undefined;
-  readonly state: ReviewState;
+// One row per person the viewer manages (improve-ux plan): direct reports
+// (either line) first, then indirect, each with review-readiness status. The
+// assessment starts only when self-review is submitted and no peer request is
+// still pending.
+export type AssessReportRow = {
+  readonly email: string;
+  readonly name: string;
+  readonly userId: string | undefined;
+  readonly title: string | undefined;
+  readonly direct: boolean;
+  readonly inReviewCycle: boolean;
+  readonly caseId: string | undefined;
+  readonly state: ReviewState | undefined;
+  readonly selfSubmitted: boolean;
+  readonly peersPending: number;
+  readonly peersSubmitted: number;
+  readonly ready: boolean;
+  readonly assessmentSubmitted: boolean;
 };
 
 // Decision & sign-off (design M8): both founders must sign — two distinct,
@@ -686,16 +833,12 @@ export type DecisionDoc = {
   readonly effectiveDate: string | undefined;
 };
 
-// The Overview surface (design): stat tiles + rating distribution + attention
-// list for reviewers; everyone gets the cycle timeline and their own status.
+// The Overview surface: rating distribution + attention list for reviewers;
+// everyone gets the cycle timeline and their own status (stat tiles dropped —
+// improve-ux plan).
 export type OverviewData = {
   readonly cycle: string;
   readonly isReviewer: boolean;
-  readonly stats: readonly {
-    readonly label: string;
-    readonly value: string;
-    readonly sub: string;
-  }[];
   readonly distribution: Readonly<Record<1 | 2 | 3 | 4, number>>;
   readonly needsDecision: readonly {
     readonly subjectEmail: string;

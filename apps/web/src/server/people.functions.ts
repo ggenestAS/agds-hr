@@ -7,7 +7,9 @@ import {
   fileAppealSchema,
   openReviewSchema,
   peerDeclineSchema,
+  peerProposeSchema,
   peerRequestCreateSchema,
+  peerRequestIdSchema,
   peerSubmitSchema,
   resolveAppealSchema,
   selfReviewPayloadSchema,
@@ -179,6 +181,34 @@ export const peerDeclineFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { peerDeclineHandler } = await import("./people.impl.server.ts");
     return peerDeclineHandler(data);
+  });
+
+export const peerProposeFn = createServerFn({ method: "POST" })
+  .validator(peerProposeSchema)
+  .handler(async ({ data }) => {
+    const { peerProposeHandler } = await import("./people.impl.server.ts");
+    return peerProposeHandler(data);
+  });
+
+export const peerApproveFn = createServerFn({ method: "POST" })
+  .validator(peerRequestIdSchema)
+  .handler(async ({ data }) => {
+    const { peerApproveHandler } = await import("./people.impl.server.ts");
+    return peerApproveHandler(data);
+  });
+
+export const peerReopenFn = createServerFn({ method: "POST" })
+  .validator(peerRequestIdSchema)
+  .handler(async ({ data }) => {
+    const { peerReopenHandler } = await import("./people.impl.server.ts");
+    return peerReopenHandler(data);
+  });
+
+export const peerAnswerFn = createServerFn({ method: "GET" })
+  .validator((requestId: string) => requestId)
+  .handler(async ({ data }) => {
+    const { peerAnswerHandler } = await import("./people.impl.server.ts");
+    return peerAnswerHandler(data);
   });
 
 export const assessListFn = createServerFn({ method: "GET" }).handler(async () => {

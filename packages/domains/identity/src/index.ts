@@ -6,6 +6,7 @@ export {
   ensureUserByEmail,
   grantRole,
   hydrateUser,
+  listReportingEdges,
   listUsers,
   reactivateUser,
   readActiveImpersonation,
@@ -14,6 +15,8 @@ export {
   stopImpersonation,
   syncReportingLines,
 } from "./dal.ts";
+export type { ManagedSets, ManagerEdge } from "./graph.ts";
+export { managedUserIds } from "./graph.ts";
 export {
   canDeactivateUser,
   canGrantRole,
