@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 
 import { EnvMissingError } from "@agds-hr/env";
 
-import { __resetDbForTests, getDbAs } from "./client.ts";
+import { __resetDbForTests, getDbAs, runWithRequestDbScope } from "./client.ts";
 
 const FAKE_ENV = {
   DATABASE_URL: "postgres://app_role:x@localhost:5432/agds_hr",
@@ -35,5 +35,20 @@ describe("getDbAs", () => {
     const first = getDbAs("app", FAKE_ENV);
     await __resetDbForTests();
     expect(getDbAs("app", FAKE_ENV)).not.toBe(first);
+  });
+
+  // Workers cannot reuse sockets across requests, so each request scope must
+  // get its own client — and never see (or pollute) the process-level memo.
+  test("runWithRequestDbScope isolates clients per scope", () => {
+    const processDb = getDbAs("app", FAKE_ENV);
+    const scopedA = runWithRequestDbScope(() => {
+      const db = getDbAs("app", FAKE_ENV);
+      expect(getDbAs("app", FAKE_ENV)).toBe(db);
+      return db;
+    });
+    const scopedB = runWithRequestDbScope(() => getDbAs("app", FAKE_ENV));
+    expect(scopedA).not.toBe(processDb);
+    expect(scopedA).not.toBe(scopedB);
+    expect(getDbAs("app", FAKE_ENV)).toBe(processDb);
   });
 });

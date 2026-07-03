@@ -39,10 +39,14 @@ Everything is `bun run <alias>` from the repo root. Directory roles:
 
 ### Toolchain
 
-| Alias          | What it does                                            |
-| -------------- | ------------------------------------------------------- |
-| `lint`         | `oxlint --type-aware --type-check` over the tree        |
-| `lint:staged`  | oxlint over staged files + 1-hop reverse import closure |
-| `format`       | `oxfmt` over the tree                                   |
-| `format:check` | `oxfmt --check`                                         |
-| `knip`         | Dead-code report (advisory, not gated)                  |
+| Alias          | What it does                                                                 |
+| -------------- | ---------------------------------------------------------------------------- |
+| `build`        | Production build of `@agds-hr/web` (Cloudflare Worker; requires Node ≥22.12) |
+| `deploy`       | Build + `wrangler deploy` to Cloudflare Workers                              |
+| `deploy:prod`  | Sync secrets from `.env`, build, deploy to `hr.albertschool.com`             |
+| `preview`      | Local preview of the production Worker bundle                                |
+| `lint`         | `oxlint --type-aware --type-check` over the tree                             |
+| `lint:staged`  | oxlint over staged files + 1-hop reverse import closure                      |
+| `format`       | `oxfmt` over the tree                                                        |
+| `format:check` | `oxfmt --check`                                                              |
+| `knip`         | Dead-code report (advisory, not gated)                                       |

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CAREER_LEVEL_META, REVIEW_RATING_LABELS, isReviewRating } from "@agds-hr/people/types";
 
+import { StackedRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { CalibrationSummary } from "../server/people.shared.ts";
 import { calibrationFn } from "../server/people.functions.ts";
@@ -9,6 +10,7 @@ import { calibrationFn } from "../server/people.functions.ts";
 // stays rare — and the cases flagged for a CEO/COO decision.
 export const Route = createFileRoute("/_app/calibration")({
   loader: () => calibrationFn(),
+  pendingComponent: () => <StackedRoutePending width="3xl" />,
   component: Calibration,
 });
 
@@ -22,7 +24,7 @@ function Calibration() {
   return (
     <div className="mx-auto max-w-3xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Calibration
+        Review cycle
       </p>
       <div className="flex items-baseline justify-between">
         <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">
@@ -33,8 +35,8 @@ function Calibration() {
         </span>
       </div>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
-        Compare people at the same level and similar scope. Challenge inflated or harsh ratings;
-        reduce bias from visibility, tenure, or proximity to leadership. Final sign-off: CEO & COO.
+        Compare ratings across people at the same level and similar scope, and correct for bias
+        before decisions are made. The CEO and COO give the final sign-off.
       </p>
 
       <Card className="mt-6">

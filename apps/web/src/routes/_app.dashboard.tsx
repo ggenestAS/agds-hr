@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { REVIEW_RATING_LABELS } from "@agds-hr/people/types";
 import type { ReviewState } from "@agds-hr/people/types";
 
+import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { OverviewData } from "../server/people.shared.ts";
 import { overviewFn } from "../server/people.functions.ts";
@@ -11,6 +12,7 @@ import { overviewFn } from "../server/people.functions.ts";
 // everyone sees the cycle timeline and their own review status.
 export const Route = createFileRoute("/_app/dashboard")({
   loader: () => overviewFn(),
+  pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
   component: Overview,
 });
 

@@ -1,12 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import {
-  CAREER_LEVEL_META,
-  EMPLOYMENT_TYPE_LABELS,
-  REVIEW_RATING_LABELS,
-  isReviewRating,
-} from "@agds-hr/people/types";
+import { CAREER_LEVEL_META, EMPLOYMENT_TYPE_LABELS } from "@agds-hr/people/types";
 
+import { TableRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent } from "../components/ui/card.tsx";
 import type { DirectoryEntry } from "../server/people.shared.ts";
 import { listDirectoryFn } from "../server/people.functions.ts";
@@ -16,6 +12,7 @@ import { listDirectoryFn } from "../server/people.functions.ts";
 // chips; level shown with the design's ladder names; rating as a chip.
 export const Route = createFileRoute("/_app/people/")({
   loader: () => listDirectoryFn(),
+  pendingComponent: () => <TableRoutePending width="5xl" columns={5} />,
   component: People,
 });
 
@@ -87,7 +84,6 @@ function People() {
                   <th className="px-5 py-3.5 font-semibold">Country</th>
                   <th className="px-5 py-3.5 font-semibold">Functional manager</th>
                   <th className="px-5 py-3.5 font-semibold">Local manager</th>
-                  <th className="px-5 py-3.5 font-semibold">Rating</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,21 +133,6 @@ function People() {
                     </td>
                     <td className="px-5 py-3.5">{row.functionalManagerName ?? "—"}</td>
                     <td className="px-5 py-3.5">{row.localManagerName ?? "—"}</td>
-                    <td className="px-5 py-3.5">
-                      {row.rating !== undefined && isReviewRating(row.rating) ? (
-                        <span
-                          className={
-                            row.rating >= 3
-                              ? "rounded-full bg-ink-900 px-2.5 py-0.5 text-[11px] font-bold text-white"
-                              : "rounded-full bg-coral px-2.5 py-0.5 text-[11px] font-bold text-[#5a2018]"
-                          }
-                        >
-                          {REVIEW_RATING_LABELS[row.rating]}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

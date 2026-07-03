@@ -1,0 +1,29 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "agds-hr",
+  "compatibility_date": "2026-07-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "src/server.ts",
+  "observability": {
+    "enabled": true,
+  },
+  // The app makes several sequential DB round trips per request; run near the
+  // database (Neon eu-central-1) instead of near the user.
+  "placement": { "mode": "smart" },
+  // Edge connection pools per db role — clients are created per request
+  // (Workers forbid cross-request sockets), Hyperdrive absorbs the handshake.
+  // Caching disabled: the OAuth flow reads auth.verification immediately after
+  // writing it. worker-env.ts maps each binding onto its DATABASE_URL* var.
+  "hyperdrive": [
+    { "binding": "HYPERDRIVE_APP", "id": "35637592ea3d47fc8adac278f87de238" },
+    { "binding": "HYPERDRIVE_ADMIN", "id": "8ecce1600a0948a3bfedf4616fe938a6" },
+    { "binding": "HYPERDRIVE_READONLY", "id": "c36e3f55d46a471f8477f8c8dfa924a2" },
+    { "binding": "HYPERDRIVE_WEBHOOK", "id": "f148957e0f514d80b20b9d3065e3cf85" },
+  ],
+  "routes": [
+    {
+      "pattern": "hr.albertschool.com",
+      "custom_domain": true,
+    },
+  ],
+}

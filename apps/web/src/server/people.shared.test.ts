@@ -134,15 +134,13 @@ describe("selfReviewSubmitIssues", () => {
 
 describe("formatSelfReviewRole", () => {
   test("joins title, level meta, and path", () => {
-    expect(
-      formatSelfReviewRole({ title: "Head of Ops", level: "L3", path: "manager" }),
-    ).toBe("Head of Ops · L3 · Lead · Management");
+    expect(formatSelfReviewRole({ title: "Head of Ops", level: "L3", path: "manager" })).toBe(
+      "Head of Ops · L3 · Lead · Management",
+    );
   });
 
   test("returns em dash when nothing is assigned", () => {
-    expect(formatSelfReviewRole({ title: undefined, level: undefined, path: undefined })).toBe(
-      "—",
-    );
+    expect(formatSelfReviewRole({ title: undefined, level: undefined, path: undefined })).toBe("—");
   });
 });
 

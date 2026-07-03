@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { REVIEW_RATING_LABELS, isReviewRating } from "@agds-hr/people/types";
 
+import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { CompView, SignPageView, SignQueueEntry } from "../server/people.shared.ts";
@@ -12,6 +13,7 @@ import { compFn, signDecisionFn, signQueueFn } from "../server/people.functions.
 // Delivery starts the 30-day appeal clock; ratings 1–2 auto-trigger P6.
 export const Route = createFileRoute("/_app/sign-off")({
   loader: () => signQueueFn(),
+  pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
   component: SignOffPage,
 });
 
@@ -60,12 +62,12 @@ function SignOffPage() {
   return (
     <div className="mx-auto max-w-5xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Dual sign-off · P3
+        Review cycle
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Decision & sign-off</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
-        Both founders must sign off — two distinct, authenticated confirmations — before a decision
-        summary can be generated. Delivering the summary starts the employee's 30-day appeal clock.
+        Every decision needs sign-off from both founders before the summary can be delivered. Once
+        delivered, the employee has 30 days to appeal.
       </p>
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[1.1fr_0.9fr]">
@@ -129,8 +131,8 @@ function SignOffPage() {
             </div>
           )}
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            Click a case to preview its decision summary. Ratings of 1–2 auto-trigger a P6
-            improvement plan on delivery.
+            Select a case to preview its decision summary. Ratings of 1–2 automatically start an
+            improvement plan when the decision is delivered.
           </p>
         </div>
 
@@ -228,7 +230,7 @@ function SignOffPage() {
                       <p className="mt-1 text-[12.5px] text-ink-700">
                         The subject may appeal until{" "}
                         <strong>{new Date(selected.appealUntil).toLocaleDateString()}</strong>.
-                        {selected.p6Triggered && " A P6 improvement plan was auto-triggered."}
+                        {selected.p6Triggered && " An improvement plan was started automatically."}
                       </p>
                     )}
                   </>

@@ -18,7 +18,7 @@ function Landing() {
           Albert People
         </h1>
         <p className="mt-4 text-[var(--muted-foreground)]">
-          Performance, calibration, compensation, and appeals — the audit trail is the product.
+          Performance reviews, calibration, compensation, and appeals for Albert School.
         </p>
         <span className="mt-8 inline-block h-1 w-16 rounded-full bg-[var(--primary)]" />
       </div>

@@ -3,6 +3,7 @@ import { APPEAL_CATEGORIES } from "@agds-hr/people/types";
 import type { AppealCategory } from "@agds-hr/people/types";
 import { useState } from "react";
 
+import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { Button } from "../components/ui/button.tsx";
 import type { AppealsPageView, AppealView } from "../server/people.shared.ts";
@@ -14,6 +15,7 @@ import { appealsPageFn, fileAppealFn, resolveAppealFn } from "../server/people.f
 // additionally see the open/resolved queue and resolve with a written response.
 export const Route = createFileRoute("/_app/appeals")({
   loader: () => appealsPageFn(),
+  pendingComponent: () => <TwoColumnRoutePending width="4xl" />,
   component: Appeals,
 });
 
@@ -76,12 +78,12 @@ function Appeals() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Fairness route · P4
+        Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Appeals</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
-        Anyone may appeal a decision within 30 days of delivery. Appeals are visible only to HR
-        Admins and the appellant — and are structurally excluded from any future performance view.
+        You can appeal a decision within 30 days of receiving it. Appeals are visible only to you
+        and HR admins, and they never feed into future performance reviews.
       </p>
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[1.1fr_0.9fr]">

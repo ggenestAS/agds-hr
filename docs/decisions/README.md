@@ -14,3 +14,4 @@ of every ADR is a status banner: `Status: frozen` or
 | 2026-07-02 | [Auth, identity, session, and the policy engine](./2026-07-02-auth-identity-session-and-policy.md)     | frozen |
 | 2026-07-02 | [People domain model](./2026-07-02-people-domain-model.md)                                             | frozen |
 | 2026-07-03 | [Employment types and review participation](./2026-07-03-employment-types-and-review-participation.md) | frozen |
+| 2026-07-03 | [Cloudflare Workers hosting](./2026-07-03-cloudflare-hosting.md)                                       | frozen |

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MERIT_MATRIX_BP, REVIEW_RATING_LABELS, REVIEW_RATINGS } from "@agds-hr/people/types";
 import type { BandThird } from "@agds-hr/people/types";
 
+import { TableRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { bandsFn } from "../server/people.functions.ts";
 
@@ -10,6 +11,7 @@ import { bandsFn } from "../server/people.functions.ts";
 // loader enforces the people.comp.read gate (the matrix is internal config).
 export const Route = createFileRoute("/_app/compensation")({
   loader: () => bandsFn(),
+  pendingComponent: () => <TableRoutePending width="4xl" columns={4} />,
   component: Compensation,
 });
 
@@ -34,7 +36,7 @@ function Compensation() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Merit & principles
+        Compensation
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Compensation</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
@@ -90,7 +92,7 @@ function Compensation() {
             </tbody>
           </table>
           <p className="mt-3 text-xs text-muted-foreground">
-            A rating of 1 gets an improvement plan (P6), not a raise. Values are placeholder config
+            A rating of 1 leads to an improvement plan, not a raise. Values are placeholder config
             pending Albert's final matrix.
           </p>
         </CardContent>

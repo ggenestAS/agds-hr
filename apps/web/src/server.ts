@@ -1,21 +1,28 @@
-import { createStartHandler, defaultStreamHandler } from "@tanstack/react-start/server";
+import handler from "@tanstack/react-start/server-entry";
 
 import { getAuth } from "@agds-hr/auth";
+import { runWithRequestDbScope } from "@agds-hr/db";
 
-// Custom server entry. BetterAuth owns /api/auth/* via its catch-all handler;
-// everything else falls through to the TanStack Start handler. This is how the
-// auth routes are mounted in this Start version — it has no createServerFileRoute
-// (docs/new-project-directives.md §6.1). getAuth() is lazy, so importing this
-// entry costs nothing until a request actually hits the auth path. The entry
-// exports the Web-standard { fetch } shape the runtime invokes.
-const startHandler = createStartHandler(defaultStreamHandler);
+import { applyWorkerEnv } from "./lib/worker-env.ts";
 
+// Custom Worker entry — BetterAuth owns /api/auth/*; everything else uses the
+// TanStack Start handler. wrangler.jsonc must set main to src/server.ts (not the
+// default server-entry) or auth routes 404 in production.
+//
+// runWithRequestDbScope: Workers forbid reusing sockets across requests, so db
+// clients (and the BetterAuth instance built on them) must be created fresh per
+// request — a module-level memo would hand later requests dead connections
+// ("Failed query" on every warm-isolate request).
 export default {
-  fetch(request: Request): Response | Promise<Response> {
-    const { pathname } = new URL(request.url);
-    if (pathname.startsWith("/api/auth/")) {
-      return getAuth().handler(request);
-    }
-    return startHandler(request);
+  fetch(request: Request, env: unknown): Response | Promise<Response> {
+    applyWorkerEnv(env);
+
+    return runWithRequestDbScope(() => {
+      const { pathname } = new URL(request.url);
+      if (pathname.startsWith("/api/auth/")) {
+        return getAuth().handler(request);
+      }
+      return handler.fetch(request);
+    });
   },
 };

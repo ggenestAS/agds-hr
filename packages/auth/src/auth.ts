@@ -18,18 +18,17 @@ export function isWorkspaceDomainAllowed(hd: string | null | undefined): boolean
 
 // Origins allowed to initiate auth (CSRF boundary). Hardcoded like the domain
 // allow-list — the code is the system of record. baseURL (BETTER_AUTH_URL) is
-// trusted implicitly; these cover local dev, Render, and the custom domain.
-const TRUSTED_ORIGINS = [
-  "http://localhost:5173",
-  "https://agds-hr.onrender.com",
-  "https://hr.albertschool.com",
-] as const;
+// trusted implicitly; these cover local dev and production custom domain.
+// Cloudflare *.workers.dev preview hostnames are covered via BETTER_AUTH_URL
+// per environment — see docs/decisions/2026-07-03-cloudflare-hosting.md.
+const TRUSTED_ORIGINS = ["http://localhost:5173", "https://hr.albertschool.com"] as const;
 
 type BuildConfig = {
   readonly secret: string;
   readonly baseURL: string | undefined;
   readonly googleId: string | undefined;
   readonly googleSecret: string | undefined;
+  readonly adminDb: ReturnType<typeof getDbAs>;
 };
 
 function buildAuth(config: BuildConfig) {
@@ -38,7 +37,7 @@ function buildAuth(config: BuildConfig) {
     trustedOrigins: [...TRUSTED_ORIGINS],
     ...(config.baseURL !== undefined ? { baseURL: config.baseURL } : {}),
     // BetterAuth runs on the admin connection; it owns the auth schema.
-    database: drizzleAdapter(getDbAs("admin"), { provider: "pg", schema: authDbSchema }),
+    database: drizzleAdapter(config.adminDb, { provider: "pg", schema: authDbSchema }),
     advanced: { database: { generateId: () => crypto.randomUUID() } },
     // SSO-only: no credentials, no self-service sign-up.
     emailAndPassword: { enabled: false },
@@ -92,12 +91,17 @@ function buildAuth(config: BuildConfig) {
   });
 }
 
-// Lazily built and cached so type-only importers pay no env/DB cost and nothing
-// fails at import (§6.1). Nothing connects until first call.
+// Lazily built so type-only importers pay no env/DB cost and nothing fails at
+// import (§6.1). The memo is keyed on the admin db instance, not module-level:
+// on Cloudflare Workers getDbAs returns a fresh request-scoped db per request
+// (sockets cannot cross requests), so the auth instance must follow it. In
+// long-lived processes the db is stable, so this behaves like a singleton.
 type Auth = ReturnType<typeof buildAuth>;
-let cached: Auth | undefined;
+const cache = new WeakMap<object, Auth>();
 
 export function getAuth(env: EnvSource = process.env): Auth {
+  const adminDb = getDbAs("admin", env);
+  const cached = cache.get(adminDb);
   if (cached !== undefined) {
     return cached;
   }
@@ -106,12 +110,8 @@ export function getAuth(env: EnvSource = process.env): Auth {
     baseURL: readOptional("BETTER_AUTH_URL", env),
     googleId: readOptional("GOOGLE_CLIENT_ID", env),
     googleSecret: readOptional("GOOGLE_CLIENT_SECRET", env),
+    adminDb,
   });
-  cached = instance;
+  cache.set(adminDb, instance);
   return instance;
-}
-
-// Test-only escape hatch — production never calls this.
-export function __resetAuthForTests(): void {
-  cached = undefined;
 }

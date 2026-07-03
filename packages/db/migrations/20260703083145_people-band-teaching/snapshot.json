@@ -1,8 +1,6 @@
 {
   "id": "c5ee3bda-aafe-42bc-823b-45c0ad5882b2",
-  "prevIds": [
-    "11c34949-7756-42ca-91f5-be6e23601654"
-  ],
+  "prevIds": ["11c34949-7756-42ca-91f5-be6e23601654"],
   "version": "8",
   "dialect": "postgres",
   "ddl": [
@@ -23,94 +21,55 @@
       "entityType": "schemas"
     },
     {
-      "values": [
-        "staff",
-        "developer",
-        "manager",
-        "founder",
-        "admin"
-      ],
+      "values": ["staff", "developer", "manager", "founder", "admin"],
       "name": "role",
       "entityType": "enums",
       "schema": "identity"
     },
     {
-      "values": [
-        "rating",
-        "raise",
-        "band",
-        "exception"
-      ],
+      "values": ["rating", "raise", "band", "exception"],
       "name": "appeal_category",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "open",
-        "resolved"
-      ],
+      "values": ["open", "resolved"],
       "name": "appeal_status",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "L1",
-        "L2",
-        "L3",
-        "L4"
-      ],
+      "values": ["L1", "L2", "L3", "L4"],
       "name": "career_level",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "ic",
-        "manager"
-      ],
+      "values": ["ic", "manager"],
       "name": "career_path",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "employee",
-        "apprentice",
-        "vie",
-        "intern",
-        "freelance"
-      ],
+      "values": ["employee", "apprentice", "vie", "intern", "freelance"],
       "name": "employment_type",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "lt",
-        "team",
-        "cross"
-      ],
+      "values": ["lt", "team", "cross"],
       "name": "peer_kind",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "pending",
-        "submitted",
-        "declined"
-      ],
+      "values": ["pending", "submitted", "declined"],
       "name": "peer_request_status",
       "entityType": "enums",
       "schema": "people"
     },
     {
-      "values": [
-        "included",
-        "excluded"
-      ],
+      "values": ["included", "excluded"],
       "name": "review_participation",
       "entityType": "enums",
       "schema": "people"
@@ -2224,14 +2183,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "account_user_id_user_id_fkey",
@@ -2241,14 +2196,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "session_user_id_user_id_fkey",
@@ -2258,14 +2209,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "impersonation_session_actor_user_id_user_id_fkey",
@@ -2275,14 +2222,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "subject_user_id"
-      ],
+      "columns": ["subject_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "impersonation_session_subject_user_id_user_id_fkey",
@@ -2292,14 +2235,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_relationship_user_id_user_id_fkey",
@@ -2309,14 +2248,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "related_user_id"
-      ],
+      "columns": ["related_user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_relationship_related_user_id_user_id_fkey",
@@ -2326,14 +2261,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "user_role_user_id_user_id_fkey",
@@ -2343,14 +2274,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "appeal_case_id_review_case_id_fkey",
@@ -2360,14 +2287,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "assessment_case_id_review_case_id_fkey",
@@ -2377,14 +2300,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "comp_recommendation_case_id_review_case_id_fkey",
@@ -2394,14 +2313,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
+      "columns": ["user_id"],
       "schemaTo": "auth",
       "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "SET NULL",
       "name": "employee_user_id_user_id_fkey",
@@ -2411,14 +2326,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "peer_request_case_id_review_case_id_fkey",
@@ -2428,14 +2339,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "review_signoff_case_id_review_case_id_fkey",
@@ -2445,14 +2352,10 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "schemaTo": "people",
       "tableTo": "review_case",
-      "columnsTo": [
-        "id"
-      ],
+      "columnsTo": ["id"],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "name": "self_review_case_id_review_case_id_fkey",
@@ -2461,10 +2364,7 @@
       "table": "self_review"
     },
     {
-      "columns": [
-        "user_id",
-        "role"
-      ],
+      "columns": ["user_id", "role"],
       "nameExplicit": false,
       "name": "user_role_pkey",
       "entityType": "pks",
@@ -2472,9 +2372,7 @@
       "table": "user_role"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "events_pkey",
       "schema": "audit",
@@ -2482,9 +2380,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "account_pkey",
       "schema": "auth",
@@ -2492,9 +2388,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "session_pkey",
       "schema": "auth",
@@ -2502,9 +2396,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_pkey",
       "schema": "auth",
@@ -2512,9 +2404,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "verification_pkey",
       "schema": "auth",
@@ -2522,9 +2412,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "actor_user_id"
-      ],
+      "columns": ["actor_user_id"],
       "nameExplicit": false,
       "name": "impersonation_session_pkey",
       "schema": "identity",
@@ -2532,9 +2420,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "user_relationship_pkey",
       "schema": "identity",
@@ -2542,9 +2428,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "appeal_pkey",
       "schema": "people",
@@ -2552,9 +2436,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "assessment_pkey",
       "schema": "people",
@@ -2562,9 +2444,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "band_pkey",
       "schema": "people",
@@ -2572,9 +2452,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "comp_recommendation_pkey",
       "schema": "people",
@@ -2582,9 +2460,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "country"
-      ],
+      "columns": ["country"],
       "nameExplicit": false,
       "name": "country_coefficient_pkey",
       "schema": "people",
@@ -2592,9 +2468,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "employee_pkey",
       "schema": "people",
@@ -2602,9 +2476,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "peer_request_pkey",
       "schema": "people",
@@ -2612,9 +2484,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "review_case_pkey",
       "schema": "people",
@@ -2622,9 +2492,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "review_signoff_pkey",
       "schema": "people",
@@ -2632,9 +2500,7 @@
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "self_review_pkey",
       "schema": "people",
@@ -2643,11 +2509,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "user_id",
-        "related_user_id",
-        "kind"
-      ],
+      "columns": ["user_id", "related_user_id", "kind"],
       "nullsNotDistinct": false,
       "name": "user_relationship_edge",
       "entityType": "uniques",
@@ -2656,9 +2518,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "nullsNotDistinct": false,
       "name": "appeal_case",
       "entityType": "uniques",
@@ -2667,9 +2527,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "nullsNotDistinct": false,
       "name": "assessment_case",
       "entityType": "uniques",
@@ -2678,10 +2536,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "role_family",
-        "level"
-      ],
+      "columns": ["role_family", "level"],
       "nullsNotDistinct": false,
       "name": "band_family_level",
       "entityType": "uniques",
@@ -2690,9 +2545,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "nullsNotDistinct": false,
       "name": "comp_recommendation_case",
       "entityType": "uniques",
@@ -2701,10 +2554,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id",
-        "requestee_email"
-      ],
+      "columns": ["case_id", "requestee_email"],
       "nullsNotDistinct": false,
       "name": "peer_request_case_requestee",
       "entityType": "uniques",
@@ -2713,10 +2563,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "subject_email",
-        "cycle_period"
-      ],
+      "columns": ["subject_email", "cycle_period"],
       "nullsNotDistinct": false,
       "name": "review_case_subject_cycle",
       "entityType": "uniques",
@@ -2725,10 +2572,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id",
-        "founder_user_id"
-      ],
+      "columns": ["case_id", "founder_user_id"],
       "nullsNotDistinct": false,
       "name": "review_signoff_case_founder",
       "entityType": "uniques",
@@ -2737,9 +2581,7 @@
     },
     {
       "nameExplicit": true,
-      "columns": [
-        "case_id"
-      ],
+      "columns": ["case_id"],
       "nullsNotDistinct": false,
       "name": "self_review_case",
       "entityType": "uniques",
@@ -2748,9 +2590,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "token"
-      ],
+      "columns": ["token"],
       "nullsNotDistinct": false,
       "name": "session_token_key",
       "schema": "auth",
@@ -2759,9 +2599,7 @@
     },
     {
       "nameExplicit": false,
-      "columns": [
-        "email"
-      ],
+      "columns": ["email"],
       "nullsNotDistinct": false,
       "name": "user_email_key",
       "schema": "auth",

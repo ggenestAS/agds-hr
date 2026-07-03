@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { FormRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import type { SelfReviewKey, SelfReviewView } from "../server/people.shared.ts";
 import {
@@ -31,6 +32,7 @@ import {
 // helper, re-enforced server-side.
 export const Route = createFileRoute("/_app/self-review")({
   loader: () => selfReviewGetFn(),
+  pendingComponent: () => <FormRoutePending width="3xl" />,
   component: SelfReviewPage,
 });
 
@@ -45,30 +47,26 @@ const REFLECTION = [
     key: "d_proud",
     label: "1 · What are you most proud of — and why does it matter beyond your own output?",
     ph: "One thing, concretely",
-    help:
-      "Pick one thing and explain its effect beyond your own desk. Impact on others and on the school is what distinguishes levels — output alone doesn't.",
+    help: "Pick one thing and explain its effect beyond your own desk. Impact on others and on the school is what distinguishes levels — output alone doesn't.",
   },
   {
     key: "d_short",
     label: "2 · Where did you fall short — and what would you do differently?",
     ph: "Be specific about the miss",
-    help:
-      "A specific, owned miss builds more trust with calibration than a polished story. Everyone falls short somewhere; pretending otherwise reads as low self-awareness.",
+    help: "A specific, owned miss builds more trust with calibration than a polished story. Everyone falls short somewhere; pretending otherwise reads as low self-awareness.",
   },
   {
     key: "d_feedback",
     label: "3 · What feedback did you receive, and what did you actually do with it?",
     ph: "If you received none, say so — that is itself useful",
-    help:
-      "This shows how you metabolise feedback — a core expectation at every level. \"I received none\" is a legitimate answer and a useful signal about your environment.",
+    help: 'This shows how you metabolise feedback — a core expectation at every level. "I received none" is a legitimate answer and a useful signal about your environment.',
   },
   {
     key: "d_others",
     label:
       "4 · Beyond your objectives, where did you make others or the organisation more effective?",
     ph: "A process improved, a problem solved that wasn't strictly yours, knowledge shared, friction reduced",
-    help:
-      "Glue work — unblocking others, fixing shared friction, spreading knowledge — often goes unseen. This is the one place it is explicitly counted.",
+    help: "Glue work — unblocking others, fixing shared friction, spreading knowledge — often goes unseen. This is the one place it is explicitly counted.",
   },
 ] as const;
 
@@ -83,8 +81,7 @@ const FORWARD = [
     key: "e_scope",
     label: "Scope or responsibility you'd like to take on",
     ph: "…",
-    help:
-      "Growth is planned around stated ambitions, not guessed ones. Say what you want to own next.",
+    help: "Growth is planned around stated ambitions, not guessed ones. Say what you want to own next.",
   },
   {
     key: "e_direction",
@@ -469,14 +466,10 @@ function SelfReviewPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           The responsibilities that mattered most — at least {SELF_REVIEW_OBJECTIVES_MIN}, up to{" "}
           {SELF_REVIEW_OBJECTIVES_MAX}. Fewer, well-evidenced objectives beat a long list: each one
-          needs the objective, the bar, and the result. Your manager will confirm or amend the
-          list.
+          needs the objective, the bar, and the result. Your manager will confirm or amend the list.
         </p>
         {SELF_REVIEW_OBJECTIVE_ROWS.slice(0, objectiveCount).map((row, index) => (
-          <div
-            key={row.obj}
-            className={index === 0 ? "mt-5" : "mt-5 border-t border-border pt-5"}
-          >
+          <div key={row.obj} className={index === 0 ? "mt-5" : "mt-5 border-t border-border pt-5"}>
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <p className={rowTitleCls}>Objective {index + 1}</p>
               {!readOnly && objectiveCount > SELF_REVIEW_OBJECTIVES_MIN && (
@@ -536,10 +529,7 @@ function SelfReviewPage() {
           </p>
         )}
         {SELF_REVIEW_KPI_ROWS.slice(0, kpiCount).map((row, index) => (
-          <div
-            key={row.name}
-            className={index === 0 ? "mt-5" : "mt-5 border-t border-border pt-5"}
-          >
+          <div key={row.name} className={index === 0 ? "mt-5" : "mt-5 border-t border-border pt-5"}>
             <div className="mb-3 flex items-baseline justify-between gap-3">
               <p className={rowTitleCls}>KPI {index + 1}</p>
               {!readOnly && (

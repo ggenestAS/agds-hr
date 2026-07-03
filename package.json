@@ -11,8 +11,11 @@
   "type": "module",
   "scripts": {
     "prepare": "lefthook install",
-    "dev": "bun --bun --filter @agds-hr/web dev",
-    "build": "bun --bun --filter @agds-hr/web build",
+    "dev": "bun --filter @agds-hr/web dev",
+    "build": "bun --filter @agds-hr/web build",
+    "deploy": "bun --filter @agds-hr/web deploy",
+    "deploy:prod": "bun --env-file=.env scripts/ops/deploy-worker.ts",
+    "preview": "bun --filter @agds-hr/web preview",
     "lint": "oxlint --type-aware --type-check .",
     "lint:staged": "bun run scripts/ci/lint-staged.ts",
     "format": "oxfmt .",

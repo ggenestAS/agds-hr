@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CAREER_LEVELS, CAREER_LEVEL_META } from "@agds-hr/people/types";
 import type { CareerLevel } from "@agds-hr/people/types";
 
+import { TwoColumnRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { BandsView } from "../server/people.shared.ts";
@@ -14,6 +15,7 @@ import { bandsFn, setBandFn } from "../server/people.functions.ts";
 // edit the figures in place (people.band.manage); every write is audited.
 export const Route = createFileRoute("/_app/bands")({
   loader: () => bandsFn(),
+  pendingComponent: () => <TwoColumnRoutePending width="4xl" />,
   component: Bands,
 });
 
@@ -122,7 +124,7 @@ function Bands() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Internal · leadership only
+        Leadership only
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Salary bands</h1>
 

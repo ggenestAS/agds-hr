@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import type { UserRole } from "@agds-hr/shared";
 
+import { CardGridRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import { ASSIGNABLE_ROLES } from "../server/roles.shared.ts";
@@ -16,6 +17,7 @@ import { grantRoleFn, revokeRoleFn, rolesPageFn } from "../server/roles.function
 // /peer-input, /assessment, and /calibration.
 export const Route = createFileRoute("/_app/roles")({
   loader: () => rolesPageFn(),
+  pendingComponent: () => <CardGridRoutePending width="4xl" />,
   component: Roles,
 });
 
@@ -81,7 +83,7 @@ function Roles() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Access control · developer only
+        Access control
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Roles</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">

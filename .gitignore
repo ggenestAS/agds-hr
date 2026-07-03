@@ -12,6 +12,7 @@ dist/
 .nitro/
 .vinxi/
 .vercel/
+.wrangler/
 .tanstack/
 *.tsbuildinfo
 

@@ -1,4 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+
+import { StackedRoutePending } from "../components/route-pending/shapes.tsx";
 import {
   APPEAL_CATEGORIES,
   CAREER_LEVELS,
@@ -53,6 +55,7 @@ import { impersonateStartFn } from "../server/impersonation.functions.ts";
 // operational cards: case controls, compensation, appeal).
 export const Route = createFileRoute("/_app/people/$userId")({
   loader: ({ params }) => personDetailFn({ data: params.userId }),
+  pendingComponent: () => <StackedRoutePending width="4xl" />,
   component: PersonDetailPage,
 });
 
@@ -818,7 +821,7 @@ function PersonDetailPage() {
                     </span>
                     {reviewCase.p6Triggered && (
                       <span className="rounded-full bg-[var(--color-warning-surface)] px-2 py-0.5 text-xs font-semibold text-[var(--color-warning)]">
-                        P6 improvement plan
+                        Improvement plan
                       </span>
                     )}
                   </div>

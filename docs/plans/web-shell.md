@@ -47,9 +47,9 @@ navigate()}`), `check:client-barrels` (no domain-barrel value imports in
   comp, appeals) — step 10, its own plan.
 - `magicLink` audience; MFA — charter triggers unchanged.
 - Full 100% coverage gate — step 7.
-- Production run/deploy target — the Nitro preset + Vercel output + `start`
-  script are deferred to the deploy-wiring increment; `vite build` currently
-  emits `dist/` (client + SSR), not the `.output/` server bundle §2 expects.
+- Production run/deploy target — Cloudflare Workers via `@cloudflare/vite-plugin`
+  - `wrangler deploy` ([2026-07-03-cloudflare-hosting.md](../decisions/2026-07-03-cloudflare-hosting.md));
+    `vite build` emits the Worker bundle + static assets.
 
 ## Data model
 

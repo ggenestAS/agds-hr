@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { TableRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card } from "../components/ui/card.tsx";
 import type { AuditLogRow } from "../server/people.shared.ts";
 import { auditLogFn } from "../server/people.functions.ts";
@@ -9,6 +10,7 @@ import { auditLogFn } from "../server/people.functions.ts";
 // non-deletable, including by Admins. Leadership-read-only.
 export const Route = createFileRoute("/_app/audit")({
   loader: () => auditLogFn(),
+  pendingComponent: () => <TableRoutePending width="5xl" columns={4} />,
   component: AuditLog,
 });
 
@@ -33,13 +35,12 @@ function AuditLog() {
   return (
     <div className="mx-auto max-w-5xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        The trail is the product · P9
+        Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Audit log</h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-ink-700">
-        Every state change and every read of compensation data is recorded with actor, timestamp,
-        and content — append-only and non-deletable, including by Admins. The annual audit (P9) is a
-        set of queries, not an excavation.
+        A complete record of every action in the system — who did what, and when. It includes reads
+        of compensation data as well as changes, and no one can edit or delete entries.
       </p>
 
       <Card className="mt-6 overflow-hidden">

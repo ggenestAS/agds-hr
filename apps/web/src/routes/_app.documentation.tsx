@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { REVIEW_RATING_LABELS, isReviewRating } from "@agds-hr/people/types";
 
+import { StackedRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card } from "../components/ui/card.tsx";
 import type { DecisionDoc } from "../server/people.shared.ts";
 import { decisionsFn } from "../server/people.functions.ts";
@@ -11,6 +12,7 @@ import { decisionsFn } from "../server/people.functions.ts";
 // this page is itself an audited comp read (fail-closed in the DAL).
 export const Route = createFileRoute("/_app/documentation")({
   loader: () => decisionsFn(),
+  pendingComponent: () => <StackedRoutePending width="4xl" />,
   component: Documentation,
 });
 
@@ -26,13 +28,12 @@ function Documentation() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-        Fairness · memory · discipline
+        Governance
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Documentation</h1>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-700">
-        Every compensation decision is documented — role, level, band, rating, decision, rationale,
-        and any exception. For fairness, memory, and discipline — not bureaucracy. Opening this page
-        is recorded in the audit trail.
+        Every compensation decision on record — role, level, band, rating, outcome, rationale, and
+        any exception. Note that opening this page is itself recorded in the audit log.
       </p>
 
       <div className="mt-5 flex flex-wrap gap-2">

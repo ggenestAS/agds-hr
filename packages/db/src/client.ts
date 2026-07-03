@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
@@ -21,9 +23,24 @@ const ROLE_CONFIG: Record<DbRole, { readonly envVar: string; readonly poolSize: 
 };
 
 type CacheEntry = { readonly db: DrizzleDb; readonly client: postgres.Sql };
-const cache = new Map<DbRole, CacheEntry>();
+type DbCache = Map<DbRole, CacheEntry>;
+
+// Cloudflare Workers forbid using I/O objects (TCP sockets) created during one
+// request from a later request — a module-level memo hands request B a dead
+// connection from request A and every query fails. On Workers the entry point
+// wraps each request in runWithRequestDbScope so clients live and die with the
+// request (Neon's pooler absorbs the reconnect cost); the module cache remains
+// the fallback for long-lived processes (local dev, tests, scripts). See
+// docs/decisions/2026-07-03-cloudflare-hosting.md.
+const requestScope = new AsyncLocalStorage<DbCache>();
+const processCache: DbCache = new Map();
+
+export function runWithRequestDbScope<T>(fn: () => T): T {
+  return requestScope.run(new Map(), fn);
+}
 
 export function getDbAs(role: DbRole, env: EnvSource = process.env): DrizzleDb {
+  const cache = requestScope.getStore() ?? processCache;
   const cached = cache.get(role);
   if (cached) {
     return cached.db;
@@ -38,7 +55,7 @@ export function getDbAs(role: DbRole, env: EnvSource = process.env): DrizzleDb {
 
 // Test-only escape hatch — production never calls this.
 export async function __resetDbForTests(): Promise<void> {
-  const entries = [...cache.values()];
-  cache.clear();
+  const entries = [...processCache.values()];
+  processCache.clear();
   await Promise.all(entries.map((entry) => entry.client.end({ timeout: 5 }).catch(() => {})));
 }

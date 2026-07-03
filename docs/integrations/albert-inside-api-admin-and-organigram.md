@@ -6,15 +6,15 @@ School) from agds-hr or other integrations. Source repo:
 
 ## Overview
 
-| Item | Value |
-| --- | --- |
-| Stack | FastAPI + SQLAlchemy + PostgreSQL (Supabase) |
-| Local base URL | `http://localhost:8000` (`python run.py`, port from `PORT`, default 8000) |
-| Production base URL | `https://api-inside.albertschool.com` |
-| Staging base URL | `https://api-admission-staging.albertschool.com` |
-| Health check | `GET /health` (no auth) |
-| Interactive docs | `GET /docs` and `GET /redoc` (HTTP Basic: user `admin`, password from `DOCUMENTATION_PASSWORD`) |
-| Route catalogue | `albert-database-admin/api_docs_output.md` (265+ GET endpoints) |
+| Item                | Value                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| Stack               | FastAPI + SQLAlchemy + PostgreSQL (Supabase)                                                    |
+| Local base URL      | `http://localhost:8000` (`python run.py`, port from `PORT`, default 8000)                       |
+| Production base URL | `https://api-inside.albertschool.com`                                                           |
+| Staging base URL    | `https://api-admission-staging.albertschool.com`                                                |
+| Health check        | `GET /health` (no auth)                                                                         |
+| Interactive docs    | `GET /docs` and `GET /redoc` (HTTP Basic: user `admin`, password from `DOCUMENTATION_PASSWORD`) |
+| Route catalogue     | `albert-database-admin/api_docs_output.md` (265+ GET endpoints)                                 |
 
 Routers are mounted under path prefixes in `app/main.py`. User routes live under
 `/user`, officer (staff / org) routes under `/officer`, keystone migration routes
@@ -40,11 +40,11 @@ user directory listing.
 
 All protected endpoints require one of:
 
-| Method | Header | Notes |
-| --- | --- | --- |
-| **Supabase JWT** | `Authorization: Bearer <access_token>` | Normal Inside login (Google OAuth or admin magic link). Email in JWT is matched to `admin.user.school_email` / `auth_id`. |
+| Method                          | Header                                   | Notes                                                                                                                             |
+| ------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Supabase JWT**                | `Authorization: Bearer <access_token>`   | Normal Inside login (Google OAuth or admin magic link). Email in JWT is matched to `admin.user.school_email` / `auth_id`.         |
 | **Personal access token (PAT)** | `Authorization: Bearer albert_pat_<hex>` | Created via `POST /user/tokens`. Acts as the owning user (must be active). Preferred for scripts and keystone-style integrations. |
-| **Service API key** | `X-API-Key: <secret>` | Compared to `SHA256(secret) == HASHED_API_KEY` in env. Resolves to a synthetic **ADMIN** caller. |
+| **Service API key**             | `X-API-Key: <secret>`                    | Compared to `SHA256(secret) == HASHED_API_KEY` in env. Resolves to a synthetic **ADMIN** caller.                                  |
 
 PAT creation (once logged in as an admin):
 
@@ -63,13 +63,13 @@ Response includes `token` **once** — store it securely.
 
 ### Auth matrix for the endpoints below
 
-| Endpoint | JWT (any allowed role) | PAT | `X-API-Key` |
-| --- | --- | --- | --- |
-| `GET /user/user-directory?role=ADMIN` | yes (all roles) | yes | yes |
-| `GET /user/search-users?type=admin` | yes | no | no |
-| `GET /officer/org-tree` | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
-| `GET /officer/officer` | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
-| `GET /keystone/officers` | **ADMIN only** | yes (owner must be ADMIN) | yes (resolves as ADMIN) |
+| Endpoint                              | JWT (any allowed role)       | PAT                                     | `X-API-Key`             |
+| ------------------------------------- | ---------------------------- | --------------------------------------- | ----------------------- |
+| `GET /user/user-directory?role=ADMIN` | yes (all roles)              | yes                                     | yes                     |
+| `GET /user/search-users?type=admin`   | yes                          | no                                      | no                      |
+| `GET /officer/org-tree`               | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
+| `GET /officer/officer`                | **ADMIN or ACCOUNTANT only** | yes (owner must be ADMIN or ACCOUNTANT) | yes (resolves as ADMIN) |
+| `GET /keystone/officers`              | **ADMIN only**               | yes (owner must be ADMIN)               | yes (resolves as ADMIN) |
 
 `/officer/org-tree` and `/officer/officer` use `security.require_admin_or_accountant`
 (`verify_token_or_api_key` + role gate). `GET /user/search-users` still depends on
@@ -91,20 +91,20 @@ Authorization: Bearer albert_pat_...
 
 Query parameters:
 
-| Param | Type | Description |
-| --- | --- | --- |
-| `role` | string | Filter: `STUDENT`, `TEACHER`, `ADMIN`, `ALUMNI` |
-| `page` | int | 1-based page (default 1) |
-| `limit` | int | Page size, 1–1000 (default 10) |
-| `search_term` | string | Multi-token search on name, email, and (for admins) officer title |
-| `department` | string | For admins, matches `Officer.title` |
-| `include_inactive` | bool | Admin-only; include deactivated users |
+| Param              | Type   | Description                                                       |
+| ------------------ | ------ | ----------------------------------------------------------------- |
+| `role`             | string | Filter: `STUDENT`, `TEACHER`, `ADMIN`, `ALUMNI`                   |
+| `page`             | int    | 1-based page (default 1)                                          |
+| `limit`            | int    | Page size, 1–1000 (default 10)                                    |
+| `search_term`      | string | Multi-token search on name, email, and (for admins) officer title |
+| `department`       | string | For admins, matches `Officer.title`                               |
+| `include_inactive` | bool   | Admin-only; include deactivated users                             |
 
 Response shape:
 
 ```json
 {
-  "users": [ { "...": "..." } ],
+  "users": [{ "...": "..." }],
   "total": 42
 }
 ```
@@ -250,10 +250,10 @@ generation (`app/alembic/versions/20260327_add_officer_org_columns.py`).
 
 Inside maintains **two** reporting lines:
 
-| Field | Meaning |
-| --- | --- |
+| Field                        | Meaning                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------- |
 | `functional_manager_user_id` | Dotted-line / functional manager (primary chain for reviews, weekly reports) |
-| `local_manager_user_id` | Local / site manager |
+| `local_manager_user_id`      | Local / site manager                                                         |
 
 Typical organigram UI uses the **functional** chain. Algorithm:
 
@@ -281,11 +281,11 @@ checks in officer reviews but are not exposed as query params on this route.
 
 ### Related endpoints
 
-| Route | Purpose |
-| --- | --- |
-| `GET /officer/by-id/{officer_id}` | Full officer profile with manager names |
-| `GET /officer/{officer_id}/students` | Students assigned to this officer |
-| `GET /officer/{officer_id}/teachers` | Teachers assigned to this officer |
+| Route                                           | Purpose                                   |
+| ----------------------------------------------- | ----------------------------------------- |
+| `GET /officer/by-id/{officer_id}`               | Full officer profile with manager names   |
+| `GET /officer/{officer_id}/students`            | Students assigned to this officer         |
+| `GET /officer/{officer_id}/teachers`            | Teachers assigned to this officer         |
 | `GET /officer-review/team/{period_year}/{kind}` | Manager rollup of direct/indirect reports |
 
 ---
@@ -334,13 +334,13 @@ curl -sS \
 
 ## Choosing an endpoint
 
-| Goal | Endpoint | Auth for scripts |
-| --- | --- | --- |
-| Paginated admin staff with names, emails, titles, managers | `GET /user/user-directory?role=ADMIN` | PAT or `X-API-Key` |
-| Active organigram nodes (flat, build tree locally) | `GET /officer/org-tree` | PAT or `X-API-Key` |
-| Full officer rows incl. inactive, keystone contract | `GET /keystone/officers` | PAT or `X-API-Key` (admin) |
-| Quick name lookup in the UI | `GET /user/search-users?type=admin` | Supabase JWT only |
-| Richest officer detail (job description, audit) | `GET /officer/officer` | PAT or `X-API-Key` |
+| Goal                                                       | Endpoint                              | Auth for scripts           |
+| ---------------------------------------------------------- | ------------------------------------- | -------------------------- |
+| Paginated admin staff with names, emails, titles, managers | `GET /user/user-directory?role=ADMIN` | PAT or `X-API-Key`         |
+| Active organigram nodes (flat, build tree locally)         | `GET /officer/org-tree`               | PAT or `X-API-Key`         |
+| Full officer rows incl. inactive, keystone contract        | `GET /keystone/officers`              | PAT or `X-API-Key` (admin) |
+| Quick name lookup in the UI                                | `GET /user/search-users?type=admin`   | Supabase JWT only          |
+| Richest officer detail (job description, audit)            | `GET /officer/officer`                | PAT or `X-API-Key`         |
 
 For **agds-hr** batch sync, **`GET /officer/org-tree`** is now the simplest path
 for the active organigram (manager UUIDs, compact nodes, PAT/API-key friendly).
@@ -350,25 +350,25 @@ and extra user PII.
 
 ## Errors
 
-| Status | Typical cause |
-| --- | --- |
-| 401 | Missing/invalid JWT, PAT, or API key |
-| 403 | Valid auth but wrong role (e.g. teacher calling `/officer/org-tree`) |
-| 404 | Unknown `user_id` / `officer_id` |
-| 400 | Invalid `role` filter on directory, invalid keystone cursor |
+| Status | Typical cause                                                        |
+| ------ | -------------------------------------------------------------------- |
+| 401    | Missing/invalid JWT, PAT, or API key                                 |
+| 403    | Valid auth but wrong role (e.g. teacher calling `/officer/org-tree`) |
+| 404    | Unknown `user_id` / `officer_id`                                     |
+| 400    | Invalid `role` filter on directory, invalid keystone cursor          |
 
 All business errors from typed handlers use plain `detail` strings (no `snake_case:`
 prefix — that convention belongs to agds-hr, not the legacy Inside API).
 
 ## Source map
 
-| Concern | File |
-| --- | --- |
-| App entry, router mounts | `app/main.py` |
-| User directory & search | `app/routes/user.py`, `app/services/user_service.py` |
-| Org tree & officer CRUD | `app/routes/officer.py` |
-| Keystone officer export | `app/routes/keystone.py` |
-| Auth (JWT, PAT, API key) | `app/services/security.py` |
-| PAT management | `app/routes/personal_tokens.py` |
-| Officer schemas | `app/schemas.py` (`Officer`, `OfficerCreate`, …) |
-| Generated endpoint list | `api_docs_output.md` |
+| Concern                  | File                                                 |
+| ------------------------ | ---------------------------------------------------- |
+| App entry, router mounts | `app/main.py`                                        |
+| User directory & search  | `app/routes/user.py`, `app/services/user_service.py` |
+| Org tree & officer CRUD  | `app/routes/officer.py`                              |
+| Keystone officer export  | `app/routes/keystone.py`                             |
+| Auth (JWT, PAT, API key) | `app/services/security.py`                           |
+| PAT management           | `app/routes/personal_tokens.py`                      |
+| Officer schemas          | `app/schemas.py` (`Officer`, `OfficerCreate`, …)     |
+| Generated endpoint list  | `api_docs_output.md`                                 |

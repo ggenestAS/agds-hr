@@ -16,9 +16,4 @@ export {
   registerPolicy,
   __resetPolicyRegistryForTests,
 } from "./policy.ts";
-export {
-  getAuth,
-  isWorkspaceDomainAllowed,
-  WORKSPACE_ALLOWED_DOMAINS,
-  __resetAuthForTests,
-} from "./auth.ts";
+export { getAuth, isWorkspaceDomainAllowed, WORKSPACE_ALLOWED_DOMAINS } from "./auth.ts";
