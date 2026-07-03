@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/bun": "^1.3.5",
     "drizzle-kit": "beta",
+    "drizzle-orm": "^1.0.0-beta.22",
     "knip": "^5.44.0",
     "lefthook": "^1.13.6",
     "oxfmt": "^0.57.0",
