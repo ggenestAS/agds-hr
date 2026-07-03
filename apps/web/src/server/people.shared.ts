@@ -138,6 +138,12 @@ export type PersonDetail = {
   readonly canManageComp: boolean;
   readonly appeal: AppealView | undefined;
   readonly canAppeal: boolean;
+  // The record tabs (design): the subject's self-review is visible to the
+  // subject + reviewers; the manager assessment to reviewers only.
+  readonly selfReview: Readonly<Partial<Record<SelfReviewKey, string>>> | undefined;
+  readonly selfReviewSubmittedAt: string | undefined;
+  readonly assessment: AssessmentView | undefined;
+  readonly isSubject: boolean;
 };
 
 // The Salary bands surface (design): France-reference bands per role family &

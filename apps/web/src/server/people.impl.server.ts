@@ -143,6 +143,20 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
 
   const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
 
+  // Record tabs: self-review is the subject's own words (subject + reviewers);
+  // the manager assessment is reviewer-only until delivery is a product need.
+  const canReviewCase = can(session.subject, "people.review.open").allow;
+  const isSubjectPerson = session.actor.email.toLowerCase() === admin.email.toLowerCase();
+  const [selfReviewRow, assessmentRow] =
+    reviewCase === undefined
+      ? [undefined, undefined]
+      : await Promise.all([
+          isSubjectPerson || canReviewCase
+            ? getSelfReviewByCase(adminDb, reviewCase.id)
+            : Promise.resolve(undefined),
+          canReviewCase ? getAssessmentByCase(adminDb, reviewCase.id) : Promise.resolve(undefined),
+        ]);
+
   // The appeal (statement/category/resolution) is visible to HR Admins and the
   // appellant only (design) — never to an arbitrary directory viewer. The
   // canAppeal affordance is likewise for the subject alone, within the window.
@@ -202,6 +216,24 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
             createdAt: appeal.createdAt.toISOString(),
           },
     canAppeal,
+    selfReview:
+      selfReviewRow === undefined
+        ? undefined
+        : (selfReviewRow.payload as PersonDetail["selfReview"]),
+    selfReviewSubmittedAt: selfReviewRow?.submittedAt?.toISOString(),
+    assessment:
+      assessmentRow === undefined
+        ? undefined
+        : {
+            dims: assessmentRow.dims,
+            narrative: assessmentRow.narrative,
+            proposedRating: assessmentRow.proposedRating,
+            promoProposed: assessmentRow.promoProposed,
+            compRec: assessmentRow.compRec,
+            p6Acknowledged: assessmentRow.p6Acknowledged,
+            submittedAt: assessmentRow.submittedAt?.toISOString(),
+          },
+    isSubject: isSubjectPerson,
   };
 }
 
