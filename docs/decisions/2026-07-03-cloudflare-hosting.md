@@ -57,7 +57,8 @@ choices.
 - Dev and production build require **Node ≥22.12** (`@cloudflare/vite-plugin`
   uses `registerHooks` from `node:module`); Bun's runtime cannot load the
   plugin, so the `dev`/`build` aliases run Vite under Node (no `--bun`).
-- CI deploy job is a follow-up once the test harness (bootstrap step 7) lands.
+- CI deploy: `.github/workflows/deploy.yml` runs `deploy-worker.ts` after
+  `ci` succeeds on `main` (GitHub Actions secrets mirror `.env` deploy keys).
 
 ## Addendum (2026-07-03, same day): request-scoped db clients, Hyperdrive, Smart Placement
 

@@ -44,6 +44,21 @@ Everything is `bun run <alias>` from the repo root. Directory roles:
 | `build`        | Production build of `@agds-hr/web` (Cloudflare Worker; requires Node ≥22.12) |
 | `deploy`       | Build + `wrangler deploy` to Cloudflare Workers                              |
 | `deploy:prod`  | Sync secrets from `.env`, build, deploy to `hr.albertschool.com`             |
+
+**CI auto-deploy:** pushing to `main` runs `ci` first; on success,
+`.github/workflows/deploy.yml` runs `scripts/ops/deploy-worker.ts` against
+production. Configure these GitHub repository secrets (Settings → Secrets →
+Actions):
+
+| Secret | Required |
+| ------ | -------- |
+| `CLOUDFLARE_API_TOKEN` | yes — Workers Scripts:Edit + Hyperdrive:Edit |
+| `BETTER_AUTH_SECRET` | yes |
+| `GOOGLE_CLIENT_ID` | yes (warn-only locally if unset; CI needs it) |
+| `GOOGLE_CLIENT_SECRET` | yes |
+| `INSIDE_API_KEY` | no — directory sync still manual |
+
+Manual redeploy without a push: Actions → **deploy** → **Run workflow**.
 | `preview`      | Local preview of the production Worker bundle                                |
 | `lint`         | `oxlint --type-aware --type-check` over the tree                             |
 | `lint:staged`  | oxlint over staged files + 1-hop reverse import closure                      |

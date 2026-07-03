@@ -1,7 +1,7 @@
 # Two-job pipeline (docs/new-project-directives.md §13). The `test` job with
 # coverage against a shared DB branch lands with bootstrap step 7 — see the
 # deferred table in docs/CHARTER.md. Until then `static` runs the unit suite
-# (no DB required).
+# (no DB required). On success, `.github/workflows/deploy.yml` deploys main.
 name: ci
 
 on:
