@@ -188,6 +188,41 @@ export async function approvePeerRequest(
   });
 }
 
+// Rejecting a proposal removes it (the manager said no — there is nothing to
+// keep). The subject can propose someone else; the rejection is audited.
+export async function rejectPeerRequest(
+  db: DrizzleDb,
+  requestId: string,
+  context: AuditContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ status: peerRequest.status, requesteeEmail: peerRequest.requesteeEmail })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, requestId))
+      .limit(1);
+    if (current === undefined) {
+      throw new NotFoundError("peer request", requestId);
+    }
+    if (current.status !== "proposed") {
+      throw new ConflictError("peer_request_not_proposed");
+    }
+    await tx
+      .delete(peerRequest)
+      .where(and(eq(peerRequest.id, requestId), eq(peerRequest.status, "proposed")));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.peer.rejected",
+      resourceId: requestId,
+      payload: { requestee: current.requesteeEmail },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
+}
+
 // A submitted peer review is locked for its author; the SUBJECT'S manager may
 // reopen it (submitted -> pending, input kept for editing). The manager-of
 // check lives at the handler layer next to the org graph.

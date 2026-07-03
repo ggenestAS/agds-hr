@@ -9,6 +9,7 @@ import {
   peerApproveFn,
   peerPageFn,
   peerProposeFn,
+  peerRejectFn,
   peerReopenFn,
   peerRequestCreateFn,
 } from "../server/people.functions.ts";
@@ -402,18 +403,34 @@ function PeerInputPage() {
                                 {STATUS_LABEL[request.status]}
                               </span>
                               {request.status === "proposed" && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  disabled={busy}
-                                  onClick={() => {
-                                    void run(() =>
-                                      peerApproveFn({ data: { requestId: request.id } }),
-                                    );
-                                  }}
-                                >
-                                  Approve
-                                </Button>
+                                <span className="flex shrink-0 gap-1.5">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      void run(() =>
+                                        peerApproveFn({ data: { requestId: request.id } }),
+                                      );
+                                    }}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={busy}
+                                    title="Remove this proposal — the person can suggest someone else"
+                                    onClick={() => {
+                                      void run(() =>
+                                        peerRejectFn({ data: { requestId: request.id } }),
+                                      );
+                                    }}
+                                  >
+                                    Reject
+                                  </Button>
+                                </span>
                               )}
                               {request.status === "submitted" && (
                                 <Button

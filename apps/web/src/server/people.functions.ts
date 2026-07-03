@@ -197,6 +197,13 @@ export const peerApproveFn = createServerFn({ method: "POST" })
     return peerApproveHandler(data);
   });
 
+export const peerRejectFn = createServerFn({ method: "POST" })
+  .validator(peerRequestIdSchema)
+  .handler(async ({ data }) => {
+    const { peerRejectHandler } = await import("./people.impl.server.ts");
+    return peerRejectHandler(data);
+  });
+
 export const peerReopenFn = createServerFn({ method: "POST" })
   .validator(peerRequestIdSchema)
   .handler(async ({ data }) => {

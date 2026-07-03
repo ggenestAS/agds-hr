@@ -91,6 +91,7 @@ export {
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
   proposePeerRequests,
+  rejectPeerRequest,
   reopenPeerRequest,
   submitPeerInput,
 } from "./peer-input.ts";

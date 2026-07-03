@@ -97,6 +97,14 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "optional",
   },
+  // Deploy-time only (scripts/ops/deploy-worker.ts) — never read at runtime.
+  {
+    name: "CLOUDFLARE_API_TOKEN",
+    owner: "@agds-hr/web",
+    group: "deploy",
+    scope: "server",
+    requirement: "optional",
+  },
 ] as const satisfies readonly EnvVarSpec[];
 
 export type EnvVarName = (typeof ENV_MANIFEST)[number]["name"];

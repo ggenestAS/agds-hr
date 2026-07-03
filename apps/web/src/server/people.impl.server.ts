@@ -44,6 +44,7 @@ import {
   approvePeerRequest,
   isPeerQuotaMet,
   proposePeerRequests,
+  rejectPeerRequest,
   reopenPeerRequest,
   listPeerRequestsForCase,
   listPeerRequestsForRequestee,
@@ -896,6 +897,16 @@ export async function peerApproveHandler(input: {
   const adminDb = getDbAs("admin");
   await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
   await approvePeerRequest(adminDb, input.requestId, auditContext(session));
+  return { ok: true };
+}
+
+export async function peerRejectHandler(input: {
+  readonly requestId: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.request");
+  const adminDb = getDbAs("admin");
+  await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
+  await rejectPeerRequest(adminDb, input.requestId, auditContext(session));
   return { ok: true };
 }
 
