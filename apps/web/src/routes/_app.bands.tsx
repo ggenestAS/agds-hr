@@ -130,7 +130,7 @@ function Bands() {
         <Card>
           <CardHeader>
             <div className="flex items-baseline justify-between gap-3">
-              <CardTitle>Bands by role family & level</CardTitle>
+              <CardTitle>Bands by family & level</CardTitle>
               {data.canManageBands && (
                 <button
                   type="button"
@@ -146,8 +146,9 @@ function Bands() {
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              France reference · adjust by country coefficient. Internal — used by CEO, COO &
-              leadership.
+              Two families per level — jobs with a high variable component (lower base, variable
+              plan on top) and jobs with a low variable component. France reference · adjust by
+              country coefficient. Internal — used by CEO, COO & leadership.
               {data.canManageBands && " Edits are recorded in the audit trail."}
             </p>
           </CardHeader>
@@ -156,11 +157,11 @@ function Bands() {
               <div className="mb-5 space-y-3 rounded-[14px] bg-cream p-4">
                 <div className="flex flex-wrap items-end gap-2">
                   <label className="min-w-40 flex-1 text-xs">
-                    <span className="mb-1 block font-semibold text-ink-700">Role family</span>
+                    <span className="mb-1 block font-semibold text-ink-700">Family</span>
                     <input
                       value={newFamily}
                       onChange={(event) => setNewFamily(event.target.value)}
-                      placeholder="e.g. Operations"
+                      placeholder="e.g. High variable"
                       maxLength={100}
                       className="block w-full rounded-[10px] border border-border bg-card px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
                     />
