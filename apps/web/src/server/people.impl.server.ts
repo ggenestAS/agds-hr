@@ -1554,19 +1554,18 @@ export async function overviewHandler(): Promise<OverviewData> {
   const isReviewer = can(session.subject, "people.review.open").allow;
   const leadership = isLeadership(session.subject.roles);
 
+  // "My" data keys off the EFFECTIVE user so "view as" shows that person's
+  // status and obligations consistently (same brain as /tracking + digest).
+  const effectiveEmail = session.subject.email.toLowerCase();
   const [cases, admins, myCase, managed, cycleObligations] = await Promise.all([
     listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
-    getCaseBySubject(adminDb, session.actor.email.toLowerCase(), REVIEW_CURRENT_CYCLE),
+    getCaseBySubject(adminDb, effectiveEmail, REVIEW_CURRENT_CYCLE),
     isReviewer && !leadership
       ? managedEmailSets(adminDb, session.subject.id)
       : Promise.resolve(undefined),
     collectCycleObligations(adminDb),
   ]);
-
-  // The viewer's own open obligations (owner = the EFFECTIVE user, so "view
-  // as" shows what that person owes) — same brain as /tracking and the digest.
-  const effectiveEmail = session.subject.email.toLowerCase();
   const now = Date.now();
   const myPending: PendingActionView[] = cycleObligations.obligations
     .filter((obligation) => obligation.ownerEmail === effectiveEmail)

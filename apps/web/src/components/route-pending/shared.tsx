@@ -10,12 +10,13 @@ import { Skeleton } from "../ui/skeleton.tsx";
 // accessibility contract once: aria-busy, role="status", polite live region,
 // and a screen-reader-only label.
 
-export type PendingWidth = "3xl" | "4xl" | "5xl";
+export type PendingWidth = "3xl" | "4xl" | "5xl" | "6xl";
 
 const WIDTH_CLASS: Record<PendingWidth, string> = {
   "3xl": "max-w-3xl",
   "4xl": "max-w-4xl",
   "5xl": "max-w-5xl",
+  "6xl": "max-w-6xl",
 };
 
 export function RoutePendingShell({

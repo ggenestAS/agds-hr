@@ -98,6 +98,15 @@ function MyReviewStatus({ myCase }: { myCase: OverviewData["myCase"] }) {
   );
 }
 
+// Human labels for the derived obligation kinds (people/obligations.ts).
+const PENDING_LABEL: Record<string, string> = {
+  self_review_pending: "Submit your self-review",
+  peer_input_pending: "Answer a peer input request",
+  peer_quota_unmet: "Line up more peer reviewers",
+  assessment_pending: "Write the manager assessment",
+  sign_off_pending: "Give founder sign-off",
+};
+
 function Overview() {
   const data: OverviewData = Route.useLoaderData();
   const activeStep = data.myCase === undefined ? 2 : STATE_STEP[data.myCase.state];
@@ -174,6 +183,49 @@ function Overview() {
           </div>
         </CardContent>
       </Card>
+
+      {data.myPending.length > 0 && (
+        <Card className="mt-5">
+          <CardHeader>
+            <div className="flex items-baseline justify-between">
+              <CardTitle>Your pending actions</CardTitle>
+              <span className="text-xs text-muted-foreground">
+                Same derivation as the weekly reminder emails
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <ul className="divide-y divide-border">
+              {data.myPending.map((action) => (
+                <li
+                  key={`${action.kind}:${action.caseId}`}
+                  className="flex items-center gap-4 py-2.5"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {PENDING_LABEL[action.kind] ?? action.kind}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {action.subjectName ?? action.subjectEmail}
+                    </span>
+                  </span>
+                  {action.openDays !== undefined && action.openDays > 0 && (
+                    <span
+                      className={
+                        action.openDays >= 7
+                          ? "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[#5a2018]"
+                          : "text-xs tabular-nums text-muted-foreground"
+                      }
+                    >
+                      {action.openDays}d open
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {data.isReviewer && (
         <Card className="mt-5" variant="warning">
