@@ -15,6 +15,7 @@ import {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewTracking,
 } from "./policies.ts";
 
 const userWith = (roles: readonly UserRole[]): User => ({
@@ -98,6 +99,17 @@ describe("people policies", () => {
     expect(canManageBands(userWith(["staff"]))).toEqual({
       allow: false,
       reason: "founder_required",
+    });
+  });
+
+  test("the tracking board is reviewer-facing (managers + leadership), never staff", () => {
+    expect(canViewTracking(userWith(["manager"])).allow).toBe(true);
+    expect(canViewTracking(userWith(["founder"])).allow).toBe(true);
+    expect(canViewTracking(userWith(["admin"])).allow).toBe(true);
+    expect(canViewTracking(userWith(["developer"])).allow).toBe(true);
+    expect(canViewTracking(userWith(["staff"]))).toEqual({
+      allow: false,
+      reason: "manager_required",
     });
   });
 

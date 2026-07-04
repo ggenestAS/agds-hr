@@ -109,3 +109,12 @@ export function canWriteAssessment(user: User): PolicyDecision {
 export function canManageBands(user: User): PolicyDecision {
   return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
 }
+
+// The tracking board ("who still has to do what"): managers see their reports,
+// leadership everyone — row scope is enforced in the handler like /assessment;
+// this predicate gates the surface (docs/plans/notifications.md).
+export function canViewTracking(user: User): PolicyDecision {
+  return hasAny(user, ["manager", "founder", "admin", "developer"])
+    ? ALLOW
+    : DENY("manager_required");
+}

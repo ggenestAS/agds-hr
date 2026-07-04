@@ -1000,6 +1000,42 @@ export type OverviewData = {
         readonly appealUntil: string | undefined;
       }
     | undefined;
+  // The viewer's own open obligations — the "Your pending actions" block.
+  readonly myPending: readonly PendingActionView[];
+};
+
+export type PendingActionView = {
+  readonly kind: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly caseId: string;
+  readonly openDays: number | undefined;
+};
+
+// The /tracking board: one row per case in the cycle, with completion flags
+// per stage and the case's open obligations for the ageing column. Row scope
+// (own reports vs everyone) is applied by the handler.
+export type TrackingRow = {
+  readonly caseId: string;
+  readonly subjectEmail: string;
+  readonly subjectName: string | undefined;
+  readonly subjectUserId: string | undefined;
+  readonly state: ReviewState;
+  readonly decided: boolean;
+  readonly selfSubmitted: boolean;
+  readonly peersSubmitted: number;
+  readonly peersPending: number;
+  readonly quotaMet: boolean;
+  readonly assessmentSubmitted: boolean;
+  readonly signoffCount: number;
+  readonly pending: readonly PendingActionView[];
+};
+
+export type TrackingView = {
+  readonly cycle: string;
+  readonly rows: readonly TrackingRow[];
+  readonly counts: Readonly<Partial<Record<ReviewState, number>>>;
+  readonly decidedCount: number;
 };
 
 // Sidebar affordances — minimal case snapshot for the authenticated frame.

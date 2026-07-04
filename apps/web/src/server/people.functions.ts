@@ -106,6 +106,11 @@ export const resolveAppealFn = createServerFn({ method: "POST" })
     return resolveAppealHandler(data);
   });
 
+export const trackingFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { trackingHandler } = await import("./people.impl.server.ts");
+  return trackingHandler();
+});
+
 export const overviewFn = createServerFn({ method: "GET" }).handler(async () => {
   const { overviewHandler } = await import("./people.impl.server.ts");
   return overviewHandler();

@@ -21,6 +21,7 @@ import {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewTracking,
   canWriteAssessment,
   canWriteSelfReview,
 } from "@agds-hr/people";
@@ -67,4 +68,5 @@ export function registerPolicies(): void {
   registerPolicy("people.peer.respond", (user) => canRespondPeerInput(user));
   registerPolicy("people.assessment.write", (user) => canWriteAssessment(user));
   registerPolicy("people.band.manage", (user) => canManageBands(user));
+  registerPolicy("people.tracking.read", (user) => canViewTracking(user));
 }

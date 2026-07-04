@@ -146,6 +146,7 @@ export {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewTracking,
   canWriteAssessment,
   canWriteSelfReview,
 } from "./policies.ts";

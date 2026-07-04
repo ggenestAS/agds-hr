@@ -11,7 +11,6 @@ import {
   isInsideConfigured,
   listAdminDirectory,
   listOrgTree,
-  localTeamPeerCount,
   managementChain,
   type InsideAdmin,
   type OrgNode,
@@ -49,7 +48,6 @@ import {
   listPeerRequestsForCases,
   listPeerRequestsForRequestee,
   openCase,
-  peerInputQuota,
   participatesInReview,
   reopenSelfReview,
   saveAssessment,
@@ -80,6 +78,11 @@ import {
   stampSelfReviewHeader,
 } from "./people.shared.ts";
 import type { SelfReviewContext } from "./people.shared.ts";
+import {
+  collectCycleObligations,
+  directManagerEmails,
+  resolvePeerInputQuota,
+} from "./obligations.server.ts";
 import type {
   AppealsPageView,
   AppealView,
@@ -104,6 +107,7 @@ import type {
   PeerRequestCreateInput,
   PeerSubmitInput,
   PeerAnswerView,
+  PendingActionView,
   PersonDetail,
   ReceivedCycleView,
   SelfReviewPayloadInput,
@@ -112,20 +116,10 @@ import type {
   SignPageView,
   SetCompInput,
   SetEmployeeAttrsInput,
+  TrackingRow,
+  TrackingView,
 } from "./people.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
-
-export function resolvePeerInputQuota(
-  subjectEmail: string,
-  orgNodes: readonly OrgNode[],
-  userIdByEmail: ReadonlyMap<string, string>,
-): ReturnType<typeof peerInputQuota> {
-  const userId = userIdByEmail.get(subjectEmail.toLowerCase());
-  // Fail closed when org data is missing — assume a full local team.
-  const localPeers =
-    userId === undefined || orgNodes.length === 0 ? 2 : localTeamPeerCount(orgNodes, userId);
-  return peerInputQuota(localPeers);
-}
 
 // The local-team neighborhood of a person: colleagues sharing their local
 // manager, their own local reports, and the local manager themself. Drives
@@ -502,35 +496,6 @@ export async function openReviewHandler(input: { readonly email: string }): Prom
     auditContext(session),
   );
   return { ok: true };
-}
-
-// The subject's DIRECT managers, both lines, from the Inside roster/org tree —
-// the assessment.ready recipients. Best-effort empty when Inside is down: the
-// weekly digest is the catch-all for a missed event nudge.
-export function directManagerEmails(
-  subjectEmail: string,
-  admins: readonly InsideAdmin[],
-  orgNodes: readonly OrgNode[],
-): readonly string[] {
-  const subject = admins.find((admin) => admin.email.toLowerCase() === subjectEmail.toLowerCase());
-  if (subject === undefined) {
-    return [];
-  }
-  const emailByUserId = new Map(admins.map((admin) => [admin.userId, admin.email.toLowerCase()]));
-  const managerIds = new Set<string>();
-  const functional = managementChain(orgNodes, subject.userId)[0];
-  if (functional !== undefined) {
-    managerIds.add(functional.userId);
-  }
-  const localManagerId = orgNodes.find(
-    (node) => node.userId === subject.userId,
-  )?.localManagerUserId;
-  if (localManagerId !== undefined) {
-    managerIds.add(localManagerId);
-  }
-  return [...managerIds]
-    .map((userId) => emailByUserId.get(userId))
-    .filter((email): email is string => email !== undefined);
 }
 
 export async function advanceReviewHandler(input: {
@@ -1585,14 +1550,32 @@ export async function overviewHandler(): Promise<OverviewData> {
   const isReviewer = can(session.subject, "people.review.open").allow;
   const leadership = isLeadership(session.subject.roles);
 
-  const [cases, admins, myCase, managed] = await Promise.all([
+  const [cases, admins, myCase, managed, cycleObligations] = await Promise.all([
     listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
     isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
     getCaseBySubject(adminDb, session.actor.email.toLowerCase(), REVIEW_CURRENT_CYCLE),
     isReviewer && !leadership
       ? managedEmailSets(adminDb, session.subject.id)
       : Promise.resolve(undefined),
+    collectCycleObligations(adminDb),
   ]);
+
+  // The viewer's own open obligations (owner = the EFFECTIVE user, so "view
+  // as" shows what that person owes) — same brain as /tracking and the digest.
+  const effectiveEmail = session.subject.email.toLowerCase();
+  const now = Date.now();
+  const myPending: PendingActionView[] = cycleObligations.obligations
+    .filter((obligation) => obligation.ownerEmail === effectiveEmail)
+    .map((obligation) => ({
+      kind: obligation.kind,
+      subjectEmail: obligation.subjectEmail,
+      subjectName: cycleObligations.nameByEmail.get(obligation.subjectEmail)?.name,
+      caseId: obligation.caseId,
+      openDays:
+        obligation.openSince === undefined
+          ? undefined
+          : Math.max(0, Math.floor((now - obligation.openSince.getTime()) / 86_400_000)),
+    }));
 
   const needsDecision: OverviewData["needsDecision"][number][] = [];
   const byEmail = new Map(
@@ -1631,7 +1614,86 @@ export async function overviewHandler(): Promise<OverviewData> {
             decidedAt: myCase.decidedAt?.toISOString(),
             appealUntil: myCase.appealUntil?.toISOString(),
           },
+    myPending,
   };
+}
+
+// The /tracking board (docs/plans/notifications.md): per-case completion
+// matrix with ageing, derived from the same computeObligations assembly the
+// digest job uses — one brain, so the board and the emails can never disagree.
+// Row scope mirrors /assessment: managers see their reports (either line, any
+// depth), leadership sees everyone.
+export async function trackingHandler(): Promise<TrackingView> {
+  const session = await requireSession("people.tracking.read");
+  const adminDb = getDbAs("admin");
+  const [cycle, managed] = await Promise.all([
+    collectCycleObligations(adminDb),
+    managedEmailSets(adminDb, session.subject.id),
+  ]);
+  const leadership = isLeadership(session.subject.roles);
+  const viewerEmail = session.subject.email.toLowerCase();
+
+  const now = Date.now();
+  const toPending = (obligation: (typeof cycle.obligations)[number]): PendingActionView => ({
+    kind: obligation.kind,
+    subjectEmail: obligation.subjectEmail,
+    subjectName: cycle.nameByEmail.get(obligation.subjectEmail)?.name,
+    caseId: obligation.caseId,
+    openDays:
+      obligation.openSince === undefined
+        ? undefined
+        : Math.max(0, Math.floor((now - obligation.openSince.getTime()) / 86_400_000)),
+  });
+
+  const pendingByCase = new Map<string, PendingActionView[]>();
+  for (const obligation of cycle.obligations) {
+    const bucket = pendingByCase.get(obligation.caseId);
+    const view = toPending(obligation);
+    if (bucket === undefined) {
+      pendingByCase.set(obligation.caseId, [view]);
+    } else {
+      bucket.push(view);
+    }
+  }
+
+  const inScope = cycle.caseDetails.filter(
+    (detail) =>
+      leadership ||
+      detail.base.subjectEmail.toLowerCase() === viewerEmail ||
+      managed.all.has(detail.base.subjectEmail.toLowerCase()),
+  );
+
+  const counts: Partial<Record<TrackingRow["state"], number>> = {};
+  let decidedCount = 0;
+  const rows: TrackingRow[] = inScope.map((detail) => {
+    const subjectEmail = detail.base.subjectEmail.toLowerCase();
+    if (detail.base.decided) {
+      decidedCount += 1;
+    } else {
+      counts[detail.base.state] = (counts[detail.base.state] ?? 0) + 1;
+    }
+    return {
+      caseId: detail.base.caseId,
+      subjectEmail,
+      subjectName: cycle.nameByEmail.get(subjectEmail)?.name,
+      subjectUserId: cycle.nameByEmail.get(subjectEmail)?.userId,
+      state: detail.base.state,
+      decided: detail.base.decided,
+      selfSubmitted: detail.selfSubmitted,
+      peersSubmitted: detail.peersSubmitted,
+      peersPending: detail.peersPending,
+      quotaMet: detail.quotaMet,
+      assessmentSubmitted: detail.assessmentSubmitted,
+      signoffCount: detail.signoffCount,
+      pending: pendingByCase.get(detail.base.caseId) ?? [],
+    };
+  });
+
+  rows.sort((left, right) =>
+    (left.subjectName ?? left.subjectEmail).localeCompare(right.subjectName ?? right.subjectEmail),
+  );
+
+  return { cycle: REVIEW_CURRENT_CYCLE, rows, counts, decidedCount };
 }
 
 // Appeals: the appellant may appeal their OWN delivered decision within the

@@ -4,6 +4,8 @@ import {
   isInsideConfigured,
   listAdminDirectory,
   listOrgTree,
+  localTeamPeerCount,
+  managementChain,
   type InsideAdmin,
   type OrgNode,
 } from "@agds-hr/inside";
@@ -15,11 +17,10 @@ import {
   listCasesForCycle,
   listPeerRequestsForCases,
   listSelfReviewsByCases,
+  peerInputQuota,
   REVIEW_CURRENT_CYCLE,
 } from "@agds-hr/people";
 import type { CalibrationCase, Obligation, ObligationCaseInput } from "@agds-hr/people";
-
-import { directManagerEmails, resolvePeerInputQuota } from "./people.impl.server.ts";
 
 // Assembles the inputs for computeObligations from the DALs and the org graph
 // — the ONE place cycle state is gathered, shared by the tracking board, the
@@ -45,6 +46,48 @@ export type CycleObligations = {
   readonly hrEmails: readonly string[];
   readonly nameByEmail: ReadonlyMap<string, { readonly name: string; readonly userId: string }>;
 };
+
+export function resolvePeerInputQuota(
+  subjectEmail: string,
+  orgNodes: readonly OrgNode[],
+  userIdByEmail: ReadonlyMap<string, string>,
+): ReturnType<typeof peerInputQuota> {
+  const userId = userIdByEmail.get(subjectEmail.toLowerCase());
+  // Fail closed when org data is missing — assume a full local team.
+  const localPeers =
+    userId === undefined || orgNodes.length === 0 ? 2 : localTeamPeerCount(orgNodes, userId);
+  return peerInputQuota(localPeers);
+}
+
+// The subject's DIRECT managers, both lines, from the Inside roster/org tree —
+// the assessment.ready recipients and the obligation owners for stuck cases.
+// Best-effort empty when Inside is down: the weekly digest is the catch-all
+// for a missed event nudge.
+export function directManagerEmails(
+  subjectEmail: string,
+  admins: readonly InsideAdmin[],
+  orgNodes: readonly OrgNode[],
+): readonly string[] {
+  const subject = admins.find((admin) => admin.email.toLowerCase() === subjectEmail.toLowerCase());
+  if (subject === undefined) {
+    return [];
+  }
+  const emailByUserId = new Map(admins.map((admin) => [admin.userId, admin.email.toLowerCase()]));
+  const managerIds = new Set<string>();
+  const functional = managementChain(orgNodes, subject.userId)[0];
+  if (functional !== undefined) {
+    managerIds.add(functional.userId);
+  }
+  const localManagerId = orgNodes.find(
+    (node) => node.userId === subject.userId,
+  )?.localManagerUserId;
+  if (localManagerId !== undefined) {
+    managerIds.add(localManagerId);
+  }
+  return [...managerIds]
+    .map((userId) => emailByUserId.get(userId))
+    .filter((email): email is string => email !== undefined);
+}
 
 async function loadRoster(): Promise<readonly InsideAdmin[]> {
   if (!isInsideConfigured()) {
