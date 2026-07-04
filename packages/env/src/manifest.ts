@@ -97,6 +97,20 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "optional",
   },
+  {
+    name: "RESEND_API_KEY",
+    owner: "@agds-hr/resend",
+    group: "email",
+    scope: "server",
+    requirement: "optional",
+  },
+  {
+    name: "EMAIL_DRY_RUN",
+    owner: "@agds-hr/resend",
+    group: "email",
+    scope: "server",
+    requirement: "optional",
+  },
   // Deploy-time only (scripts/ops/deploy-worker.ts) — never read at runtime.
   {
     name: "CLOUDFLARE_API_TOKEN",

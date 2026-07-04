@@ -1,0 +1,15 @@
+{
+  "name": "@agds-hr/resend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "oxlint --type-aware"
+  },
+  "dependencies": {
+    "@agds-hr/env": "workspace:*"
+  }
+}
