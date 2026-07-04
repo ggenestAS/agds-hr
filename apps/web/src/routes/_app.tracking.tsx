@@ -51,6 +51,9 @@ function StageDot({ done, label }: { done: boolean; label: string }) {
 }
 
 function PendingCell({ row }: { row: TrackingRow }) {
+  if (row.caseId === undefined) {
+    return <span className="text-xs text-muted-foreground">Case not opened</span>;
+  }
   if (row.decided) {
     return <span className="text-xs text-muted-foreground">Decided</span>;
   }
@@ -98,6 +101,7 @@ function PendingCell({ row }: { row: TrackingRow }) {
 function Tracking() {
   const view: TrackingView = Route.useLoaderData();
   const total = view.rows.length;
+  const openedCount = total - view.notOpenedCount;
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -107,7 +111,9 @@ function Tracking() {
       <div className="flex items-baseline justify-between">
         <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Tracking</h1>
         <span className="text-sm tabular-nums text-muted-foreground">
-          {total} {total === 1 ? "case" : "cases"} · {view.decidedCount} decided
+          {total} {total === 1 ? "person" : "people"}
+          {view.notOpenedCount > 0 && <> · {view.notOpenedCount} not opened</>}
+          {openedCount > 0 && <> · {view.decidedCount} decided</>}
         </span>
       </div>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
@@ -116,6 +122,11 @@ function Tracking() {
       </p>
 
       <div className="mt-6 flex flex-wrap gap-2">
+        {view.notOpenedCount > 0 && (
+          <span className="rounded-full border border-border bg-cream px-3 py-1 text-xs font-semibold">
+            not opened <span className="tabular-nums">{view.notOpenedCount}</span>
+          </span>
+        )}
         {STATE_ORDER.map((state) => {
           const count = view.counts[state];
           if (count === undefined || count === 0) {
@@ -134,7 +145,7 @@ function Tracking() {
 
       <Card className="mt-4 overflow-hidden">
         <CardHeader>
-          <CardTitle>Cases</CardTitle>
+          <CardTitle>People</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -154,12 +165,15 @@ function Tracking() {
                 {view.rows.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-6 py-6 text-center text-muted-foreground">
-                      No cases in scope for this cycle.
+                      No one in scope for this cycle.
                     </td>
                   </tr>
                 )}
                 {view.rows.map((row) => (
-                  <tr key={row.caseId} className="border-b border-border last:border-b-0">
+                  <tr
+                    key={row.caseId ?? row.subjectEmail}
+                    className="border-b border-border last:border-b-0"
+                  >
                     <td className="px-6 py-3">
                       {row.subjectUserId !== undefined ? (
                         <Link
@@ -179,7 +193,7 @@ function Tracking() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-xs text-muted-foreground">
-                      {row.state.replace(/_/g, " ")}
+                      {row.state === undefined ? "not opened" : row.state.replace(/_/g, " ")}
                     </td>
                     <td className="px-3 py-3 text-center">
                       <StageDot done={row.selfSubmitted} label="Self-review" />

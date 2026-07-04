@@ -45,6 +45,7 @@ export type CycleObligations = {
   readonly founderEmails: readonly string[];
   readonly hrEmails: readonly string[];
   readonly nameByEmail: ReadonlyMap<string, { readonly name: string; readonly userId: string }>;
+  readonly activeRosterEmails: ReadonlySet<string>;
 };
 
 export function resolvePeerInputQuota(
@@ -232,5 +233,8 @@ export async function collectCycleObligations(
     founderEmails,
     hrEmails,
     nameByEmail,
+    activeRosterEmails: new Set(
+      admins.filter((admin) => admin.active).map((admin) => admin.email.toLowerCase()),
+    ),
   };
 }

@@ -66,7 +66,7 @@ import {
 } from "@agds-hr/people";
 import type { AssessmentDraft } from "@agds-hr/people";
 import { CAREER_LEVELS, peerInputSubmitIssues } from "@agds-hr/people/types";
-import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
+import type { AppealCategory, ReviewRating, ReviewState } from "@agds-hr/people/types";
 import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
 import type { EnqueueNotificationInput } from "@agds-hr/notifications";
 import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
@@ -1629,12 +1629,14 @@ export async function overviewHandler(): Promise<OverviewData> {
 export async function trackingHandler(): Promise<TrackingView> {
   const session = await requireSession("people.tracking.read");
   const adminDb = getDbAs("admin");
-  const [cycle, managed] = await Promise.all([
+  const [cycle, managed, employeeAttrs] = await Promise.all([
     collectCycleObligations(adminDb),
     managedEmailSets(adminDb, session.subject.id),
+    listEmployeeAttrs(adminDb),
   ]);
   const leadership = isLeadership(session.subject.roles);
   const viewerEmail = session.subject.email.toLowerCase();
+  const attrsByEmail = new Map(employeeAttrs.map((attrs) => [attrs.email.toLowerCase(), attrs]));
 
   const now = Date.now();
   const toPending = (obligation: (typeof cycle.obligations)[number]): PendingActionView => ({
@@ -1666,7 +1668,7 @@ export async function trackingHandler(): Promise<TrackingView> {
       managed.all.has(detail.base.subjectEmail.toLowerCase()),
   );
 
-  const counts: Partial<Record<TrackingRow["state"], number>> = {};
+  const counts: Partial<Record<ReviewState, number>> = {};
   let decidedCount = 0;
   const rows: TrackingRow[] = inScope.map((detail) => {
     const subjectEmail = detail.base.subjectEmail.toLowerCase();
@@ -1692,11 +1694,47 @@ export async function trackingHandler(): Promise<TrackingView> {
     };
   });
 
+  // Participating staff in scope whose case has not been opened yet — same
+  // visibility as opened cases (leadership: roster; managers: own + reports).
+  const caseEmails = new Set(
+    cycle.caseDetails.map((detail) => detail.base.subjectEmail.toLowerCase()),
+  );
+  const scopeEmails = leadership
+    ? [...cycle.nameByEmail.keys()].filter((email) => cycle.activeRosterEmails.has(email))
+    : [...new Set([...managed.all, viewerEmail])];
+  let notOpenedCount = 0;
+  for (const email of scopeEmails) {
+    if (caseEmails.has(email)) {
+      continue;
+    }
+    const attrs = attrsByEmail.get(email);
+    const employmentType = attrs?.employmentType ?? "employee";
+    if (!participatesInReview(employmentType, attrs?.reviewParticipationOverride ?? null)) {
+      continue;
+    }
+    notOpenedCount += 1;
+    rows.push({
+      caseId: undefined,
+      subjectEmail: email,
+      subjectName: cycle.nameByEmail.get(email)?.name,
+      subjectUserId: cycle.nameByEmail.get(email)?.userId,
+      state: undefined,
+      decided: false,
+      selfSubmitted: false,
+      peersSubmitted: 0,
+      peersPending: 0,
+      quotaMet: false,
+      assessmentSubmitted: false,
+      signoffCount: 0,
+      pending: [],
+    });
+  }
+
   rows.sort((left, right) =>
     (left.subjectName ?? left.subjectEmail).localeCompare(right.subjectName ?? right.subjectEmail),
   );
 
-  return { cycle: REVIEW_CURRENT_CYCLE, rows, counts, decidedCount };
+  return { cycle: REVIEW_CURRENT_CYCLE, rows, counts, decidedCount, notOpenedCount };
 }
 
 // Appeals: the appellant may appeal their OWN delivered decision within the

@@ -1018,11 +1018,11 @@ export type PendingActionView = {
 // per stage and the case's open obligations for the ageing column. Row scope
 // (own reports vs everyone) is applied by the handler.
 export type TrackingRow = {
-  readonly caseId: string;
+  readonly caseId: string | undefined;
   readonly subjectEmail: string;
   readonly subjectName: string | undefined;
   readonly subjectUserId: string | undefined;
-  readonly state: ReviewState;
+  readonly state: ReviewState | undefined;
   readonly decided: boolean;
   readonly selfSubmitted: boolean;
   readonly peersSubmitted: number;
@@ -1038,6 +1038,7 @@ export type TrackingView = {
   readonly rows: readonly TrackingRow[];
   readonly counts: Readonly<Partial<Record<ReviewState, number>>>;
   readonly decidedCount: number;
+  readonly notOpenedCount: number;
 };
 
 // Sidebar affordances — minimal case snapshot for the authenticated frame.
