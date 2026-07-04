@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   advanceReviewSchema,
   assessmentSaveSchema,
+  checkInSaveSchema,
   compReadSchema,
   fileAppealSchema,
   openReviewSchema,
@@ -263,3 +264,22 @@ export const signQueueFn = createServerFn({ method: "GET" }).handler(async () =>
   const { signQueueHandler } = await import("./people.impl.server.ts");
   return signQueueHandler();
 });
+
+export const midYearFn = createServerFn({ method: "GET" }).handler(async () => {
+  const { midYearHandler } = await import("./people.impl.server.ts");
+  return midYearHandler();
+});
+
+export const checkInSaveFn = createServerFn({ method: "POST" })
+  .validator(checkInSaveSchema)
+  .handler(async ({ data }) => {
+    const { checkInSaveHandler } = await import("./people.impl.server.ts");
+    return checkInSaveHandler(data);
+  });
+
+export const checkInSubmitFn = createServerFn({ method: "POST" })
+  .validator(checkInSaveSchema)
+  .handler(async ({ data }) => {
+    const { checkInSubmitHandler } = await import("./people.impl.server.ts");
+    return checkInSubmitHandler(data);
+  });

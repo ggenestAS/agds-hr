@@ -104,6 +104,16 @@ export function canWriteAssessment(user: User): PolicyDecision {
   return hasAny(user, ["manager", "founder", "developer"]) ? ALLOW : DENY("reviewer_required");
 }
 
+// Mid-year check-ins (P5) are a manager filing — managers own P5 day-to-day,
+// supervised by CEO & COO (handbook). Row scope (only your own reports, no
+// self-check-in) is enforced in the handler via the manager graph, like
+// /assessment.
+export function canWriteCheckIn(user: User): PolicyDecision {
+  return hasAny(user, ["manager", "founder", "admin", "developer"])
+    ? ALLOW
+    : DENY("manager_required");
+}
+
 // Band figures are set by the founders (design: bands are built and owned by
 // CEO & COO); developer is the usual break-glass.
 export function canManageBands(user: User): PolicyDecision {

@@ -76,6 +76,16 @@ export {
   saveSelfReview,
   submitSelfReview,
 } from "./self-review.ts";
+export {
+  CHECK_IN_CURRENT_PERIOD,
+  CHECK_IN_STATUSES,
+  CHECK_IN_STATUS_LABELS,
+  CHECK_IN_SUMMARY_MIN_WORDS,
+  checkInSubmitIssues,
+  isCheckInStatus,
+} from "./types.ts";
+export type { CheckIn, CheckInDraft, CheckInStatus } from "./types.ts";
+export { getCheckIn, listCheckInsForPeriod, saveCheckIn, submitCheckIn } from "./check-in.ts";
 export type { AssessmentDraft, AuthoredAssessment } from "./assessment.ts";
 export {
   getAssessmentByCase,
@@ -148,5 +158,6 @@ export {
   canViewCompPrinciples,
   canViewTracking,
   canWriteAssessment,
+  canWriteCheckIn,
   canWriteSelfReview,
 } from "./policies.ts";

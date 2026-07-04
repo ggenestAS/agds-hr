@@ -18,6 +18,7 @@ import {
   APPEAL_STATUSES,
   CAREER_LEVELS,
   CAREER_PATHS,
+  CHECK_IN_STATUSES,
   EMPLOYMENT_TYPES,
   PEER_KINDS,
   PEER_REQUEST_STATUSES,
@@ -255,6 +256,39 @@ export const peerRequest = peopleSchema.table(
       .$onUpdate(() => new Date()),
   },
   (table) => [unique("peer_request_case_requestee").on(table.caseId, table.requesteeEmail)],
+);
+
+// Mid-year check-in (P5, docs/plans/mid-year.md): the filed record of the
+// January/February course-correction — status, one-paragraph summary, P1
+// verification, promotion-candidacy and underperformance flags. Keyed by
+// subject email like every people-domain record; `period` is the review cycle
+// the check-in feeds. Not tied to review_case — the check-in happens months
+// before any case opens. No soft delete: the filed record is the point.
+export const checkInStatusEnum = peopleSchema.enum("check_in_status", CHECK_IN_STATUSES);
+
+export const checkIn = peopleSchema.table(
+  "check_in",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    subjectEmail: text("subject_email").notNull(),
+    period: text("period").notNull(),
+    status: checkInStatusEnum("status"),
+    summary: text("summary").notNull().default(""),
+    p1Confirmed: boolean("p1_confirmed").notNull().default(false),
+    p1Note: text("p1_note").notNull().default(""),
+    promoFlag: boolean("promo_flag").notNull().default(false),
+    promoNote: text("promo_note").notNull().default(""),
+    underperfFlag: boolean("underperf_flag").notNull().default(false),
+    underperfNote: text("underperf_note").notNull().default(""),
+    authorEmail: text("author_email"),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("check_in_subject_period").on(table.subjectEmail, table.period)],
 );
 
 // The manager assessment (design M6): evidence-based — per-dimension score,

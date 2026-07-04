@@ -23,6 +23,7 @@ import {
   canViewCompPrinciples,
   canViewTracking,
   canWriteAssessment,
+  canWriteCheckIn,
   canWriteSelfReview,
 } from "@agds-hr/people";
 import type { ReviewState } from "@agds-hr/people/types";
@@ -67,6 +68,7 @@ export function registerPolicies(): void {
   registerPolicy("people.peer.request", (user) => canRequestPeerInput(user));
   registerPolicy("people.peer.respond", (user) => canRespondPeerInput(user));
   registerPolicy("people.assessment.write", (user) => canWriteAssessment(user));
+  registerPolicy("people.checkin.write", (user) => canWriteCheckIn(user));
   registerPolicy("people.band.manage", (user) => canManageBands(user));
   registerPolicy("people.tracking.read", (user) => canViewTracking(user));
 }

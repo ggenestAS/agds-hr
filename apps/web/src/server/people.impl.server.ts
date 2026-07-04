@@ -19,7 +19,12 @@ import {
   advanceCase,
   canFileAppealNow,
   canSeeAppeal,
+  CHECK_IN_CURRENT_PERIOD,
   createPeerRequests,
+  getCheckIn,
+  listCheckInsForPeriod,
+  saveCheckIn,
+  submitCheckIn,
   declinePeerRequest,
   fileAppeal,
   getAppealForCase,
@@ -64,7 +69,7 @@ import {
   upsertCompRecommendation,
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
-import type { AssessmentDraft } from "@agds-hr/people";
+import type { AssessmentDraft, CheckInDraft } from "@agds-hr/people";
 import { CAREER_LEVELS, peerInputSubmitIssues } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating, ReviewState } from "@agds-hr/people/types";
 import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
@@ -93,11 +98,15 @@ import type {
   BandsView,
   CalibrationPerson,
   CalibrationSummary,
+  CheckInSaveInput,
+  CheckInView,
   CompView,
   DecisionDoc,
   DirectoryEntry,
   GivenAsManagerView,
   GivenAsPeerView,
+  MidYearRow,
+  MidYearView,
   MyPeerCaseView,
   NavHints,
   OverviewData,
@@ -1847,6 +1856,133 @@ export async function resolveAppealHandler(input: {
     input.appealId,
     session.actor.id,
     input.resolution,
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+// --- Mid-year check-in (P5, docs/plans/mid-year.md) --------------------------
+// Same scope rule as /assessment: the viewer's reports (either line, any
+// depth), direct first; leadership with no reports falls back to the roster.
+// No one files a check-in on themselves.
+const toCheckInView = (row: NonNullable<Awaited<ReturnType<typeof getCheckIn>>>): CheckInView => ({
+  status: row.status,
+  summary: row.summary,
+  p1Confirmed: row.p1Confirmed,
+  p1Note: row.p1Note,
+  promoFlag: row.promoFlag,
+  promoNote: row.promoNote,
+  underperfFlag: row.underperfFlag,
+  underperfNote: row.underperfNote,
+  authorEmail: row.authorEmail,
+  submittedAt: row.submittedAt?.toISOString(),
+});
+
+async function checkInScope(session: Awaited<ReturnType<typeof requireSession>>): Promise<{
+  readonly scope: readonly string[];
+  readonly directSet: ReadonlySet<string>;
+  readonly rosterByEmail: ReadonlyMap<string, InsideAdmin>;
+}> {
+  const adminDb = getDbAs("admin");
+  const effectiveEmail = session.subject.email.toLowerCase();
+  const [admins, managed] = await Promise.all([
+    isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
+    managedEmailSets(adminDb, session.subject.id),
+  ]);
+  const rosterByEmail = new Map(admins.map((admin) => [admin.email.toLowerCase(), admin]));
+  let scope = [...managed.all].filter((email) => email !== effectiveEmail);
+  let directSet: ReadonlySet<string> = managed.direct;
+  if (scope.length === 0 && isLeadership(session.subject.roles)) {
+    scope = admins
+      .filter((admin) => admin.active)
+      .map((admin) => admin.email.toLowerCase())
+      .filter((email) => email !== effectiveEmail);
+    directSet = new Set<string>();
+  }
+  return { scope, directSet, rosterByEmail };
+}
+
+export async function midYearHandler(): Promise<MidYearView> {
+  const session = await requireSession("people.checkin.write");
+  const adminDb = getDbAs("admin");
+  const { scope, directSet, rosterByEmail } = await checkInScope(session);
+  const checkIns = await listCheckInsForPeriod(adminDb, scope, CHECK_IN_CURRENT_PERIOD);
+  const checkInByEmail = new Map(checkIns.map((entry) => [entry.subjectEmail, entry]));
+
+  const rows = scope
+    .map((email): MidYearRow => {
+      const roster = rosterByEmail.get(email);
+      const filed = checkInByEmail.get(email);
+      return {
+        email,
+        name: roster !== undefined ? `${roster.firstName} ${roster.lastName}`.trim() : email,
+        userId: roster?.userId,
+        title: roster?.title,
+        direct: directSet.has(email),
+        checkIn: filed === undefined ? undefined : toCheckInView(filed),
+      };
+    })
+    .sort((left, right) => {
+      if (left.direct !== right.direct) {
+        return left.direct ? -1 : 1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+
+  return { period: CHECK_IN_CURRENT_PERIOD, rows };
+}
+
+const toCheckInDraft = (input: CheckInSaveInput): CheckInDraft => ({
+  status: input.status,
+  summary: input.summary,
+  p1Confirmed: input.p1Confirmed,
+  p1Note: input.p1Note,
+  promoFlag: input.promoFlag,
+  promoNote: input.promoNote,
+  underperfFlag: input.underperfFlag,
+  underperfNote: input.underperfNote,
+});
+
+// Manager-graph gate on every write: only the subject's managers (either
+// line) and leadership may file, and never on themselves — fail closed.
+async function assertCheckInSubject(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  subjectEmail: string,
+): Promise<void> {
+  if (subjectEmail === session.subject.email.toLowerCase()) {
+    throw new ForbiddenError("people.checkin.write", "own_check_in");
+  }
+  const { scope } = await checkInScope(session);
+  if (!scope.includes(subjectEmail)) {
+    throw new ForbiddenError("people.checkin.write", "not_subjects_manager");
+  }
+}
+
+export async function checkInSaveHandler(input: CheckInSaveInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.checkin.write");
+  const subjectEmail = input.subjectEmail.toLowerCase();
+  await assertCheckInSubject(session, subjectEmail);
+  await saveCheckIn(
+    getDbAs("admin"),
+    subjectEmail,
+    CHECK_IN_CURRENT_PERIOD,
+    toCheckInDraft(input),
+    session.actor.email,
+    auditContext(session),
+  );
+  return { ok: true };
+}
+
+export async function checkInSubmitHandler(input: CheckInSaveInput): Promise<{ ok: true }> {
+  const session = await requireSession("people.checkin.write");
+  const subjectEmail = input.subjectEmail.toLowerCase();
+  await assertCheckInSubject(session, subjectEmail);
+  await submitCheckIn(
+    getDbAs("admin"),
+    subjectEmail,
+    CHECK_IN_CURRENT_PERIOD,
+    toCheckInDraft(input),
+    session.actor.email,
     auditContext(session),
   );
   return { ok: true };

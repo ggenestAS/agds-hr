@@ -399,6 +399,78 @@ export function canSubmitAssessment(input: {
   return isP6Triggered(input.proposedRating) ? input.p6Acknowledged : true;
 }
 
+// --- Mid-year check-in (P5) --------------------------------------------------
+// The January/February course-correction (docs/plans/mid-year.md): not a
+// review — no ratings, no comp. The filed output is a status, a one-paragraph
+// summary, the P1 verification, and two routed flags. One record per subject
+// per period; submit is final (the filed record is the compliance artifact).
+export const CHECK_IN_STATUSES = ["on_track", "off_track"] as const;
+export type CheckInStatus = (typeof CHECK_IN_STATUSES)[number];
+export const isCheckInStatus = (value: string): value is CheckInStatus =>
+  (CHECK_IN_STATUSES as readonly string[]).includes(value);
+
+export const CHECK_IN_STATUS_LABELS: Record<CheckInStatus, string> = {
+  on_track: "On track",
+  off_track: "Off track",
+};
+
+// The period a check-in FEEDS: the Jan–Feb 2027 window course-corrects toward
+// the 2027 cycle (July 2027 reviews). Bumped alongside REVIEW_CURRENT_CYCLE.
+export const CHECK_IN_CURRENT_PERIOD = "2027";
+
+// One paragraph, not one line: the handbook's filed summary must carry enough
+// substance to be worth reading back at review time.
+export const CHECK_IN_SUMMARY_MIN_WORDS = 30;
+
+export type CheckInDraft = {
+  readonly status: CheckInStatus | undefined;
+  readonly summary: string;
+  readonly p1Confirmed: boolean;
+  readonly p1Note: string;
+  readonly promoFlag: boolean;
+  readonly promoNote: string;
+  readonly underperfFlag: boolean;
+  readonly underperfNote: string;
+};
+
+export type CheckIn = CheckInDraft & {
+  readonly subjectEmail: string;
+  readonly period: string;
+  readonly authorEmail: string | undefined;
+  readonly submittedAt: Date | undefined;
+};
+
+const checkInWordCount = (text: string): number => {
+  const trimmed = text.trim();
+  return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
+};
+
+// Submit gate (pure, enforced in the DAL — fail closed): a check-in without a
+// status or a real summary is not a filed record, an unconfirmed P1 needs its
+// correction noted, and a raised flag without substance routes nothing.
+export function checkInSubmitIssues(draft: CheckInDraft): readonly string[] {
+  const issues: string[] = [];
+  if (draft.status === undefined) {
+    issues.push("choose On track or Off track");
+  }
+  const words = checkInWordCount(draft.summary);
+  if (words < CHECK_IN_SUMMARY_MIN_WORDS) {
+    issues.push(
+      `summary: ${words} ${words === 1 ? "word" : "words"} — aim for ${CHECK_IN_SUMMARY_MIN_WORDS}+`,
+    );
+  }
+  if (!draft.p1Confirmed && draft.p1Note.trim() === "") {
+    issues.push("unconfirmed role/level/scope needs a note of what changed");
+  }
+  if (draft.promoFlag && draft.promoNote.trim() === "") {
+    issues.push("a promotion-candidacy flag needs its rationale");
+  }
+  if (draft.underperfFlag && draft.underperfNote.trim() === "") {
+    issues.push("an underperformance flag needs the gap described");
+  }
+  return issues;
+}
+
 // --- Appeals ---------------------------------------------------------------
 // What is being appealed (design: Rating / Raise / Band placement / Exception).
 export const APPEAL_CATEGORIES = ["rating", "raise", "band", "exception"] as const;

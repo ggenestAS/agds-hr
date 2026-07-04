@@ -3,6 +3,7 @@ import {
   CAREER_LEVEL_META,
   CAREER_LEVELS,
   CAREER_PATHS,
+  CHECK_IN_STATUSES,
   EMPLOYMENT_TYPES,
   EVALUATION_DIMENSIONS,
   PEER_INPUT_KEYS,
@@ -14,6 +15,7 @@ import type {
   AppealCategory,
   CareerLevel,
   CareerPath,
+  CheckInStatus,
   EmploymentType,
   EvaluationDimension,
   PeerInputKey,
@@ -1042,6 +1044,51 @@ export type TrackingView = {
   readonly counts: Readonly<Partial<Record<ReviewState, number>>>;
   readonly decidedCount: number;
   readonly notOpenedCount: number;
+};
+
+// Mid-year check-in (P5, docs/plans/mid-year.md): the manager files the
+// written output — status, one-paragraph summary, P1 verification, two flags.
+export const checkInSaveSchema = z.object({
+  subjectEmail: z.string().email(),
+  status: z.enum(CHECK_IN_STATUSES).optional(),
+  summary: z.string().max(8000),
+  p1Confirmed: z.boolean(),
+  p1Note: z.string().max(2000),
+  promoFlag: z.boolean(),
+  promoNote: z.string().max(2000),
+  underperfFlag: z.boolean(),
+  underperfNote: z.string().max(2000),
+});
+export type CheckInSaveInput = z.infer<typeof checkInSaveSchema>;
+
+export type CheckInView = {
+  readonly status: CheckInStatus | undefined;
+  readonly summary: string;
+  readonly p1Confirmed: boolean;
+  readonly p1Note: string;
+  readonly promoFlag: boolean;
+  readonly promoNote: string;
+  readonly underperfFlag: boolean;
+  readonly underperfNote: string;
+  readonly authorEmail: string | undefined;
+  readonly submittedAt: string | undefined;
+};
+
+// One row per person the viewer manages, mirroring /assessment's scope rule:
+// direct reports (either line) first, then indirect; leadership with no
+// reports falls back to the roster.
+export type MidYearRow = {
+  readonly email: string;
+  readonly name: string;
+  readonly userId: string | undefined;
+  readonly title: string | undefined;
+  readonly direct: boolean;
+  readonly checkIn: CheckInView | undefined;
+};
+
+export type MidYearView = {
+  readonly period: string;
+  readonly rows: readonly MidYearRow[];
 };
 
 // Sidebar affordances — minimal case snapshot for the authenticated frame.

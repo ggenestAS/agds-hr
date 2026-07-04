@@ -25,6 +25,7 @@ type NavEntry = {
   readonly to:
     | "/dashboard"
     | "/people"
+    | "/mid-year"
     | "/self-review"
     | "/peer-input"
     | "/assessment"
@@ -47,6 +48,8 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
     items: [
       { to: "/dashboard", label: "Overview", roles: EVERYONE },
       { to: "/people", label: "People", roles: EVERYONE },
+      // P5 is a manager filing (docs/plans/mid-year.md) — reviewer-and-up.
+      { to: "/mid-year", label: "Mid-year check-in", roles: REVIEWERS },
       { to: "/self-review", label: "Self-review", roles: EVERYONE },
       { to: "/peer-input", label: "Peer input", roles: EVERYONE },
       { to: "/assessment", label: "Assessment", roles: REVIEWERS },

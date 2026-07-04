@@ -9,6 +9,8 @@ import {
   canSubmitAssessment,
   canSeeAppeal,
   canTransition,
+  checkInSubmitIssues,
+  isCheckInStatus,
   EMPLOYMENT_TYPES,
   isAppealCategory,
   isCareerLevel,
@@ -275,6 +277,47 @@ describe("appeals", () => {
     expect(canFileAppealNow({ ...base, alreadyFiled: true })).toBe(false);
     // exactly at the deadline still counts
     expect(canFileAppealNow({ ...base, nowMs: 2000 })).toBe(true);
+  });
+});
+
+describe("checkInSubmitIssues", () => {
+  const complete = {
+    status: "on_track" as const,
+    summary: Array.from({ length: 35 }, (_, index) => `word${index}`).join(" "),
+    p1Confirmed: true,
+    p1Note: "",
+    promoFlag: false,
+    promoNote: "",
+    underperfFlag: false,
+    underperfNote: "",
+  };
+
+  test("a complete filing passes", () => {
+    expect(checkInSubmitIssues(complete)).toEqual([]);
+  });
+
+  test("status and a real summary are required", () => {
+    expect(checkInSubmitIssues({ ...complete, status: undefined })).toHaveLength(1);
+    expect(checkInSubmitIssues({ ...complete, summary: "too short" })).toHaveLength(1);
+  });
+
+  test("an unconfirmed P1 needs a note; flags need their substance", () => {
+    expect(checkInSubmitIssues({ ...complete, p1Confirmed: false })).toHaveLength(1);
+    expect(checkInSubmitIssues({ ...complete, p1Confirmed: false, p1Note: "new scope" })).toEqual(
+      [],
+    );
+    expect(checkInSubmitIssues({ ...complete, promoFlag: true })).toHaveLength(1);
+    expect(checkInSubmitIssues({ ...complete, promoFlag: true, promoNote: "meets 1-2" })).toEqual(
+      [],
+    );
+    expect(
+      checkInSubmitIssues({ ...complete, underperfFlag: true, underperfNote: "  " }),
+    ).toHaveLength(1);
+  });
+
+  test("status guard rejects unknown values", () => {
+    expect(isCheckInStatus("on_track")).toBe(true);
+    expect(isCheckInStatus("paused")).toBe(false);
   });
 });
 
