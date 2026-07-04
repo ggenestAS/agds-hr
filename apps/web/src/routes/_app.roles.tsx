@@ -42,11 +42,11 @@ const isAssignableRole = (role: UserRole): role is (typeof ASSIGNABLE_ROLES)[num
 
 const roleChipCls = (role: UserRole): string =>
   role === "developer"
-    ? "bg-ink-900 text-white"
+    ? "bg-foreground text-background"
     : role === "founder"
       ? "bg-[var(--color-accent)] text-white"
       : role === "admin"
-        ? "bg-[var(--color-info)] text-white"
+        ? "bg-[var(--color-info)] text-[var(--color-info-surface)]"
         : "bg-bone text-foreground";
 
 function Roles() {

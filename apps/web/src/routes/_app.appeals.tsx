@@ -31,7 +31,7 @@ function AppealCard({ appeal, mine }: { appeal: AppealView; mine?: boolean }) {
     <Card variant={appeal.status === "open" ? "warning" : "default"}>
       <CardContent className="pt-5 text-sm">
         <div className="mb-2.5 flex flex-wrap items-center gap-2.5">
-          <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-dk)]">
+          <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-tint-text)]">
             {CATEGORY_LABEL[appeal.category]}
           </span>
           {!mine && <span className="text-sm font-bold">{appeal.appellantEmail}</span>}
@@ -196,7 +196,7 @@ function Appeals() {
                         onClick={() => setCategory(value)}
                         className={
                           category === value
-                            ? "rounded-full border border-ink-900 bg-ink-900 px-3.5 py-1.5 text-xs font-semibold text-white"
+                            ? "rounded-full border border-foreground bg-foreground px-3.5 py-1.5 text-xs font-semibold text-background"
                             : "rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
                         }
                       >

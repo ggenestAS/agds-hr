@@ -112,7 +112,7 @@ function ContextGrid({ model }: { model: SelfReviewReadModel }) {
             <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
               {entry.label}
             </p>
-            <p className="mt-0.5 text-[13.5px] font-medium text-ink-800">{entry.value}</p>
+            <p className="mt-0.5 text-[13.5px] font-medium text-foreground">{entry.value}</p>
           </div>
         ))}
       </div>

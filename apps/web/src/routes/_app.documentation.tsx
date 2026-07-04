@@ -44,7 +44,7 @@ function Documentation() {
             onClick={() => setFilter(entry)}
             className={
               filter === entry
-                ? "rounded-full border border-ink-900 bg-ink-900 px-4 py-1.5 text-xs font-semibold text-white"
+                ? "rounded-full border border-foreground bg-foreground px-4 py-1.5 text-xs font-semibold text-background"
                 : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
             }
           >
@@ -86,7 +86,7 @@ function Documentation() {
                     {doc.tag}
                   </span>
                   {doc.rating !== undefined && isReviewRating(doc.rating) && (
-                    <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent-dk)]">
+                    <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent-tint-text)]">
                       {REVIEW_RATING_LABELS[doc.rating]}
                     </span>
                   )}

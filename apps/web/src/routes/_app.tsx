@@ -38,7 +38,7 @@ function AppLayout() {
           <div className="flex items-center gap-3 text-sm">
             <span className="text-muted-foreground">{session.actor.email}</span>
             {impersonating && (
-              <span className="flex items-center gap-2 rounded-full bg-[var(--color-blush)] py-0.5 pl-2.5 pr-1 text-xs font-semibold text-[var(--color-accent-dk)]">
+              <span className="flex items-center gap-2 rounded-full bg-[var(--color-blush)] py-0.5 pl-2.5 pr-1 text-xs font-semibold text-[var(--color-accent-tint-text)]">
                 Viewing as {session.subject.email}
                 <button
                   type="button"

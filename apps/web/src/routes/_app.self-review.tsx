@@ -398,7 +398,7 @@ function SelfReviewPage() {
 
       {submitted && (
         <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-border bg-cream px-5 py-4 text-sm">
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-ink-900 text-xs font-bold text-white">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background">
             ✓
           </span>
           <span>

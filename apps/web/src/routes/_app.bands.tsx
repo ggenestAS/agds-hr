@@ -136,7 +136,7 @@ function Bands() {
               {data.canManageBands && (
                 <button
                   type="button"
-                  className="text-xs font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-dk)]"
+                  className="text-xs font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-tint-text)]"
                   onClick={() => {
                     setAdding((value) => !value);
                     setEditingKey(null);
@@ -342,7 +342,7 @@ function Bands() {
                       done
                         ? "rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/70"
                         : now
-                          ? "rounded-full bg-[var(--color-blush)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent-dk)]"
+                          ? "rounded-full bg-[var(--color-blush)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent-tint-text)]"
                           : "rounded-full bg-bone px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-ink-300"
                     }
                   >

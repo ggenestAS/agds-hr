@@ -106,8 +106,8 @@ function Calibration() {
                 <span
                   className={
                     person.rating >= 3
-                      ? "rounded-full bg-ink-900 px-2.5 py-0.5 text-[11.5px] font-bold text-white"
-                      : "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[#5a2018]"
+                      ? "rounded-full bg-foreground px-2.5 py-0.5 text-[11.5px] font-bold text-background"
+                      : "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[var(--color-coral-text)]"
                   }
                 >
                   {REVIEW_RATING_LABELS[person.rating]}

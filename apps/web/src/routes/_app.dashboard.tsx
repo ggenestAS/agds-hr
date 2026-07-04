@@ -91,7 +91,7 @@ function MyReviewStatus({ myCase }: { myCase: OverviewData["myCase"] }) {
   return (
     <p className="text-sm text-muted-foreground">
       Your review is at{" "}
-      <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+      <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-tint-text)]">
         {myCase.state.replace(/_/g, " ")}
       </span>
     </p>
@@ -146,7 +146,7 @@ function Overview() {
                         <span
                           className={
                             state === "done"
-                              ? "flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-info)] bg-[var(--color-info)] text-[11px] font-bold text-white"
+                              ? "flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-info)] bg-[var(--color-info)] text-[11px] font-bold text-[var(--color-info-surface)]"
                               : state === "active"
                                 ? "flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-[var(--color-accent)] bg-[var(--color-accent)] text-[11px] font-bold text-white"
                                 : "flex size-6 shrink-0 items-center justify-center rounded-full border-2 border-ink-100 bg-bone text-[11px] font-bold text-ink-300"
@@ -213,7 +213,7 @@ function Overview() {
                     <span
                       className={
                         action.openDays >= 7
-                          ? "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[#5a2018]"
+                          ? "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[var(--color-coral-text)]"
                           : "text-xs tabular-nums text-muted-foreground"
                       }
                     >

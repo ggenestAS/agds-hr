@@ -98,7 +98,7 @@ const ratingChip = (rating: number | undefined, large = false) =>
   rating !== undefined && isReviewRating(rating) ? (
     <span
       className={`rounded-full font-bold ${
-        rating >= 3 ? "bg-white/15 text-white" : "bg-coral text-[#5a2018]"
+        rating >= 3 ? "bg-white/15 text-white" : "bg-coral text-[var(--color-coral-text)]"
       } ${large ? "px-3 py-1 text-xs" : "px-2.5 py-0.5 text-[11px]"}`}
     >
       {REVIEW_RATING_LABELS[rating]}
@@ -200,11 +200,11 @@ function ReceivedCycle({
         className="flex w-full items-center gap-3 px-6 py-4 text-left"
       >
         <span className="font-display text-base font-semibold">Cycle {block.cycle}</span>
-        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-accent-dk)]">
+        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-accent-tint-text)]">
           {STATE_LABEL[block.state]}
         </span>
         {block.rating !== undefined && isReviewRating(block.rating) && (
-          <span className="rounded-full bg-ink-900 px-2.5 py-0.5 text-[11px] font-bold text-white">
+          <span className="rounded-full bg-foreground px-2.5 py-0.5 text-[11px] font-bold text-background">
             {REVIEW_RATING_LABELS[block.rating]}
           </span>
         )}
@@ -554,8 +554,8 @@ function PersonDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
                 {person.level !== undefined ? (
-                  <div className="flex items-center gap-3 rounded-xl border border-ink-900 bg-cream px-3.5 py-2.5">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-xs font-bold text-white">
+                  <div className="flex items-center gap-3 rounded-xl border border-foreground bg-cream px-3.5 py-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-xs font-bold text-background">
                       {person.level}
                     </span>
                     <span>
@@ -800,7 +800,7 @@ function PersonDetailPage() {
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+                    <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-tint-text)]">
                       {STATE_LABEL[reviewCase.state]}
                     </span>
                     <span className="text-muted-foreground">
@@ -993,7 +993,7 @@ function PersonDetailPage() {
                 {person.appeal !== undefined ? (
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+                      <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-tint-text)]">
                         {APPEAL_CATEGORY_LABEL[person.appeal.category]}
                       </span>
                       <span

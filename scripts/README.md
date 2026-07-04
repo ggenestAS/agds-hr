@@ -16,11 +16,14 @@ Everything is `bun run <alias>` from the repo root. Directory roles:
 
 ### Checks (`check:*`)
 
-| Alias              | What it does                                                           |
-| ------------------ | ---------------------------------------------------------------------- |
-| `check:docs`       | Decision index / status banners / plan lifecycle fields are consistent |
-| `check:migrations` | Migration snapshot chain is strictly linear                            |
-| `check:env`        | ENV_MANIFEST ↔ `.env.example` ↔ actual env reads — no three-way drift  |
+| Alias                  | What it does                                                           |
+| ---------------------- | ---------------------------------------------------------------------- |
+| `check:docs`           | Decision index / status banners / plan lifecycle fields are consistent |
+| `check:migrations`     | Migration snapshot chain is strictly linear                            |
+| `check:env`            | ENV_MANIFEST ↔ `.env.example` ↔ actual env reads — no three-way drift  |
+| `check:nav`            | Navigation renders `<Link>` anchors — no onClick navigate()            |
+| `check:client-barrels` | Package barrels stay explicit named re-exports                         |
+| `check:theme`          | No raw hex colors in web markup — theme tokens with `.dark` overrides  |
 
 ### Tests (`test:*`)
 

@@ -46,7 +46,7 @@ export function PolicyArticle() {
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
-            className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-dk)]"
+            className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-tint-text)]"
           >
             {open ? "Collapse" : "Read the policy →"}
           </button>

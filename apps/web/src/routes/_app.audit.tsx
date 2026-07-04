@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_app/audit")({
 });
 
 const CATEGORY_STYLE: Record<AuditLogRow["category"], string> = {
-  "Sign-off": "bg-ink-900 text-white",
+  "Sign-off": "bg-foreground text-background",
   Read: "bg-[var(--color-info-surface)] text-[var(--color-info)]",
   Write: "bg-bone text-foreground",
 };

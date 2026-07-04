@@ -132,7 +132,7 @@ function AssessmentPage() {
           !
         </span>
         <div>
-          <p className="text-[13.5px] font-bold text-[var(--color-accent-dk)]">
+          <p className="text-[13.5px] font-bold text-[var(--color-accent-tint-text)]">
             Assessments must be evidence-based; vague impressions are not sufficient.
           </p>
           <p className="text-xs text-muted-foreground">

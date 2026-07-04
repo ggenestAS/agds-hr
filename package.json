@@ -24,6 +24,7 @@
     "check:migrations": "bun run scripts/ci/check-migrations.ts",
     "check:env": "bun run scripts/ci/check-env.ts",
     "check:nav": "bun run scripts/ci/check-nav.ts",
+    "check:theme": "bun run scripts/ci/check-theme.ts",
     "check:client-barrels": "bun run scripts/ci/check-client-barrels.ts",
     "test": "bun test",
     "test:unit": "bun test --test-name-pattern \"^(?!.*\\[integration\\])\"",

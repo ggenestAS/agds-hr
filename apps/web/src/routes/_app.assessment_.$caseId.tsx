@@ -339,7 +339,7 @@ function AssessCasePage() {
         <h1 className="font-display text-3xl font-medium tracking-tight">
           {detail.subjectName ?? detail.subjectEmail}
         </h1>
-        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-dk)]">
+        <span className="rounded-full bg-[var(--color-blush)] px-2.5 py-0.5 text-xs font-semibold text-[var(--color-accent-tint-text)]">
           {detail.state.replace(/_/g, " ")}
         </span>
       </div>
@@ -654,7 +654,7 @@ function AssessCasePage() {
 
               {lowRating && (
                 <div className="flex items-start gap-3 rounded-xl border border-[rgba(233,75,60,0.28)] bg-[var(--color-accent-tint-surface)] px-4 py-3">
-                  <span className="shrink-0 rounded-md bg-[var(--color-blush)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-dk)]">
+                  <span className="shrink-0 rounded-md bg-[var(--color-blush)] px-1.5 py-0.5 text-[11px] font-bold text-[var(--color-accent-tint-text)]">
                     Improvement plan
                   </span>
                   <label className="flex items-start gap-2 text-[12.5px] leading-relaxed text-[var(--color-accent-tint-text)]">

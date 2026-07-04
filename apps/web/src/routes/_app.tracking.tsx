@@ -75,8 +75,8 @@ function PendingCell({ row }: { row: TrackingRow }) {
           key={kind}
           className={
             entry.openDays !== undefined && entry.openDays >= 7
-              ? "rounded-full bg-coral px-2 py-0.5 text-[11px] font-semibold text-[#5a2018]"
-              : "rounded-full bg-[var(--color-blush)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-accent-dk)]"
+              ? "rounded-full bg-coral px-2 py-0.5 text-[11px] font-semibold text-[var(--color-coral-text)]"
+              : "rounded-full bg-[var(--color-blush)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-accent-tint-text)]"
           }
           title={
             entry.openDays !== undefined

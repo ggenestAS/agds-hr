@@ -26,6 +26,9 @@
   --color-accent-dk: #c73a2d;
   --color-coral: #f5a28f;
   --color-blush: #f3d9d2;
+  /* Text partner for bg-coral (low-rating pills). Both flip in .dark below —
+     never pair bg-coral with a hardcoded hex text color. */
+  --color-coral-text: #5a2018;
 
   /* Semantic colors (§9.4). Each has a light value here and a dark-mode
      override below — see the `.dark` block. success/info/accent-tint/divider
@@ -75,6 +78,10 @@
    (added next) read these. Light is brand-default; dark is a reasonable
    inversion pending a design pass. */
 :root {
+  /* Native chrome (scrollbars, checkboxes, date pickers, autofill) follows
+     the app theme, not the OS — the user can pick light while their OS is
+     dark, and vice versa. */
+  color-scheme: light;
   --background: var(--color-shell);
   --foreground: var(--color-ink-900);
   --card: var(--color-paper);
@@ -88,6 +95,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: #1a1d33;
   --foreground: #f1ece2;
   --card: #23273f;
@@ -114,6 +122,15 @@
   --color-ink-100: #343a63;
   --color-ink-500: #b3b6cf;
   --color-ink-700: #7d81a8;
+
+  /* Coral (low-rating pills) and blush (state chips) become dark surfaces
+     with bright text — same pattern as the semantic callouts above. Blush
+     chips pair with --color-accent-tint-text (never accent-dk, which stays a
+     light-mode-dark red because it is also a button background with white
+     text on both themes). */
+  --color-coral: #6b2a1e;
+  --color-coral-text: #f5b7a8;
+  --color-blush: #3a2420;
 
   /* Semantic callouts: dark surface + a brighter version of the same hue for
      text, the standard dark-mode alert pattern (as opposed to a flat

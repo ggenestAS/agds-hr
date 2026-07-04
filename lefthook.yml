@@ -18,6 +18,8 @@ pre-commit:
       run: bun run scripts/ci/check-env.ts
     check-nav:
       run: bun run scripts/ci/check-nav.ts
+    check-theme:
+      run: bun run scripts/ci/check-theme.ts
     check-client-barrels:
       run: bun run scripts/ci/check-client-barrels.ts
     test-staged:

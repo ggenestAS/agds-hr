@@ -116,7 +116,7 @@ function People() {
               onClick={() => setFilter(campus)}
               className={
                 filter === campus
-                  ? "rounded-full border border-ink-900 bg-ink-900 px-4 py-1.5 text-xs font-semibold text-white"
+                  ? "rounded-full border border-foreground bg-foreground px-4 py-1.5 text-xs font-semibold text-background"
                   : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500"
               }
             >
@@ -195,7 +195,7 @@ function People() {
                       {row.campus === undefined ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className="font-medium text-ink-800">{row.campus}</span>
+                        <span className="font-medium text-foreground">{row.campus}</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5">{row.functionalManagerName ?? "—"}</td>

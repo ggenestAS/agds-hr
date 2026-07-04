@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_app/peer-input")({
   errorComponent: ({ error }) => (
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="font-display text-2xl font-medium tracking-tight">Peer input</h1>
-      <p className="mt-3 text-sm text-[var(--color-accent-dk)]">
+      <p className="mt-3 text-sm text-[var(--color-accent-tint-text)]">
         This page could not load. Try refreshing; if it persists, the directory service may be
         unreachable.
       </p>
@@ -57,7 +57,7 @@ const STATUS_META: Record<PeerRequestStatus, { label: string; dot: string; pill:
   declined: {
     label: "declined",
     dot: "bg-[var(--color-accent)]",
-    pill: "bg-[var(--color-blush)] text-[var(--color-accent-dk)]",
+    pill: "bg-[var(--color-blush)] text-[var(--color-accent-tint-text)]",
   },
   proposed: {
     label: "awaiting approval",
@@ -500,19 +500,23 @@ function PeerInputPage() {
                               onClick={() => setSelectedCaseId(entry.caseId)}
                               className={
                                 active
-                                  ? "flex items-center gap-2 rounded-full border border-ink-900 bg-ink-900 py-1 pl-1 pr-3.5 text-xs font-semibold text-white"
+                                  ? "flex items-center gap-2 rounded-full border border-foreground bg-foreground py-1 pl-1 pr-3.5 text-xs font-semibold text-background"
                                   : "flex items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3.5 text-xs font-semibold text-foreground hover:border-ink-500"
                               }
                             >
                               <span
                                 className={`flex size-6 items-center justify-center rounded-full text-[10px] font-bold ${
-                                  active ? "bg-white/20 text-white" : "bg-ink-100 text-foreground"
+                                  active
+                                    ? "bg-background/25 text-background"
+                                    : "bg-ink-100 text-foreground"
                                 }`}
                               >
                                 {initials(entry.subjectName ?? entry.subjectEmail)}
                               </span>
                               {entry.subjectName ?? entry.subjectEmail}
-                              {entry.quotaMet && <span className="text-[#7bc99a]">✓</span>}
+                              {entry.quotaMet && (
+                                <span className="text-[var(--color-success)]">✓</span>
+                              )}
                               {proposals > 0 && (
                                 <span className="rounded-full bg-[var(--color-accent)] px-1.5 text-[10px] font-bold text-white">
                                   {proposals}
@@ -529,7 +533,7 @@ function PeerInputPage() {
                 {selectedCase !== undefined && (
                   <>
                     {!selectedCase.direct && (
-                      <p className="rounded-[10px] bg-[var(--color-blush)] px-3 py-2 text-xs text-[var(--color-accent-dk)]">
+                      <p className="rounded-[10px] bg-[var(--color-blush)] px-3 py-2 text-xs text-[var(--color-accent-tint-text)]">
                         Indirect report — you can act here, but their direct manager normally owns
                         the reviewer list.
                       </p>

@@ -22,8 +22,8 @@ const ratingChip = (rating: number | undefined) =>
     <span
       className={
         rating >= 3
-          ? "rounded-full bg-ink-900 px-2.5 py-0.5 text-[11.5px] font-bold text-white"
-          : "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[#5a2018]"
+          ? "rounded-full bg-foreground px-2.5 py-0.5 text-[11.5px] font-bold text-background"
+          : "rounded-full bg-coral px-2.5 py-0.5 text-[11.5px] font-bold text-[var(--color-coral-text)]"
       }
     >
       {REVIEW_RATING_LABELS[rating]}
@@ -91,7 +91,7 @@ function SignOffPage() {
                   onClick={() => select(entry.caseId)}
                   className={
                     entry.caseId === selected?.caseId
-                      ? "flex w-full items-center gap-4 rounded-[14px] border border-ink-900 bg-card px-5 py-3.5 text-left shadow-[var(--shadow-soft)]"
+                      ? "flex w-full items-center gap-4 rounded-[14px] border border-foreground bg-card px-5 py-3.5 text-left shadow-[var(--shadow-soft)]"
                       : "flex w-full items-center gap-4 rounded-[14px] border border-border bg-card px-5 py-3.5 text-left shadow-[var(--shadow-soft)] hover:border-ink-500"
                   }
                 >
@@ -115,7 +115,7 @@ function SignOffPage() {
                           title={signer}
                           className={
                             signer !== undefined
-                              ? "rounded-full bg-[var(--color-success)] px-2.5 py-1 text-[10.5px] font-bold text-white"
+                              ? "rounded-full bg-[var(--color-success-surface)] px-2.5 py-1 text-[10.5px] font-bold text-[var(--color-success)]"
                               : "rounded-full border border-border bg-bone px-2.5 py-1 text-[10.5px] font-bold text-ink-300"
                           }
                         >
