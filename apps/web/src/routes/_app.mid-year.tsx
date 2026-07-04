@@ -15,10 +15,10 @@ import type { CheckInView, MidYearRow, MidYearView } from "../server/people.shar
 import { checkInSaveFn, checkInSubmitFn, midYearFn } from "../server/people.functions.ts";
 import { countWords } from "../server/people.shared.ts";
 
-// The mid-year check-in surface (P5, docs/plans/mid-year.md): managers file
-// the written output of the January/February conversation — status, the
-// one-paragraph summary, the P1 verification, and the promotion-candidacy /
-// underperformance flags. Not a review: no ratings, no comp.
+// The mid-year check-in surface (docs/plans/mid-year.md): managers file the
+// written output of the January conversation — status, the one-paragraph
+// summary, master-record verification, and promotion / underperformance flags.
+// Filing is open January 1–31 only (Europe/Paris); filed records stay visible.
 export const Route = createFileRoute("/_app/mid-year")({
   loader: () => midYearFn(),
   pendingComponent: () => <TwoColumnRoutePending width="5xl" />,
@@ -85,7 +85,7 @@ function FiledRecord({ checkIn }: { checkIn: CheckInView }) {
         )}
         {checkIn.underperfFlag && (
           <span className="rounded-full bg-[var(--color-accent-tint-surface)] px-2.5 py-0.5 font-bold text-[var(--color-accent-tint-text)]">
-            Underperformance → P6 early door
+            Underperformance flagged
           </span>
         )}
         <span className="ml-auto text-muted-foreground">
@@ -191,8 +191,7 @@ function CheckInForm({ row, onDone }: { row: MidYearRow; onDone: () => Promise<v
           <span>
             <span className="font-semibold">Role, level, scope, and reporting line verified</span>
             <span className="block text-xs text-muted-foreground">
-              P1 verification — uncheck and describe what changed; the correction routes to the
-              person record.
+              Uncheck and describe what changed — update the person record separately on People.
             </span>
           </span>
         </label>
@@ -244,10 +243,10 @@ function CheckInForm({ row, onDone }: { row: MidYearRow; onDone: () => Promise<v
             className="mt-0.5"
           />
           <span>
-            <span className="font-semibold">Underperformance flag → P6 early door</span>
+            <span className="font-semibold">Underperformance flag</span>
             <span className="block text-xs text-muted-foreground">
-              Delivery, ownership, or judgment materially below level. Holding a known problem until
-              July is a management failure.
+              Delivery, ownership, or judgment materially below level. Raise it now — holding a
+              known problem until the annual review is a management failure.
             </span>
           </span>
         </label>
@@ -314,10 +313,20 @@ function MidYearPage() {
         Mid-year check-in · {data.period}
       </h1>
       <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground">
-        Course-correct in January so July holds no surprises. Not a review — no ratings, no
-        compensation. Each conversation ends in a filed one-paragraph summary; flags route to the
-        person record (P1) and the underperformance process (P6).
+        Course-correct in January so the annual review holds no surprises. Not a rating — no
+        compensation. Each conversation ends in a filed one-paragraph summary plus optional flags
+        for promotion candidacy or underperformance.
       </p>
+
+      {!data.windowOpen && (
+        <div className="mt-4 rounded-[14px] border border-border bg-cream px-4 py-3.5 text-sm">
+          <p className="font-semibold">Filing is closed</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            New check-ins and edits open January 1 and close January 31 (Europe/Paris). Filed
+            records from this period stay visible below.
+          </p>
+        </div>
+      )}
 
       {(
         [
@@ -365,7 +374,7 @@ function MidYearPage() {
                         <span className="rounded-full bg-[var(--color-success-surface)] px-2.5 py-0.5 text-[10.5px] font-bold text-[var(--color-success)]">
                           filed ✓
                         </span>
-                      ) : (
+                      ) : data.windowOpen ? (
                         <>
                           {hasDraft && (
                             <span className="rounded-full bg-bone px-2.5 py-0.5 text-[10.5px] font-bold text-ink-500">
@@ -387,10 +396,14 @@ function MidYearPage() {
                                 : "Start check-in"}
                           </Button>
                         </>
-                      )}
+                      ) : hasDraft ? (
+                        <span className="text-xs text-muted-foreground">draft saved</span>
+                      ) : null}
                     </div>
                     {filed && row.checkIn !== undefined && <FiledRecord checkIn={row.checkIn} />}
-                    {!filed && openEmail === row.email && <CheckInForm row={row} onDone={done} />}
+                    {data.windowOpen && !filed && openEmail === row.email && (
+                      <CheckInForm row={row} onDone={done} />
+                    )}
                   </div>
                 );
               })}
@@ -413,12 +426,12 @@ function MidYearPage() {
         </span>
         <div>
           <p className="text-[13.5px] font-bold text-[var(--color-accent-tint-text)]">
-            A filed check-in is final — it is the P5 record.
+            A filed check-in is final.
           </p>
           <p className="text-xs text-muted-foreground">
-            Verify role and scope while you are in the conversation, and raise flags now: promotion
-            candidacy feeds July planning, underperformance opens the P6 early door with a follow-up
-            date.
+            Verify role and scope in the conversation, and raise flags while you can file (January
+            1–31): promotion candidacy feeds July planning; underperformance should be addressed
+            early with a documented follow-up.
           </p>
         </div>
       </div>

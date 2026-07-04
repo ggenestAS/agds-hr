@@ -7,10 +7,11 @@ import { ConflictError } from "@agds-hr/shared";
 import { checkIn } from "./db/schema.ts";
 import { checkInSubmitIssues, isCheckInStatus, type CheckIn, type CheckInDraft } from "./types.ts";
 
-// Mid-year check-in DAL (P5, docs/plans/mid-year.md). Draft save + final
-// submit, both audited; the submit gate (checkInSubmitIssues, pure) is
-// enforced HERE, not only in the UI — an empty filing cannot become the P5
-// record through any client. Submit is final, like the assessment.
+// Mid-year check-in DAL (docs/plans/mid-year.md). Draft save + final submit, both
+// audited; the submit gate (checkInSubmitIssues, pure) is enforced HERE, not
+// only in the UI — an empty filing cannot become the record through any client.
+// Submit is final, like the assessment. The January filing window is enforced in
+// the handler layer (isMidYearCheckInWindowOpen).
 
 const SELECT = {
   subjectEmail: checkIn.subjectEmail,

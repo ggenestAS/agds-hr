@@ -81,8 +81,10 @@ export {
   CHECK_IN_STATUSES,
   CHECK_IN_STATUS_LABELS,
   CHECK_IN_SUMMARY_MIN_WORDS,
+  MID_YEAR_CHECK_IN_WINDOW_TIMEZONE,
   checkInSubmitIssues,
   isCheckInStatus,
+  isMidYearCheckInWindowOpen,
 } from "./types.ts";
 export type { CheckIn, CheckInDraft, CheckInStatus } from "./types.ts";
 export { getCheckIn, listCheckInsForPeriod, saveCheckIn, submitCheckIn } from "./check-in.ts";

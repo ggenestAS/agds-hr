@@ -196,7 +196,7 @@ A missed gate is escalated to CEO/COO, not silently absorbed.
 
 **Output:** check-in record per employee · P1 updates · promotion-candidacy flags · underperformance flags (each routed to its process).
 
-**In agds-hr:** managers file the written output on `/mid-year` — status (on/off track), the one-paragraph summary, the P1 verification, and the promotion-candidacy and underperformance flags. Submit is gated (fail closed: status chosen, summary ≥ 30 words, an unconfirmed P1 or a raised flag requires its note) and final; scope follows the manager graph (either reporting line, any depth) with the leadership roster fallback, and no one files on themselves. The meeting itself, routing a P1 change into the person record, and opening a P6 early-door plan remain manual obligations. Records are reviewer-and-up visibility; whether the subject sees their filed summary is a P9 decision (docs/plans/mid-year.md).
+**In agds-hr:** managers file the written output on `/mid-year` — status (on/off track), the one-paragraph summary, master-record verification, and the promotion-candidacy and underperformance flags. Filing opens **January 1** and closes **January 31** (Europe/Paris); submit is gated (fail closed: status chosen, summary ≥ 30 words, an unverified record or a raised flag requires its note) and final. Scope follows the manager graph (either reporting line, any depth) with the leadership roster fallback; no one files on themselves. The conversation itself and follow-up actions outside the app (person-record updates, underperformance plans) remain manual obligations. Records are reviewer-and-up visibility.
 
 ---
 

@@ -11,6 +11,7 @@ import {
   canTransition,
   checkInSubmitIssues,
   isCheckInStatus,
+  isMidYearCheckInWindowOpen,
   EMPLOYMENT_TYPES,
   isAppealCategory,
   isCareerLevel,
@@ -280,6 +281,20 @@ describe("appeals", () => {
   });
 });
 
+describe("isMidYearCheckInWindowOpen", () => {
+  test("open on every day in January (Europe/Paris)", () => {
+    expect(isMidYearCheckInWindowOpen(new Date("2027-01-01T12:00:00Z"))).toBe(true);
+    expect(isMidYearCheckInWindowOpen(new Date("2027-01-15T12:00:00Z"))).toBe(true);
+    expect(isMidYearCheckInWindowOpen(new Date("2027-01-31T22:00:00Z"))).toBe(true);
+  });
+
+  test("closed outside January", () => {
+    expect(isMidYearCheckInWindowOpen(new Date("2027-02-01T00:30:00Z"))).toBe(false);
+    expect(isMidYearCheckInWindowOpen(new Date("2026-12-31T22:00:00Z"))).toBe(false);
+    expect(isMidYearCheckInWindowOpen(new Date("2027-07-04T12:00:00Z"))).toBe(false);
+  });
+});
+
 describe("checkInSubmitIssues", () => {
   const complete = {
     status: "on_track" as const,
@@ -301,7 +316,7 @@ describe("checkInSubmitIssues", () => {
     expect(checkInSubmitIssues({ ...complete, summary: "too short" })).toHaveLength(1);
   });
 
-  test("an unconfirmed P1 needs a note; flags need their substance", () => {
+  test("an unverified master record needs a note; flags need their substance", () => {
     expect(checkInSubmitIssues({ ...complete, p1Confirmed: false })).toHaveLength(1);
     expect(checkInSubmitIssues({ ...complete, p1Confirmed: false, p1Note: "new scope" })).toEqual(
       [],

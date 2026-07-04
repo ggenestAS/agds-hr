@@ -104,10 +104,10 @@ export function canWriteAssessment(user: User): PolicyDecision {
   return hasAny(user, ["manager", "founder", "developer"]) ? ALLOW : DENY("reviewer_required");
 }
 
-// Mid-year check-ins (P5) are a manager filing — managers own P5 day-to-day,
-// supervised by CEO & COO (handbook). Row scope (only your own reports, no
-// self-check-in) is enforced in the handler via the manager graph, like
-// /assessment.
+// Mid-year check-ins (docs/plans/mid-year.md) are a manager filing — managers
+// own the day-to-day rhythm, supervised by CEO & COO (handbook). Row scope
+// (only your own reports, no self-check-in) is enforced in the handler via the
+// manager graph, like /assessment. Filing is January 1–31 only.
 export function canWriteCheckIn(user: User): PolicyDecision {
   return hasAny(user, ["manager", "founder", "admin", "developer"])
     ? ALLOW

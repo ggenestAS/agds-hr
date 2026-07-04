@@ -12,9 +12,11 @@ outside the app". This module makes agds-hr the filing cabinet.
 
 ## Goal
 
-Managers file the P5 written output in-app: status (priorities on track / off
-track), the one-paragraph summary, the P1 verification, and the two flags —
-audited, submit-gated (fail closed), scoped to the manager graph.
+Managers file the mid-year written output in-app: status (priorities on track / off
+track), the one-paragraph summary, master-record verification, and the two flags —
+audited, submit-gated (fail closed), scoped to the manager graph. **Filing opens
+January 1 and closes January 31 (Europe/Paris)**; outside the window, filed records
+stay readable and new writes are blocked server-side.
 
 ## Scope
 

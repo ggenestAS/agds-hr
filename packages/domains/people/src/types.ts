@@ -399,11 +399,11 @@ export function canSubmitAssessment(input: {
   return isP6Triggered(input.proposedRating) ? input.p6Acknowledged : true;
 }
 
-// --- Mid-year check-in (P5) --------------------------------------------------
-// The January/February course-correction (docs/plans/mid-year.md): not a
-// review — no ratings, no comp. The filed output is a status, a one-paragraph
-// summary, the P1 verification, and two routed flags. One record per subject
-// per period; submit is final (the filed record is the compliance artifact).
+// --- Mid-year check-in -------------------------------------------------------
+// The January course-correction (docs/plans/mid-year.md): not a review — no
+// ratings, no comp. The filed output is a status, a one-paragraph summary,
+// master-record verification, and two flags. One record per subject per
+// period; submit is final (the filed record is the compliance artifact).
 export const CHECK_IN_STATUSES = ["on_track", "off_track"] as const;
 export type CheckInStatus = (typeof CHECK_IN_STATUSES)[number];
 export const isCheckInStatus = (value: string): value is CheckInStatus =>
@@ -414,9 +414,25 @@ export const CHECK_IN_STATUS_LABELS: Record<CheckInStatus, string> = {
   off_track: "Off track",
 };
 
-// The period a check-in FEEDS: the Jan–Feb 2027 window course-corrects toward
-// the 2027 cycle (July 2027 reviews). Bumped alongside REVIEW_CURRENT_CYCLE.
+// The period a check-in FEEDS: the January window course-corrects toward the
+// matching review cycle (July reviews). Bumped alongside REVIEW_CURRENT_CYCLE.
 export const CHECK_IN_CURRENT_PERIOD = "2027";
+
+// Filing opens January 1 and closes January 31 (Europe/Paris calendar).
+// Outside the window, filed records stay readable; new drafts and submits are
+// blocked — enforced in the handler, not only the UI (fail closed).
+export const MID_YEAR_CHECK_IN_WINDOW_TIMEZONE = "Europe/Paris";
+
+export function isMidYearCheckInWindowOpen(at: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: MID_YEAR_CHECK_IN_WINDOW_TIMEZONE,
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(at);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return month === 1 && day >= 1 && day <= 31;
+}
 
 // One paragraph, not one line: the handbook's filed summary must carry enough
 // substance to be worth reading back at review time.
@@ -446,8 +462,8 @@ const checkInWordCount = (text: string): number => {
 };
 
 // Submit gate (pure, enforced in the DAL — fail closed): a check-in without a
-// status or a real summary is not a filed record, an unconfirmed P1 needs its
-// correction noted, and a raised flag without substance routes nothing.
+// status or a real summary is not a filed record, an unverified master record
+// needs its correction noted, and a raised flag without substance routes nothing.
 export function checkInSubmitIssues(draft: CheckInDraft): readonly string[] {
   const issues: string[] = [];
   if (draft.status === undefined) {

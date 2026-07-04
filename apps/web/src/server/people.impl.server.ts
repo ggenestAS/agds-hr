@@ -22,6 +22,7 @@ import {
   CHECK_IN_CURRENT_PERIOD,
   createPeerRequests,
   getCheckIn,
+  isMidYearCheckInWindowOpen,
   listCheckInsForPeriod,
   saveCheckIn,
   submitCheckIn,
@@ -1861,7 +1862,7 @@ export async function resolveAppealHandler(input: {
   return { ok: true };
 }
 
-// --- Mid-year check-in (P5, docs/plans/mid-year.md) --------------------------
+// --- Mid-year check-in (docs/plans/mid-year.md) ------------------------------
 // Same scope rule as /assessment: the viewer's reports (either line, any
 // depth), direct first; leadership with no reports falls back to the roster.
 // No one files a check-in on themselves.
@@ -1929,7 +1930,13 @@ export async function midYearHandler(): Promise<MidYearView> {
       return left.name.localeCompare(right.name);
     });
 
-  return { period: CHECK_IN_CURRENT_PERIOD, rows };
+  return { period: CHECK_IN_CURRENT_PERIOD, windowOpen: isMidYearCheckInWindowOpen(), rows };
+}
+
+function assertCheckInWindowOpen(): void {
+  if (!isMidYearCheckInWindowOpen()) {
+    throw new ConflictError("check_in_window_closed");
+  }
 }
 
 const toCheckInDraft = (input: CheckInSaveInput): CheckInDraft => ({
@@ -1959,6 +1966,7 @@ async function assertCheckInSubject(
 }
 
 export async function checkInSaveHandler(input: CheckInSaveInput): Promise<{ ok: true }> {
+  assertCheckInWindowOpen();
   const session = await requireSession("people.checkin.write");
   const subjectEmail = input.subjectEmail.toLowerCase();
   await assertCheckInSubject(session, subjectEmail);
@@ -1974,6 +1982,7 @@ export async function checkInSaveHandler(input: CheckInSaveInput): Promise<{ ok:
 }
 
 export async function checkInSubmitHandler(input: CheckInSaveInput): Promise<{ ok: true }> {
+  assertCheckInWindowOpen();
   const session = await requireSession("people.checkin.write");
   const subjectEmail = input.subjectEmail.toLowerCase();
   await assertCheckInSubject(session, subjectEmail);

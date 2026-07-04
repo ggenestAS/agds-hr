@@ -258,12 +258,10 @@ export const peerRequest = peopleSchema.table(
   (table) => [unique("peer_request_case_requestee").on(table.caseId, table.requesteeEmail)],
 );
 
-// Mid-year check-in (P5, docs/plans/mid-year.md): the filed record of the
-// January/February course-correction — status, one-paragraph summary, P1
-// verification, promotion-candidacy and underperformance flags. Keyed by
-// subject email like every people-domain record; `period` is the review cycle
-// the check-in feeds. Not tied to review_case — the check-in happens months
-// before any case opens. No soft delete: the filed record is the point.
+// Mid-year check-in (docs/plans/mid-year.md): the filed record of the January
+// course-correction — status, one-paragraph summary, master-record verification,
+// promotion-candidacy and underperformance flags. Keyed by subject email like
+// every people-domain record; `period` is the review cycle the check-in feeds.
 export const checkInStatusEnum = peopleSchema.enum("check_in_status", CHECK_IN_STATUSES);
 
 export const checkIn = peopleSchema.table(

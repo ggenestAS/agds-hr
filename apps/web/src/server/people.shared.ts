@@ -1046,8 +1046,8 @@ export type TrackingView = {
   readonly notOpenedCount: number;
 };
 
-// Mid-year check-in (P5, docs/plans/mid-year.md): the manager files the
-// written output — status, one-paragraph summary, P1 verification, two flags.
+// Mid-year check-in (docs/plans/mid-year.md): the manager files the written
+// output — status, one-paragraph summary, master-record verification, two flags.
 export const checkInSaveSchema = z.object({
   subjectEmail: z.string().email(),
   status: z.enum(CHECK_IN_STATUSES).optional(),
@@ -1088,6 +1088,7 @@ export type MidYearRow = {
 
 export type MidYearView = {
   readonly period: string;
+  readonly windowOpen: boolean;
   readonly rows: readonly MidYearRow[];
 };
 
