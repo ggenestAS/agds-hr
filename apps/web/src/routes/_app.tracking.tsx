@@ -1,15 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReviewState } from "@agds-hr/people/types";
+import { z } from "zod";
 
 import { TableRoutePending } from "../components/route-pending/shapes.tsx";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card.tsx";
 import type { TrackingRow, TrackingView } from "../server/people.shared.ts";
 import { trackingFn } from "../server/people.functions.ts";
 
+const trackingSearchSchema = z.object({
+  reports: z.enum(["direct", "indirect"]).optional(),
+});
+
 // The Tracking board (docs/plans/notifications.md): who still has to do what,
 // derived from the same computeObligations assembly the digest emails use.
 // Managers see their reports; leadership sees everyone (scoped by the handler).
 export const Route = createFileRoute("/_app/tracking")({
+  validateSearch: trackingSearchSchema,
   loader: () => trackingFn(),
   pendingComponent: () => <TableRoutePending width="6xl" columns={6} />,
   component: Tracking,
@@ -33,6 +39,22 @@ const OBLIGATION_LABEL: Record<string, string> = {
   assessment_pending: "Assessment",
   sign_off_pending: "Sign-off",
 };
+
+function filterPillClass(active: boolean): string {
+  return active
+    ? "rounded-full border border-foreground bg-foreground px-4 py-1.5 text-xs font-semibold text-background"
+    : "rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-foreground hover:border-ink-500";
+}
+
+function filterRows(
+  rows: readonly TrackingRow[],
+  reports: "direct" | "indirect" | undefined,
+): readonly TrackingRow[] {
+  if (reports === undefined) {
+    return rows;
+  }
+  return rows.filter((row) => row.reportLine === reports);
+}
 
 function StageDot({ done, label }: { done: boolean; label: string }) {
   return (
@@ -100,8 +122,22 @@ function PendingCell({ row }: { row: TrackingRow }) {
 
 function Tracking() {
   const view: TrackingView = Route.useLoaderData();
-  const total = view.rows.length;
-  const openedCount = total - view.notOpenedCount;
+  const { reports } = Route.useSearch();
+  const hasDirectReports = view.rows.some((row) => row.reportLine === "direct");
+  const hasIndirectReports = view.rows.some((row) => row.reportLine === "indirect");
+  const showReportFilter = hasDirectReports && hasIndirectReports;
+  const rows = filterRows(view.rows, showReportFilter ? reports : undefined);
+  const total = rows.length;
+  const notOpenedCount = rows.filter((row) => row.caseId === undefined).length;
+  const decidedCount = rows.filter((row) => row.decided).length;
+  const openedCount = total - notOpenedCount;
+  const counts: Partial<Record<ReviewState, number>> = {};
+  for (const row of rows) {
+    if (row.decided || row.state === undefined) {
+      continue;
+    }
+    counts[row.state] = (counts[row.state] ?? 0) + 1;
+  }
 
   return (
     <div className="mx-auto max-w-6xl p-6">
@@ -112,8 +148,8 @@ function Tracking() {
         <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Tracking</h1>
         <span className="text-sm tabular-nums text-muted-foreground">
           {total} {total === 1 ? "person" : "people"}
-          {view.notOpenedCount > 0 && <> · {view.notOpenedCount} not opened</>}
-          {openedCount > 0 && <> · {view.decidedCount} decided</>}
+          {notOpenedCount > 0 && <> · {notOpenedCount} not opened</>}
+          {openedCount > 0 && <> · {decidedCount} decided</>}
         </span>
       </div>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed text-foreground">
@@ -121,14 +157,36 @@ function Tracking() {
         reminder emails, so this board and the inbox can never disagree.
       </p>
 
+      {showReportFilter && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link to="/tracking" search={{}} className={filterPillClass(reports === undefined)}>
+            All reports
+          </Link>
+          <Link
+            to="/tracking"
+            search={{ reports: "direct" }}
+            className={filterPillClass(reports === "direct")}
+          >
+            Direct reports
+          </Link>
+          <Link
+            to="/tracking"
+            search={{ reports: "indirect" }}
+            className={filterPillClass(reports === "indirect")}
+          >
+            Indirect reports
+          </Link>
+        </div>
+      )}
+
       <div className="mt-6 flex flex-wrap gap-2">
-        {view.notOpenedCount > 0 && (
+        {notOpenedCount > 0 && (
           <span className="rounded-full border border-border bg-cream px-3 py-1 text-xs font-semibold">
-            not opened <span className="tabular-nums">{view.notOpenedCount}</span>
+            not opened <span className="tabular-nums">{notOpenedCount}</span>
           </span>
         )}
         {STATE_ORDER.map((state) => {
-          const count = view.counts[state];
+          const count = counts[state];
           if (count === undefined || count === 0) {
             return null;
           }
@@ -162,14 +220,14 @@ function Tracking() {
                 </tr>
               </thead>
               <tbody>
-                {view.rows.length === 0 && (
+                {rows.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-6 py-6 text-center text-muted-foreground">
                       No one in scope for this cycle.
                     </td>
                   </tr>
                 )}
-                {view.rows.map((row) => (
+                {rows.map((row) => (
                   <tr
                     key={row.caseId ?? row.subjectEmail}
                     className="border-b border-border last:border-b-0"

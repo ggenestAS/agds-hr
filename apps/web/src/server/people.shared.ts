@@ -1031,6 +1031,9 @@ export type TrackingRow = {
   readonly assessmentSubmitted: boolean;
   readonly signoffCount: number;
   readonly pending: readonly PendingActionView[];
+  // Direct vs indirect on either reporting line; undefined for self or people
+  // outside the viewer's managed set (leadership roster-only rows).
+  readonly reportLine: "direct" | "indirect" | undefined;
 };
 
 export type TrackingView = {

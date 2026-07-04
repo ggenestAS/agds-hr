@@ -1637,6 +1637,18 @@ export async function trackingHandler(): Promise<TrackingView> {
   const leadership = isLeadership(session.subject.roles);
   const viewerEmail = session.subject.email.toLowerCase();
   const attrsByEmail = new Map(employeeAttrs.map((attrs) => [attrs.email.toLowerCase(), attrs]));
+  const reportLineFor = (email: string): TrackingRow["reportLine"] => {
+    if (email === viewerEmail) {
+      return undefined;
+    }
+    if (managed.direct.has(email)) {
+      return "direct";
+    }
+    if (managed.all.has(email)) {
+      return "indirect";
+    }
+    return undefined;
+  };
 
   const now = Date.now();
   const toPending = (obligation: (typeof cycle.obligations)[number]): PendingActionView => ({
@@ -1691,6 +1703,7 @@ export async function trackingHandler(): Promise<TrackingView> {
       assessmentSubmitted: detail.assessmentSubmitted,
       signoffCount: detail.signoffCount,
       pending: pendingByCase.get(detail.base.caseId) ?? [],
+      reportLine: reportLineFor(subjectEmail),
     };
   });
 
@@ -1727,6 +1740,7 @@ export async function trackingHandler(): Promise<TrackingView> {
       assessmentSubmitted: false,
       signoffCount: 0,
       pending: [],
+      reportLine: reportLineFor(email),
     });
   }
 
