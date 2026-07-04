@@ -2,6 +2,7 @@ import { and, count, desc, eq, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
+import { enqueueNotification, type EnqueueNotificationInput } from "@agds-hr/notifications";
 import { ConflictError, NotFoundError, UserId } from "@agds-hr/shared";
 
 import { getEmployeeByEmail } from "./dal.ts";
@@ -150,11 +151,16 @@ export async function openCase(
 }
 
 // Advance a case to the next state, validated against the state machine.
+// `notifications` (trailing, optional — after AuditContext because optional
+// params must come last) are enqueued in the SAME transaction as the
+// transition: the caller resolves recipients the domain cannot (manager
+// emails live in the Inside org graph, an app-layer concern).
 export async function advanceCase(
   db: DrizzleDb,
   caseId: string,
   toState: ReviewState,
   context: AuditContext,
+  notifications: readonly EnqueueNotificationInput[] = [],
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [current] = await tx
@@ -169,6 +175,9 @@ export async function advanceCase(
       throw new ConflictError(`invalid_review_transition: ${current.state} -> ${toState}`);
     }
     await tx.update(reviewCase).set({ state: toState }).where(eq(reviewCase.id, caseId));
+    for (const notification of notifications) {
+      await enqueueNotification(tx, notification);
+    }
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
       subjectUserId: context.subjectUserId,

@@ -56,13 +56,13 @@ describe("resend client", () => {
     });
     expect(result).toEqual({ id: "email-1", dryRun: false });
 
-    const call = calls[0];
-    expect(call?.url).toBe(RESEND_API_URL);
-    const body = JSON.parse(call?.init?.body as string) as Record<string, unknown>;
+    const call = calls[0]!;
+    expect(call.url).toBe(RESEND_API_URL);
+    const body = JSON.parse(call.init!.body as string) as Record<string, unknown>;
     expect(body.from).toBe(EMAIL_FROM_ADDRESS);
     expect(body.to).toEqual(["who@albertschool.com"]);
     expect(body.subject).toBe("Hello");
-    expect((call?.init?.headers as Record<string, string>).Authorization).toBe("Bearer re_x");
+    expect((call.init!.headers as Record<string, string>).Authorization).toBe("Bearer re_x");
   });
 
   test("non-2xx throws resend_send_failed with the status", () => {

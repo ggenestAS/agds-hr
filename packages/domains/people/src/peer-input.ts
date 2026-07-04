@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
+import { enqueueNotification } from "@agds-hr/notifications";
 import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
 import { peerRequest, reviewCase } from "./db/schema.ts";
@@ -92,6 +93,34 @@ export async function listPeerRequestsForRequestee(
   return rows.map((row) => ({ ...rowToPeerRequest(row), subjectEmail: row.subjectEmail }));
 }
 
+// A live (pending) peer request emails its requestee — enqueued in the SAME
+// transaction as the request row (docs/plans/notifications.md). The dedupe key
+// is per case+requestee, shared by both paths to "pending" (direct creation
+// and proposal approval), so a person is nudged once per case regardless of
+// how the request came to exist.
+async function enqueuePeerRequestNotifications(
+  tx: DrizzleExecutor,
+  caseId: string,
+  requesteeEmails: readonly string[],
+): Promise<void> {
+  const [subject] = await tx
+    .select({ subjectEmail: reviewCase.subjectEmail })
+    .from(reviewCase)
+    .where(eq(reviewCase.id, caseId))
+    .limit(1);
+  if (subject === undefined) {
+    return;
+  }
+  for (const email of requesteeEmails) {
+    await enqueueNotification(tx, {
+      kind: "peer_request.created",
+      recipientEmail: email,
+      payload: { subjectEmail: subject.subjectEmail.toLowerCase(), caseId },
+      dedupeKey: `peer_request.created:${caseId}:${email.toLowerCase()}`,
+    });
+  }
+}
+
 // Create requests for a case (reviewer action). Idempotent per requestee —
 // re-requesting an existing requestee is a no-op, not an error.
 export async function createPeerRequests(
@@ -116,6 +145,11 @@ export async function createPeerRequests(
         })),
       )
       .onConflictDoNothing();
+    await enqueuePeerRequestNotifications(
+      tx,
+      caseId,
+      entries.map((entry) => entry.email.toLowerCase()),
+    );
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
       subjectUserId: context.subjectUserId,
@@ -176,7 +210,11 @@ export async function approvePeerRequest(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [current] = await tx
-      .select({ status: peerRequest.status })
+      .select({
+        status: peerRequest.status,
+        caseId: peerRequest.caseId,
+        requesteeEmail: peerRequest.requesteeEmail,
+      })
       .from(peerRequest)
       .where(eq(peerRequest.id, requestId))
       .limit(1);
@@ -190,6 +228,9 @@ export async function approvePeerRequest(
       .update(peerRequest)
       .set({ status: "pending" })
       .where(and(eq(peerRequest.id, requestId), eq(peerRequest.status, "proposed")));
+    // Approval is when the request becomes real for the requestee — notify now,
+    // not at proposal time (a rejected proposal must never email anyone).
+    await enqueuePeerRequestNotifications(tx, current.caseId, [current.requesteeEmail]);
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
       subjectUserId: context.subjectUserId,

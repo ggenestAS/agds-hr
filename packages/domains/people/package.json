@@ -15,6 +15,7 @@
     "@agds-hr/audit": "workspace:*",
     "@agds-hr/auth": "workspace:*",
     "@agds-hr/db": "workspace:*",
+    "@agds-hr/notifications": "workspace:*",
     "@agds-hr/shared": "workspace:*",
     "drizzle-orm": "beta"
   }

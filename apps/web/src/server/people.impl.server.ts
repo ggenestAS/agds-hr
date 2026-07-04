@@ -70,6 +70,7 @@ import type { AssessmentDraft } from "@agds-hr/people";
 import { CAREER_LEVELS } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
 import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
+import type { EnqueueNotificationInput } from "@agds-hr/notifications";
 import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
 import {
@@ -503,22 +504,51 @@ export async function openReviewHandler(input: { readonly email: string }): Prom
   return { ok: true };
 }
 
+// The subject's DIRECT managers, both lines, from the Inside roster/org tree —
+// the assessment.ready recipients. Best-effort empty when Inside is down: the
+// weekly digest is the catch-all for a missed event nudge.
+function directManagerEmails(
+  subjectEmail: string,
+  admins: readonly InsideAdmin[],
+  orgNodes: readonly OrgNode[],
+): readonly string[] {
+  const subject = admins.find((admin) => admin.email.toLowerCase() === subjectEmail.toLowerCase());
+  if (subject === undefined) {
+    return [];
+  }
+  const emailByUserId = new Map(admins.map((admin) => [admin.userId, admin.email.toLowerCase()]));
+  const managerIds = new Set<string>();
+  const functional = managementChain(orgNodes, subject.userId)[0];
+  if (functional !== undefined) {
+    managerIds.add(functional.userId);
+  }
+  const localManagerId = orgNodes.find(
+    (node) => node.userId === subject.userId,
+  )?.localManagerUserId;
+  if (localManagerId !== undefined) {
+    managerIds.add(localManagerId);
+  }
+  return [...managerIds]
+    .map((userId) => emailByUserId.get(userId))
+    .filter((email): email is string => email !== undefined);
+}
+
 export async function advanceReviewHandler(input: {
   readonly caseId: string;
   readonly toState: Parameters<typeof advanceCase>[2];
 }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.advance", { toState: input.toState });
   const adminDb = getDbAs("admin");
+  // Entering manager_assessment notifies the subject's managers (enqueued in
+  // the SAME transaction as the transition — docs/plans/notifications.md).
+  const notifications: EnqueueNotificationInput[] = [];
   // The peer-input gate (design M5): a case in peer_input cannot advance to the
   // manager assessment until cross-team + own-team quotas are met.
   if (input.toState === "manager_assessment") {
     const reviewCase = await getCaseById(adminDb, input.caseId);
+    const [orgNodes, admins] = await Promise.all([loadInsideOrgTree(), loadInsideDirectory()]);
     if (reviewCase?.state === "peer_input") {
-      const [requests, orgNodes, admins] = await Promise.all([
-        listPeerRequestsForCase(adminDb, input.caseId),
-        isInsideConfigured() ? listOrgTree() : Promise.resolve([]),
-        isInsideConfigured() ? listAdminDirectory({ limit: 1000 }) : Promise.resolve([]),
-      ]);
+      const requests = await listPeerRequestsForCase(adminDb, input.caseId);
       const userIdByEmail = new Map(
         admins.map((admin) => [admin.email.toLowerCase(), admin.userId]),
       );
@@ -527,8 +557,19 @@ export async function advanceReviewHandler(input: {
         throw new ForbiddenError("people.review.advance", "peer_quota_not_met");
       }
     }
+    if (reviewCase !== undefined) {
+      const subjectEmail = reviewCase.subjectEmail.toLowerCase();
+      for (const managerEmail of directManagerEmails(subjectEmail, admins, orgNodes)) {
+        notifications.push({
+          kind: "assessment.ready",
+          recipientEmail: managerEmail,
+          payload: { subjectEmail, caseId: input.caseId },
+          dedupeKey: `assessment.ready:${input.caseId}:${managerEmail}`,
+        });
+      }
+    }
   }
-  await advanceCase(adminDb, input.caseId, input.toState, auditContext(session));
+  await advanceCase(adminDb, input.caseId, input.toState, auditContext(session), notifications);
   return { ok: true };
 }
 
