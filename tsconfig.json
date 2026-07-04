@@ -5,6 +5,7 @@
       "@agds-hr/shared": ["./packages/shared/src/index.ts"],
       "@agds-hr/env": ["./packages/env/src/index.ts"],
       "@agds-hr/db": ["./packages/db/src/index.ts"],
+      "@agds-hr/cron": ["./packages/cron/src/index.ts"],
       "@agds-hr/audit": ["./packages/domains/audit/src/index.ts"],
       "@agds-hr/audit/db/schema": ["./packages/domains/audit/src/db/schema.ts"],
       "@agds-hr/auth": ["./packages/auth/src/index.ts"],

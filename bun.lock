@@ -65,6 +65,10 @@
         "drizzle-orm": "beta",
       },
     },
+    "packages/cron": {
+      "name": "@agds-hr/cron",
+      "version": "0.0.0",
+    },
     "packages/db": {
       "name": "@agds-hr/db",
       "version": "0.0.0",
@@ -150,6 +154,8 @@
     "@agds-hr/audit": ["@agds-hr/audit@workspace:packages/domains/audit"],
 
     "@agds-hr/auth": ["@agds-hr/auth@workspace:packages/auth"],
+
+    "@agds-hr/cron": ["@agds-hr/cron@workspace:packages/cron"],
 
     "@agds-hr/db": ["@agds-hr/db@workspace:packages/db"],
 
