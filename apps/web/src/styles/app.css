@@ -105,6 +105,16 @@
   --color-cream: #262b47;
   --color-bone: #2c3154;
 
+  /* Ink grays flip with the theme: in light, higher numbers are darker
+     (stronger); in dark, "stronger" means lighter, so ink-500 must sit above
+     ink-300 in brightness. ink-100 doubles as avatar/border surface — without
+     this override it stays a light gray and near-white foreground text on it
+     disappears. ink-900 is deliberately NOT overridden: the sidebar and hero
+     panels are branded ink in both themes. */
+  --color-ink-100: #343a63;
+  --color-ink-500: #b3b6cf;
+  --color-ink-700: #7d81a8;
+
   /* Semantic callouts: dark surface + a brighter version of the same hue for
      text, the standard dark-mode alert pattern (as opposed to a flat
      light-mode surface that would clash, or worse, hide theme-reactive text
