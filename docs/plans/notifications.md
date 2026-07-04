@@ -1,5 +1,5 @@
-Status: planned
-Readiness: stakeholder-pending
+Status: built (see ADR 2026-07-04-notifications-outbox-and-derived-obligations)
+Readiness: ready
 
 # notifications + cycle tracking plan
 

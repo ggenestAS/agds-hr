@@ -7,11 +7,12 @@ of every ADR is a status banner: `Status: frozen` or
 
 ## Index
 
-| Date       | Decision                                                                                               | Status |
-| ---------- | ------------------------------------------------------------------------------------------------------ | ------ |
-| 2026-07-02 | [Stack and prerelease dependencies](./2026-07-02-stack-and-prerelease-dependencies.md)                 | frozen |
-| 2026-07-02 | [Database roles and migrations](./2026-07-02-database-roles-and-migrations.md)                         | frozen |
-| 2026-07-02 | [Auth, identity, session, and the policy engine](./2026-07-02-auth-identity-session-and-policy.md)     | frozen |
-| 2026-07-02 | [People domain model](./2026-07-02-people-domain-model.md)                                             | frozen |
-| 2026-07-03 | [Employment types and review participation](./2026-07-03-employment-types-and-review-participation.md) | frozen |
-| 2026-07-03 | [Cloudflare Workers hosting](./2026-07-03-cloudflare-hosting.md)                                       | frozen |
+| Date       | Decision                                                                                                     | Status |
+| ---------- | ------------------------------------------------------------------------------------------------------------ | ------ |
+| 2026-07-02 | [Stack and prerelease dependencies](./2026-07-02-stack-and-prerelease-dependencies.md)                       | frozen |
+| 2026-07-02 | [Database roles and migrations](./2026-07-02-database-roles-and-migrations.md)                               | frozen |
+| 2026-07-02 | [Auth, identity, session, and the policy engine](./2026-07-02-auth-identity-session-and-policy.md)           | frozen |
+| 2026-07-02 | [People domain model](./2026-07-02-people-domain-model.md)                                                   | frozen |
+| 2026-07-03 | [Employment types and review participation](./2026-07-03-employment-types-and-review-participation.md)       | frozen |
+| 2026-07-03 | [Cloudflare Workers hosting](./2026-07-03-cloudflare-hosting.md)                                             | frozen |
+| 2026-07-04 | [Notifications outbox and derived obligations](./2026-07-04-notifications-outbox-and-derived-obligations.md) | frozen |
