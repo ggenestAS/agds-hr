@@ -26,4 +26,11 @@
       "custom_domain": true,
     },
   ],
+  // Cron Triggers land in src/server.ts `scheduled`; the expression → job map
+  // is CRON_SCHEDULE_JOBS in src/server/cron.server.ts — keep both in sync.
+  // Weekly digest fires Monday 07:00 UTC (08–09:00 Paris across DST — the
+  // drift is accepted, docs/plans/notifications.md open questions).
+  "triggers": {
+    "crons": ["*/5 * * * *", "0 7 * * 1"],
+  },
 }

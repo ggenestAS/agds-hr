@@ -16,6 +16,7 @@
   "dependencies": {
     "@agds-hr/audit": "workspace:*",
     "@agds-hr/auth": "workspace:*",
+    "@agds-hr/cron": "workspace:*",
     "@agds-hr/db": "workspace:*",
     "@agds-hr/env": "workspace:*",
     "@agds-hr/identity": "workspace:*",

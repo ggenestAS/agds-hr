@@ -111,6 +111,13 @@ export const ENV_MANIFEST = [
     scope: "server",
     requirement: "optional",
   },
+  {
+    name: "CRON_SECRET",
+    owner: "@agds-hr/web",
+    group: "cron",
+    scope: "server",
+    requirement: "optional",
+  },
   // Deploy-time only (scripts/ops/deploy-worker.ts) — never read at runtime.
   {
     name: "CLOUDFLARE_API_TOKEN",

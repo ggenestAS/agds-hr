@@ -310,6 +310,8 @@ export type CalibrationCase = {
   readonly state: ReviewState;
   readonly rating: ReviewRating | undefined;
   readonly decided: boolean;
+  // When the case was opened — the obligations "pending N days" baseline.
+  readonly createdAt: Date;
 };
 
 // The calibration surface: every case in a cycle with its state, rating, and
@@ -325,6 +327,7 @@ export async function listCasesForCycle(
       state: reviewCase.state,
       rating: reviewCase.rating,
       decidedAt: reviewCase.decidedAt,
+      createdAt: reviewCase.createdAt,
     })
     .from(reviewCase)
     .where(eq(reviewCase.cyclePeriod, cyclePeriod));
@@ -334,5 +337,6 @@ export async function listCasesForCycle(
     state: row.state,
     rating: row.rating !== null && isReviewRating(row.rating) ? row.rating : undefined,
     decided: row.decidedAt !== null,
+    createdAt: row.createdAt,
   }));
 }

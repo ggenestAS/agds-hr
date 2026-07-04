@@ -115,7 +115,7 @@ import type {
 } from "./people.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
 
-function resolvePeerInputQuota(
+export function resolvePeerInputQuota(
   subjectEmail: string,
   orgNodes: readonly OrgNode[],
   userIdByEmail: ReadonlyMap<string, string>,
@@ -507,7 +507,7 @@ export async function openReviewHandler(input: { readonly email: string }): Prom
 // The subject's DIRECT managers, both lines, from the Inside roster/org tree —
 // the assessment.ready recipients. Best-effort empty when Inside is down: the
 // weekly digest is the catch-all for a missed event nudge.
-function directManagerEmails(
+export function directManagerEmails(
   subjectEmail: string,
   admins: readonly InsideAdmin[],
   orgNodes: readonly OrgNode[],
