@@ -9,6 +9,7 @@ import type {
   RevokeRoleInput,
   RolesPageView,
 } from "./roles.shared.ts";
+import { directReportCountsByManagerId } from "./roles.shared.ts";
 import { auditContext, requireSession } from "./require-session.server.ts";
 
 type MergedRow = {
@@ -65,22 +66,12 @@ export async function rolesPageHandler(): Promise<RolesPageView> {
       return left.name.localeCompare(right.name);
     });
 
-  // Infer candidates from the SAME org tree that drives the People
-  // directory's "Reports to" column: anyone who is another node's
-  // functional manager has at least one direct report, and is a plausible
-  // reviewer — but this is a suggestion, not a grant. A person with reports
-  // in Inside's hierarchy but no product role yet is exactly who the review
-  // cycle needs `manager` authority for (opening cases, peer input,
-  // assessment) and doesn't have it.
-  const directReportCounts = new Map<string, number>();
-  for (const node of orgNodes) {
-    if (node.functionalManagerUserId !== undefined) {
-      directReportCounts.set(
-        node.functionalManagerUserId,
-        (directReportCounts.get(node.functionalManagerUserId) ?? 0) + 1,
-      );
-    }
-  }
+  // Infer candidates from the org tree (both reporting lines — same edges as
+  // the manager graph): anyone with at least one direct report is a plausible
+  // reviewer, but this is a suggestion, not a grant. A person with reports
+  // in Inside but no product role yet is exactly who the review cycle needs
+  // `manager` authority for (opening cases, peer input, assessment).
+  const directReportCounts = directReportCountsByManagerId(orgNodes);
   const adminByUserId = new Map(admins.map((admin) => [admin.userId, admin]));
   const orgManagerSuggestions: OrgManagerSuggestion[] = [];
   for (const [managerUserId, directReports] of directReportCounts) {

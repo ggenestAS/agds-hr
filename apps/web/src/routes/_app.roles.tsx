@@ -128,10 +128,10 @@ function Roles() {
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Inferred from Albert Inside's reporting chain — the same data behind the People
-              directory's "Reports to" column. Each of these has at least one direct report but no
-              product role yet, so they can't open cases, request peer input, or run assessments for
-              the people who report to them. Review the list; grant what's right.
+              Inferred from Albert Inside's org chart — functional and local reporting lines. Each
+              of these has at least one direct report but no product role yet, so they can't open
+              cases, request peer input, or run assessments for the people who report to them.
+              Review the list; grant what's right.
             </p>
           </CardHeader>
           <CardContent className="divide-y divide-border">

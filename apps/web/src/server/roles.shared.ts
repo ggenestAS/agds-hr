@@ -1,3 +1,4 @@
+import type { OrgNode } from "@agds-hr/inside";
 import type { UserRole } from "@agds-hr/shared";
 import { z } from "zod";
 
@@ -34,10 +35,31 @@ export type RoleAssignment = {
   readonly roles: readonly UserRole[];
 };
 
-// Inferred from Albert Inside's org tree (the same reporting-line data behind
-// the People directory's "Reports to" column): anyone who is someone else's
-// functional manager, but who holds no product role yet. A candidate, not a
+// Inferred from Albert Inside's org tree (both reporting lines): anyone with
+// at least one direct report but no product role yet. A candidate, not a
 // grant — HR still decides which of these should actually run reviews.
+export function directReportCountsByManagerId(
+  orgNodes: readonly OrgNode[],
+): ReadonlyMap<string, number> {
+  const reportsByManager = new Map<string, Set<string>>();
+  for (const node of orgNodes) {
+    for (const managerUserId of [node.functionalManagerUserId, node.localManagerUserId]) {
+      if (managerUserId === undefined) {
+        continue;
+      }
+      const reports = reportsByManager.get(managerUserId) ?? new Set<string>();
+      reports.add(node.userId);
+      reportsByManager.set(managerUserId, reports);
+    }
+  }
+  return new Map(
+    [...reportsByManager.entries()].map(([managerUserId, reports]) => [
+      managerUserId,
+      reports.size,
+    ]),
+  );
+}
+
 export type OrgManagerSuggestion = {
   readonly email: string;
   readonly name: string;
