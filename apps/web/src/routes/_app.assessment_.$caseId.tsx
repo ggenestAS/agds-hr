@@ -7,6 +7,8 @@ import {
   CAREER_LEVELS,
   EVALUATION_DIMENSIONS,
   EVALUATION_DIMENSION_LABELS,
+  PEER_INPUT_KEYS,
+  PEER_INPUT_KEY_LABELS,
   REVIEW_RATING_LABELS,
   canSubmitAssessment,
   isReviewRating,
@@ -229,10 +231,10 @@ const buildMarkdown = (detail: AssessCaseDetail, draft: Draft): string => {
       `### From ${peer.requesteeName ?? peer.requesteeEmail} · ${KIND_LABEL[peer.kind]}`,
       "",
     );
-    for (const dimension of EVALUATION_DIMENSIONS) {
-      const value = (peer.input[dimension] ?? "").trim();
+    for (const key of PEER_INPUT_KEYS) {
+      const value = (peer.input[key] ?? "").trim();
       if (value !== "") {
-        lines.push(`**${EVALUATION_DIMENSION_LABELS[dimension]}** — ${value}`, "");
+        lines.push(`**${PEER_INPUT_KEY_LABELS[key]}** — ${value}`, "");
       }
     }
   }
@@ -769,15 +771,13 @@ function AssessCasePage() {
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
-                  {EVALUATION_DIMENSIONS.filter(
-                    (dimension) => (peer.input[dimension] ?? "") !== "",
-                  ).map((dimension) => (
-                    <div key={dimension}>
+                  {PEER_INPUT_KEYS.filter((key) => (peer.input[key] ?? "") !== "").map((key) => (
+                    <div key={key}>
                       <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                        {EVALUATION_DIMENSION_LABELS[dimension]}
+                        {PEER_INPUT_KEY_LABELS[key]}
                       </p>
                       <p className="mt-0.5 text-[13.5px] leading-relaxed text-foreground">
-                        {peer.input[dimension]}
+                        {peer.input[key]}
                       </p>
                     </div>
                   ))}

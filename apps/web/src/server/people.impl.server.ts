@@ -65,7 +65,7 @@ import {
   upsertEmployeeByEmail,
 } from "@agds-hr/people";
 import type { AssessmentDraft } from "@agds-hr/people";
-import { CAREER_LEVELS } from "@agds-hr/people/types";
+import { CAREER_LEVELS, peerInputSubmitIssues } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating } from "@agds-hr/people/types";
 import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
 import type { EnqueueNotificationInput } from "@agds-hr/notifications";
@@ -1076,6 +1076,10 @@ const cleanDims = (
 
 export async function peerSubmitHandler(input: PeerSubmitInput): Promise<{ ok: true }> {
   const session = await requireSession("people.peer.respond");
+  const issues = peerInputSubmitIssues(input.input);
+  if (issues.length > 0) {
+    throw new ConflictError(`peer_input_requirements_not_met (${issues.join("; ")})`);
+  }
   await submitPeerInput(
     getDbAs("admin"),
     input.requestId,

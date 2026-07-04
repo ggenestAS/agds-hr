@@ -1,7 +1,12 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { EVALUATION_DIMENSIONS, EVALUATION_DIMENSION_LABELS } from "@agds-hr/people/types";
-import type { EvaluationDimension, PeerKind } from "@agds-hr/people/types";
+import {
+  EVALUATION_DIMENSIONS,
+  EVALUATION_DIMENSION_LABELS,
+  PEER_INPUT_QUESTIONS,
+  peerInputSubmitIssues,
+} from "@agds-hr/people/types";
+import type { EvaluationDimension, PeerInputKey, PeerKind } from "@agds-hr/people/types";
 
 import { FormRoutePending } from "../components/route-pending/shapes.tsx";
 import { Button } from "../components/ui/button.tsx";
@@ -12,6 +17,10 @@ import { peerAnswerFn, peerDeclineFn, peerSubmitFn } from "../server/people.func
 // as the self-review form — a focused page, local draft autosave, explicit
 // submit. Requestee-only. Once submitted it locks for the author; the
 // subject's manager can reopen it from /peer-input.
+//
+// The form treats the peer as a witness, not an assessor: three required
+// questions (context, keep doing, could do better) carry the signal; the five
+// rating dimensions are optional evidence, only where seen firsthand.
 export const Route = createFileRoute("/_app/peer-input_/$requestId")({
   loader: ({ params }) => peerAnswerFn({ data: params.requestId }),
   pendingComponent: () => <FormRoutePending width="3xl" />,
@@ -24,6 +33,28 @@ const KIND_LABEL: Record<PeerKind, string> = {
   cross: "Cross-team",
 };
 
+// The three witness questions, personalized with the subject's first name.
+const QUESTIONS: Record<
+  (typeof PEER_INPUT_QUESTIONS)[number],
+  { title: (name: string) => string; hint: (name: string) => string }
+> = {
+  p_context: {
+    title: () => "How did you work together this year?",
+    hint: (name) =>
+      `The work you shared and how closely — weekly? one project? This tells ${name}'s manager how to weight your input.`,
+  },
+  p_keep: {
+    title: (name) => `What should ${name} keep doing?`,
+    hint: () =>
+      "Name the strength, then one concrete moment that shows it. A specific story beats five adjectives.",
+  },
+  p_improve: {
+    title: (name) => `What is one thing ${name} could do better?`,
+    hint: () =>
+      "Every strong review names one — “nothing” helps no one grow. Behavior or habit, not personality; something they could act on next quarter.",
+  },
+};
+
 const DIMENSION_HINTS: Record<EvaluationDimension, string> = {
   impact: "What changed because of their work? Concrete outcomes beat adjectives.",
   ownership: "Did they close ambiguity or pass it on? A specific moment helps.",
@@ -32,7 +63,7 @@ const DIMENSION_HINTS: Record<EvaluationDimension, string> = {
   culture: "Judgment, directness, how they represent Albert.",
 };
 
-type FormState = Partial<Record<EvaluationDimension, string>>;
+type FormState = Partial<Record<PeerInputKey, string>>;
 
 const inputCls =
   "block w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[rgba(233,75,60,0.12)]";
@@ -47,6 +78,7 @@ function PeerAnswerPage() {
   const [busy, setBusy] = useState(false);
   const submitted = view.status === "submitted";
   const answerable = view.status === "pending";
+  const firstName = view.subjectName?.split(" ")[0] ?? "them";
 
   // Local draft autosave, merged under any server copy (reopened requests keep
   // their submitted content server-side).
@@ -63,7 +95,7 @@ function PeerAnswerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setField = (key: EvaluationDimension, value: string) => {
+  const setField = (key: PeerInputKey, value: string) => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       try {
@@ -75,11 +107,16 @@ function PeerAnswerPage() {
     });
   };
 
-  const filled = useMemo(
+  const requiredDone = useMemo(
+    () => PEER_INPUT_QUESTIONS.filter((key) => (form[key] ?? "").trim().length > 0).length,
+    [form],
+  );
+  const optionalDone = useMemo(
     () =>
       EVALUATION_DIMENSIONS.filter((dimension) => (form[dimension] ?? "").trim().length > 0).length,
     [form],
   );
+  const canSubmit = peerInputSubmitIssues(form).length === 0;
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -128,9 +165,9 @@ function PeerAnswerPage() {
           <p className="mt-1 text-sm text-white/70">{view.subjectTitle}</p>
         )}
         <p className="mt-2.5 max-w-xl text-sm leading-relaxed text-white/80">
-          Five dimensions, free text — about 10 minutes. Specific moments beat general praise. Your
-          input is visible to the reviewer and the founders, never to{" "}
-          {view.subjectName?.split(" ")[0] ?? "the person"} themselves.
+          Three questions — about 10 minutes. You're a witness, not a judge: specific moments beat
+          general praise. Your input is visible to the reviewer and the founders, never to{" "}
+          {firstName} themselves.
         </p>
         <div className="mt-4 rounded-[14px] border-l-2 border-[var(--color-accent)] bg-white/5 px-4 py-3 text-[13.5px] leading-relaxed text-white/85">
           <strong className="text-white">Signed as you — no anonymous input.</strong> Declines are
@@ -147,8 +184,7 @@ function PeerAnswerPage() {
             Submitted
             {view.submittedAt !== undefined &&
               ` on ${new Date(view.submittedAt).toLocaleDateString()}`}
-            . You can't reopen it yourself — {view.subjectName?.split(" ")[0] ?? "the subject"}'s
-            manager can, from the peer-input page.
+            . You can't reopen it yourself — {firstName}'s manager can, from the peer-input page.
           </span>
         </div>
       )}
@@ -162,7 +198,13 @@ function PeerAnswerPage() {
         <div className="min-w-0 flex-1">
           <div className="mb-1.5 flex justify-between gap-3 whitespace-nowrap text-xs">
             <span className="font-semibold tabular-nums">
-              {filled}/{EVALUATION_DIMENSIONS.length} dimensions
+              {requiredDone}/{PEER_INPUT_QUESTIONS.length} questions
+              {optionalDone > 0 && (
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  · +{optionalDone} by dimension
+                </span>
+              )}
             </span>
             <span className="text-muted-foreground">
               {answerable ? "Drafts autosave locally" : "Read-only"}
@@ -171,7 +213,9 @@ function PeerAnswerPage() {
           <div className="h-1.5 overflow-hidden rounded-full bg-bone">
             <div
               className="h-full rounded-full bg-[var(--color-accent)]"
-              style={{ width: `${Math.round((filled / EVALUATION_DIMENSIONS.length) * 100)}%` }}
+              style={{
+                width: `${Math.round((requiredDone / PEER_INPUT_QUESTIONS.length) * 100)}%`,
+              }}
             />
           </div>
         </div>
@@ -179,7 +223,7 @@ function PeerAnswerPage() {
           <Button
             type="button"
             size="sm"
-            disabled={busy || filled === 0}
+            disabled={busy || !canSubmit}
             onClick={() => void submit()}
           >
             Submit input →
@@ -188,31 +232,70 @@ function PeerAnswerPage() {
       </div>
 
       <div className="mt-4 space-y-4">
-        {EVALUATION_DIMENSIONS.map((dimension) => (
+        {PEER_INPUT_QUESTIONS.map((key, index) => (
           <div
-            key={dimension}
+            key={key}
             className="rounded-[14px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
           >
-            <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-accent)]">
-              {EVALUATION_DIMENSION_LABELS[dimension]}
-              {(form[dimension] ?? "").trim().length > 0 && (
-                <span className="flex size-4 items-center justify-center rounded-full bg-[var(--color-success-surface)] text-[10px] font-bold normal-case tracking-normal text-[var(--color-success)]">
+            <p className="mb-1 flex items-center gap-2 text-[15px] font-bold">
+              <span className="text-[var(--color-accent)]">{index + 1}.</span>
+              {QUESTIONS[key].title(firstName)}
+              {(form[key] ?? "").trim().length > 0 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-[var(--color-success-surface)] text-[10px] font-bold text-[var(--color-success)]">
                   ✓
                 </span>
               )}
             </p>
-            <p className="mb-3 text-xs text-muted-foreground">{DIMENSION_HINTS[dimension]}</p>
+            <p className="mb-3 text-xs text-muted-foreground">{QUESTIONS[key].hint(firstName)}</p>
             <textarea
-              rows={3}
+              rows={4}
               maxLength={4000}
-              value={form[dimension] ?? ""}
+              value={form[key] ?? ""}
               disabled={!answerable}
-              onChange={(event) => setField(dimension, event.target.value)}
-              placeholder="…"
+              onChange={(event) => setField(key, event.target.value)}
+              placeholder={key === "p_improve" ? "One thing, concretely…" : "…"}
               className={inputCls}
             />
           </div>
         ))}
+      </div>
+
+      <div className="mt-8">
+        <div className="mb-1 flex items-baseline gap-2.5">
+          <h2 className="font-display text-lg font-semibold">By dimension</h2>
+          <span className="text-[11px] font-semibold text-ink-300">optional</span>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Only where you saw it firsthand — skip the rest. A skipped dimension reads as "no direct
+          evidence", which is more useful than padding.
+        </p>
+        <div className="space-y-4">
+          {EVALUATION_DIMENSIONS.map((dimension) => (
+            <div
+              key={dimension}
+              className="rounded-[14px] border border-border bg-card p-6 shadow-[var(--shadow-soft)]"
+            >
+              <p className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-accent)]">
+                {EVALUATION_DIMENSION_LABELS[dimension]}
+                {(form[dimension] ?? "").trim().length > 0 && (
+                  <span className="flex size-4 items-center justify-center rounded-full bg-[var(--color-success-surface)] text-[10px] font-bold normal-case tracking-normal text-[var(--color-success)]">
+                    ✓
+                  </span>
+                )}
+              </p>
+              <p className="mb-3 text-xs text-muted-foreground">{DIMENSION_HINTS[dimension]}</p>
+              <textarea
+                rows={3}
+                maxLength={4000}
+                value={form[dimension] ?? ""}
+                disabled={!answerable}
+                onChange={(event) => setField(dimension, event.target.value)}
+                placeholder="…"
+                className={inputCls}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="mt-5 flex items-center justify-between gap-4 pb-8">
@@ -251,9 +334,16 @@ function PeerAnswerPage() {
                 Can't review this person? Decline instead
               </button>
             )}
-            <Button type="button" disabled={busy || filled === 0} onClick={() => void submit()}>
-              Submit input →
-            </Button>
+            <div className="text-right">
+              <Button type="button" disabled={busy || !canSubmit} onClick={() => void submit()}>
+                Submit input →
+              </Button>
+              {!canSubmit && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Enabled once the three questions are answered
+                </p>
+              )}
+            </div>
           </>
         ) : (
           <Link to="/peer-input" className="text-sm font-medium hover:text-[var(--color-accent)]">

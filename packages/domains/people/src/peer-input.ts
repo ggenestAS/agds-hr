@@ -6,7 +6,7 @@ import { enqueueNotification } from "@agds-hr/notifications";
 import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
 
 import { peerRequest, reviewCase } from "./db/schema.ts";
-import type { EvaluationDimension, PeerKind, PeerRequest, PeerRequestStatus } from "./types.ts";
+import type { PeerInputKey, PeerKind, PeerRequest, PeerRequestStatus } from "./types.ts";
 
 // Peer input DAL (design M5): NAMED input — never anonymous, never shown to
 // the person being reviewed (enforced at the handler layer by excluding the
@@ -337,7 +337,7 @@ export async function submitPeerInput(
   db: DrizzleDb,
   requestId: string,
   requesteeEmail: string,
-  input: Readonly<Partial<Record<EvaluationDimension, string>>>,
+  input: Readonly<Partial<Record<PeerInputKey, string>>>,
   context: AuditContext,
 ): Promise<void> {
   await db.transaction(async (tx) => {

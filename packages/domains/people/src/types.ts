@@ -299,6 +299,37 @@ export function isPeerQuotaMet(
   });
 }
 
+// What a peer is asked: three witness questions — required at submit — plus
+// the five evaluation dimensions as optional evidence ("only where you saw it
+// firsthand"). Peers are witnesses, not assessors: rubric-shaped prompts alone
+// produce rubric-shaped blandness, and without an explicit "could do better"
+// question most people submit pure praise.
+export const PEER_INPUT_QUESTIONS = ["p_context", "p_keep", "p_improve"] as const;
+export type PeerInputQuestion = (typeof PEER_INPUT_QUESTIONS)[number];
+export const PEER_INPUT_KEYS = [...PEER_INPUT_QUESTIONS, ...EVALUATION_DIMENSIONS] as const;
+export type PeerInputKey = (typeof PEER_INPUT_KEYS)[number];
+
+export const PEER_INPUT_QUESTION_LABELS: Record<PeerInputQuestion, string> = {
+  p_context: "How you worked together",
+  p_keep: "Keep doing",
+  p_improve: "Could do better",
+};
+
+// One label map across both question kinds, for read surfaces and exports.
+export const PEER_INPUT_KEY_LABELS: Record<PeerInputKey, string> = {
+  ...PEER_INPUT_QUESTION_LABELS,
+  ...EVALUATION_DIMENSION_LABELS,
+};
+
+// Submit gate: all three witness questions answered; dimensions stay optional.
+export function peerInputSubmitIssues(
+  input: Readonly<Partial<Record<PeerInputKey, string>>>,
+): readonly string[] {
+  return PEER_INPUT_QUESTIONS.filter((key) => (input[key] ?? "").trim() === "").map(
+    (key) => `"${PEER_INPUT_QUESTION_LABELS[key]}" is required`,
+  );
+}
+
 export type PeerRequest = {
   readonly id: string;
   readonly caseId: string;
@@ -306,7 +337,7 @@ export type PeerRequest = {
   readonly kind: PeerKind;
   readonly status: PeerRequestStatus;
   readonly declineReason: string | undefined;
-  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly input: Readonly<Partial<Record<PeerInputKey, string>>>;
   readonly submittedAt: Date | undefined;
   readonly createdAt: Date;
 };

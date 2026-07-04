@@ -5,6 +5,7 @@ import {
   CAREER_PATHS,
   EMPLOYMENT_TYPES,
   EVALUATION_DIMENSIONS,
+  PEER_INPUT_KEYS,
   PEER_KINDS,
   REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_STATES,
@@ -15,6 +16,7 @@ import type {
   CareerPath,
   EmploymentType,
   EvaluationDimension,
+  PeerInputKey,
   PeerKind,
   PeerRequestStatus,
   ReviewParticipationOverride,
@@ -154,7 +156,7 @@ export type ReceivedPeerView = {
   readonly requesteeName: string | undefined;
   readonly kind: PeerKind;
   readonly submittedAt: string | undefined;
-  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly input: Readonly<Partial<Record<PeerInputKey, string>>>;
 };
 
 export type ReceivedCycleView = {
@@ -193,7 +195,7 @@ export type GivenAsPeerView = {
   readonly kind: PeerKind;
   readonly status: PeerRequestStatus;
   readonly submittedAt: string | undefined;
-  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>> | undefined;
+  readonly input: Readonly<Partial<Record<PeerInputKey, string>>> | undefined;
 };
 
 export type PersonDetail = {
@@ -746,7 +748,7 @@ export type PeerRequestCreateInput = z.infer<typeof peerRequestCreateSchema>;
 
 export const peerSubmitSchema = z.object({
   requestId: z.string().min(1),
-  input: z.partialRecord(z.enum(EVALUATION_DIMENSIONS), z.string().max(4000)),
+  input: z.partialRecord(z.enum(PEER_INPUT_KEYS), z.string().max(4000)),
 });
 export type PeerSubmitInput = z.infer<typeof peerSubmitSchema>;
 
@@ -775,7 +777,7 @@ export type PeerAnswerView = {
   readonly subjectTitle: string | undefined;
   readonly kind: PeerKind;
   readonly status: PeerRequestStatus;
-  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly input: Readonly<Partial<Record<PeerInputKey, string>>>;
   readonly submittedAt: string | undefined;
 };
 
@@ -787,7 +789,7 @@ export type PeerRequestView = {
   readonly status: PeerRequestStatus;
   readonly declineReason: string | undefined;
   readonly submittedAt: string | undefined;
-  readonly input: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly input: Readonly<Partial<Record<PeerInputKey, string>>>;
 };
 
 export type PeerCaseView = {

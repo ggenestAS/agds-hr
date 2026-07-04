@@ -10,6 +10,8 @@ import {
   EMPLOYMENT_TYPE_LABELS,
   EVALUATION_DIMENSIONS,
   EVALUATION_DIMENSION_LABELS,
+  PEER_INPUT_KEYS,
+  PEER_INPUT_KEY_LABELS,
   REVIEW_PARTICIPATION_OVERRIDES,
   REVIEW_RATING_LABELS,
   isReviewRating,
@@ -20,7 +22,7 @@ import type {
   CareerLevel,
   CareerPath,
   EmploymentType,
-  EvaluationDimension,
+  PeerInputKey,
   PeerKind,
   ReviewParticipationOverride,
   ReviewState,
@@ -165,23 +167,17 @@ function AssessmentBlock({ assessment }: { assessment: AssessmentView }) {
   );
 }
 
-function PeerInputBlock({
-  input,
-}: {
-  input: Readonly<Partial<Record<EvaluationDimension, string>>>;
-}) {
+function PeerInputBlock({ input }: { input: Readonly<Partial<Record<PeerInputKey, string>>> }) {
   return (
     <div className="space-y-2.5">
-      {EVALUATION_DIMENSIONS.filter((dimension) => (input[dimension] ?? "") !== "").map(
-        (dimension) => (
-          <div key={dimension}>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-              {EVALUATION_DIMENSION_LABELS[dimension]}
-            </p>
-            <p className="text-[13px] leading-relaxed text-foreground">{input[dimension]}</p>
-          </div>
-        ),
-      )}
+      {PEER_INPUT_KEYS.filter((key) => (input[key] ?? "") !== "").map((key) => (
+        <div key={key}>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            {PEER_INPUT_KEY_LABELS[key]}
+          </p>
+          <p className="text-[13px] leading-relaxed text-foreground">{input[key]}</p>
+        </div>
+      ))}
     </div>
   );
 }

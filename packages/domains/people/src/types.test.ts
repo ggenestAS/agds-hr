@@ -15,6 +15,7 @@ import {
   isCareerPath,
   isEmploymentType,
   isPeerQuotaMet,
+  peerInputSubmitIssues,
   isDecisionComplete,
   isP6Triggered,
   isReviewParticipationOverride,
@@ -274,5 +275,19 @@ describe("appeals", () => {
     expect(canFileAppealNow({ ...base, alreadyFiled: true })).toBe(false);
     // exactly at the deadline still counts
     expect(canFileAppealNow({ ...base, nowMs: 2000 })).toBe(true);
+  });
+});
+
+describe("peerInputSubmitIssues", () => {
+  test("all three witness questions are required; dimensions stay optional", () => {
+    expect(
+      peerInputSubmitIssues({ p_context: "weekly", p_keep: "clarity", p_improve: "delegate" }),
+    ).toEqual([]);
+    // dimensions alone do not satisfy the gate
+    expect(peerInputSubmitIssues({ impact: "shipped the track" })).toHaveLength(3);
+    // whitespace does not count as an answer
+    expect(peerInputSubmitIssues({ p_context: "x", p_keep: "  ", p_improve: "y" })).toEqual([
+      '"Keep doing" is required',
+    ]);
   });
 });

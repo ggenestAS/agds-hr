@@ -31,7 +31,7 @@ import {
 } from "@agds-hr/people";
 import { assessment, peerRequest, reviewCase, selfReview } from "@agds-hr/people/db/schema";
 import type { AssessmentDraft } from "@agds-hr/people";
-import type { EvaluationDimension, ReviewRating } from "@agds-hr/people/types";
+import type { EvaluationDimension, PeerInputKey, ReviewRating } from "@agds-hr/people/types";
 import { RequestId } from "@agds-hr/shared";
 
 const ACTOR_EMAIL = "ggenest@albertschool.com";
@@ -78,7 +78,7 @@ type PeerSpec = {
   readonly email: string;
   readonly kind: "cross" | "team" | "lt";
   readonly action: "submit" | "decline" | "pending";
-  readonly input?: Readonly<Partial<Record<EvaluationDimension, string>>>;
+  readonly input?: Readonly<Partial<Record<PeerInputKey, string>>>;
   readonly declineReason?: string;
 };
 
@@ -115,7 +115,11 @@ const dims = (
 const peerVoice = (
   impact: string,
   collaboration: string,
-): Readonly<Partial<Record<EvaluationDimension, string>>> => ({
+): Readonly<Partial<Record<PeerInputKey, string>>> => ({
+  // The three witness questions (required at submit since the form redesign).
+  p_context: "We worked together on shared tracks and cross-campus syncs, roughly weekly.",
+  p_keep: impact,
+  p_improve: "Could flag capacity limits earlier instead of absorbing overload silently.",
   impact,
   collaboration,
   culture: "Reliable and direct; represents the team well.",
