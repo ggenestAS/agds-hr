@@ -111,8 +111,8 @@ export function canTransition(from: ReviewState, to: ReviewState): boolean {
 // calibration sign-off and the decision; admins handle appeals/closure).
 // `developer` is the platform superuser. The decision itself is a dual-founder
 // sign-off (a guarded accumulation), not a bare advance — see the review-decision
-// slice. Manager-of-subject scoping (a manager may only act on their own reports)
-// is a deferred refinement.
+// slice. Manager-of-subject row scope (managers act only on their reports;
+// leadership is org-wide) is enforced in the web handlers, not these predicates.
 export const REVIEW_ADVANCE_ROLES: Record<ReviewState, readonly UserRole[]> = {
   self_review: [],
   peer_input: ["manager", "founder", "developer"],

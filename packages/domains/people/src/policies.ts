@@ -128,3 +128,9 @@ export function canViewTracking(user: User): PolicyDecision {
     ? ALLOW
     : DENY("manager_required");
 }
+
+// Decision & sign-off queue: leadership-only (matches nav in frame.tsx). Comp
+// amounts stay on compFn; the queue carries proposals and sign-off status only.
+export function canViewSignoffQueue(user: User): PolicyDecision {
+  return hasAny(user, ["admin", "founder", "developer"]) ? ALLOW : DENY("leadership_required");
+}

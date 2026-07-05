@@ -15,6 +15,7 @@ import {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewSignoffQueue,
   canViewTracking,
 } from "./policies.ts";
 
@@ -110,6 +111,17 @@ describe("people policies", () => {
     expect(canViewTracking(userWith(["staff"]))).toEqual({
       allow: false,
       reason: "manager_required",
+    });
+  });
+
+  test("the sign-off queue is leadership-only (admin/founder/developer)", () => {
+    expect(canViewSignoffQueue(userWith(["admin"])).allow).toBe(true);
+    expect(canViewSignoffQueue(userWith(["founder"])).allow).toBe(true);
+    expect(canViewSignoffQueue(userWith(["developer"])).allow).toBe(true);
+    expect(canViewSignoffQueue(userWith(["manager"])).allow).toBe(false);
+    expect(canViewSignoffQueue(userWith(["staff"]))).toEqual({
+      allow: false,
+      reason: "leadership_required",
     });
   });
 

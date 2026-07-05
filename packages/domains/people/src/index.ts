@@ -158,6 +158,7 @@ export {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewSignoffQueue,
   canViewTracking,
   canWriteAssessment,
   canWriteCheckIn,

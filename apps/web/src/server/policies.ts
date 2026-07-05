@@ -21,6 +21,7 @@ import {
   canSignDecision,
   canViewComp,
   canViewCompPrinciples,
+  canViewSignoffQueue,
   canViewTracking,
   canWriteAssessment,
   canWriteCheckIn,
@@ -71,4 +72,5 @@ export function registerPolicies(): void {
   registerPolicy("people.checkin.write", (user) => canWriteCheckIn(user));
   registerPolicy("people.band.manage", (user) => canManageBands(user));
   registerPolicy("people.tracking.read", (user) => canViewTracking(user));
+  registerPolicy("people.signoff.read", (user) => canViewSignoffQueue(user));
 }

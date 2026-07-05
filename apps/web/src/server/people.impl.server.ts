@@ -230,6 +230,42 @@ const LEADERSHIP_ROLES = ["founder", "admin", "developer"] as const;
 const isLeadership = (roles: readonly string[]): boolean =>
   LEADERSHIP_ROLES.some((role) => roles.includes(role));
 
+// Manager-graph gate for review mutations: leadership is org-wide; line managers
+// only act on their reports (either reporting line, any depth). Blocks acting on
+// your own case — self-review and peer propose use separate ownership paths.
+async function assertManagesReviewSubject(
+  adminDb: ReturnType<typeof getDbAs>,
+  session: Awaited<ReturnType<typeof requireSession>>,
+  subjectEmail: string,
+  action: string,
+): Promise<void> {
+  const normalized = subjectEmail.toLowerCase();
+  if (normalized === session.subject.email.toLowerCase()) {
+    throw new ForbiddenError(action, "own_review");
+  }
+  if (isLeadership(session.subject.roles)) {
+    return;
+  }
+  const managed = await managedEmailSets(adminDb, session.subject.id);
+  if (!managed.all.has(normalized)) {
+    throw new ForbiddenError(action, "not_subjects_manager");
+  }
+}
+
+async function assertManagesCaseSubject(
+  adminDb: ReturnType<typeof getDbAs>,
+  session: Awaited<ReturnType<typeof requireSession>>,
+  caseId: string,
+  action: string,
+): Promise<NonNullable<Awaited<ReturnType<typeof getCaseById>>>> {
+  const reviewCase = await getCaseById(adminDb, caseId);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review case", caseId);
+  }
+  await assertManagesReviewSubject(adminDb, session, reviewCase.subjectEmail, action);
+  return reviewCase;
+}
+
 const resolvePeerApproverKind = (
   subject: Awaited<ReturnType<typeof requireSession>>["subject"],
 ): "manager" | "co_founder" => {
@@ -300,9 +336,10 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   const signoffs = reviewCase === undefined ? [] : await getSignoffs(adminDb, reviewCase.id);
 
   // Visibility (improve-ux plan): the manager graph, not roles, decides who
-  // sees a person's reviews. The subject sees their own self-review AND the
-  // manager assessment of themselves — never peer input. Anyone who manages
-  // the subject (either line, any depth) and leadership see everything.
+  // sees a person's reviews. The subject sees their own self-review and the
+  // manager assessment once submitted — never peer input or assessment drafts.
+  // Anyone who manages the subject (either line, any depth) and leadership
+  // see everything.
   const viewerEmail = session.subject.email.toLowerCase();
   const isSubjectPerson = viewerEmail === subjectEmail;
   const leadership = isLeadership(session.subject.roles);
@@ -346,7 +383,11 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
                     input: request.input,
                   }))
               : undefined,
-            assessment: assessmentRow === undefined ? undefined : toAssessmentView(assessmentRow),
+            assessment:
+              assessmentRow === undefined ||
+              (isSubjectPerson && assessmentRow.submittedAt === undefined)
+                ? undefined
+                : toAssessmentView(assessmentRow),
           };
         }),
       )
@@ -454,7 +495,10 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
             p6Triggered: reviewCase.p6Triggered,
           },
     canEditAttrs: can(session.subject, "people.employee.manage").allow,
-    canReview: can(session.subject, "people.review.open").allow,
+    canReview:
+      !isSubjectPerson &&
+      can(session.subject, "people.review.open").allow &&
+      (leadership || managed.all.has(subjectEmail)),
     canSign: can(session.subject, "people.decision.sign").allow,
     canViewComp: can(session.subject, "people.comp.read").allow,
     canManageComp: can(session.subject, "people.comp.manage").allow,
@@ -499,12 +543,9 @@ export async function setEmployeeAttrsHandler(input: SetEmployeeAttrsInput): Pro
 
 export async function openReviewHandler(input: { readonly email: string }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.open");
-  await openCase(
-    getDbAs("admin"),
-    input.email.toLowerCase(),
-    REVIEW_CURRENT_CYCLE,
-    auditContext(session),
-  );
+  const adminDb = getDbAs("admin");
+  await assertManagesReviewSubject(adminDb, session, input.email, "people.review.open");
+  await openCase(adminDb, input.email.toLowerCase(), REVIEW_CURRENT_CYCLE, auditContext(session));
   return { ok: true };
 }
 
@@ -514,15 +555,20 @@ export async function advanceReviewHandler(input: {
 }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.advance", { toState: input.toState });
   const adminDb = getDbAs("admin");
+  const reviewCase = await assertManagesCaseSubject(
+    adminDb,
+    session,
+    input.caseId,
+    "people.review.advance",
+  );
   // Entering manager_assessment notifies the subject's managers (enqueued in
   // the SAME transaction as the transition — docs/plans/notifications.md).
   const notifications: EnqueueNotificationInput[] = [];
   // The peer-input gate (design M5): a case in peer_input cannot advance to the
   // manager assessment until cross-team + own-team quotas are met.
   if (input.toState === "manager_assessment") {
-    const reviewCase = await getCaseById(adminDb, input.caseId);
     const [orgNodes, admins] = await Promise.all([loadInsideOrgTree(), loadInsideDirectory()]);
-    if (reviewCase?.state === "peer_input") {
+    if (reviewCase.state === "peer_input") {
       const requests = await listPeerRequestsForCase(adminDb, input.caseId);
       const userIdByEmail = new Map(
         admins.map((admin) => [admin.email.toLowerCase(), admin.userId]),
@@ -532,16 +578,14 @@ export async function advanceReviewHandler(input: {
         throw new ForbiddenError("people.review.advance", "peer_quota_not_met");
       }
     }
-    if (reviewCase !== undefined) {
-      const subjectEmail = reviewCase.subjectEmail.toLowerCase();
-      for (const managerEmail of directManagerEmails(subjectEmail, admins, orgNodes)) {
-        notifications.push({
-          kind: "assessment.ready",
-          recipientEmail: managerEmail,
-          payload: { subjectEmail, caseId: input.caseId },
-          dedupeKey: `assessment.ready:${input.caseId}:${managerEmail}`,
-        });
-      }
+    const subjectEmail = reviewCase.subjectEmail.toLowerCase();
+    for (const managerEmail of directManagerEmails(subjectEmail, admins, orgNodes)) {
+      notifications.push({
+        kind: "assessment.ready",
+        recipientEmail: managerEmail,
+        payload: { subjectEmail, caseId: input.caseId },
+        dedupeKey: `assessment.ready:${input.caseId}:${managerEmail}`,
+      });
     }
   }
   await advanceCase(adminDb, input.caseId, input.toState, auditContext(session), notifications);
@@ -553,12 +597,9 @@ export async function setRatingHandler(input: {
   readonly rating: number;
 }): Promise<{ ok: true }> {
   const session = await requireSession("people.review.rate");
-  await setCaseRating(
-    getDbAs("admin"),
-    input.caseId,
-    input.rating as ReviewRating,
-    auditContext(session),
-  );
+  const adminDb = getDbAs("admin");
+  await assertManagesCaseSubject(adminDb, session, input.caseId, "people.review.rate");
+  await setCaseRating(adminDb, input.caseId, input.rating as ReviewRating, auditContext(session));
   return { ok: true };
 }
 
@@ -1059,13 +1100,12 @@ export async function peerRequestCreateHandler(
 ): Promise<{ ok: true }> {
   const session = await requireSession("people.peer.request");
   const adminDb = getDbAs("admin");
-  const reviewCase = await getCaseById(adminDb, input.caseId);
-  if (reviewCase === undefined) {
-    throw new NotFoundError("review case", input.caseId);
-  }
-  if (reviewCase.subjectEmail.toLowerCase() === session.subject.email.toLowerCase()) {
-    throw new ForbiddenError("people.peer.request", "own_review");
-  }
+  const reviewCase = await assertManagesCaseSubject(
+    adminDb,
+    session,
+    input.caseId,
+    "people.peer.request",
+  );
   const subjectEmail = reviewCase.subjectEmail.toLowerCase();
   await createPeerRequests(
     adminDb,
@@ -1196,21 +1236,14 @@ export async function assessListHandler(): Promise<readonly AssessReportRow[]> {
 export async function assessDetailHandler(caseId: string): Promise<AssessCaseDetail> {
   const session = await requireSession("people.assessment.write");
   const adminDb = getDbAs("admin");
-  const reviewCase = await getCaseById(adminDb, caseId);
-  if (reviewCase === undefined) {
-    throw new NotFoundError("review case", caseId);
-  }
+  const reviewCase = await assertManagesCaseSubject(
+    adminDb,
+    session,
+    caseId,
+    "people.assessment.write",
+  );
   const subjectEmail = reviewCase.subjectEmail.toLowerCase();
-  if (subjectEmail === session.subject.email.toLowerCase()) {
-    throw new ForbiddenError("people.assessment.write", "own_review");
-  }
-  // Manager-graph gate: only the subject's managers (either line, any depth)
-  // and leadership may open the assessment.
   const managed = await managedEmailSets(adminDb, session.subject.id);
-  const leadership = isLeadership(session.subject.roles);
-  if (!leadership && !managed.all.has(subjectEmail)) {
-    throw new ForbiddenError("people.assessment.write", "not_subjects_manager");
-  }
 
   const [attrs, selfReview, peerRequests, existing, admins] = await Promise.all([
     getEmployeeByEmail(adminDb, subjectEmail),
@@ -1279,8 +1312,10 @@ const toDraft = (input: AssessmentSaveInput, authorEmail: string): AssessmentDra
 
 export async function assessSaveHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
   const session = await requireSession("people.assessment.write");
+  const adminDb = getDbAs("admin");
+  await assertManagesCaseSubject(adminDb, session, input.caseId, "people.assessment.write");
   await saveAssessment(
-    getDbAs("admin"),
+    adminDb,
     input.caseId,
     toDraft(input, session.actor.email),
     auditContext(session),
@@ -1291,6 +1326,7 @@ export async function assessSaveHandler(input: AssessmentSaveInput): Promise<{ o
 export async function assessSubmitHandler(input: AssessmentSaveInput): Promise<{ ok: true }> {
   const session = await requireSession("people.assessment.write");
   const adminDb = getDbAs("admin");
+  await assertManagesCaseSubject(adminDb, session, input.caseId, "people.assessment.write");
   await submitAssessment(
     adminDb,
     input.caseId,
@@ -1313,7 +1349,7 @@ export async function assessSubmitHandler(input: AssessmentSaveInput): Promise<{
 // (rating, comp TYPE, rationale), and the delivery/appeal markers. Comp
 // AMOUNTS stay behind the audited compFn read — the queue never leaks them.
 export async function signQueueHandler(): Promise<SignPageView> {
-  const session = await requireSession("people.review.open");
+  const session = await requireSession("people.signoff.read");
   const adminDb = getDbAs("admin");
   const [cases, admins, users] = await Promise.all([
     listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE),
