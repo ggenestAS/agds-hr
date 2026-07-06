@@ -10,7 +10,7 @@ import * as authDbSchema from "./db/schema.ts";
 // is the system of record and env-configurable allow-lists drift
 // (docs/new-project-directives.md §6.1). Personal accounts never complete
 // sign-in regardless of provisioning.
-export const WORKSPACE_ALLOWED_DOMAINS = ["albertschool.com"] as const;
+export const WORKSPACE_ALLOWED_DOMAINS = ["albertschool.com", "eugeniaschool.com"] as const;
 
 export function isWorkspaceDomainAllowed(hd: string | null | undefined): boolean {
   return typeof hd === "string" && (WORKSPACE_ALLOWED_DOMAINS as readonly string[]).includes(hd);

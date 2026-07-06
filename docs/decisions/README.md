@@ -16,3 +16,4 @@ of every ADR is a status banner: `Status: frozen` or
 | 2026-07-03 | [Employment types and review participation](./2026-07-03-employment-types-and-review-participation.md)       | frozen |
 | 2026-07-03 | [Cloudflare Workers hosting](./2026-07-03-cloudflare-hosting.md)                                             | frozen |
 | 2026-07-04 | [Notifications outbox and derived obligations](./2026-07-04-notifications-outbox-and-derived-obligations.md) | frozen |
+| 2026-07-06 | [Eugenia School workspace domain on SSO allow-list](./2026-07-06-eugeniaschool-workspace-domain.md)          | frozen |

@@ -46,7 +46,7 @@ function SignIn() {
           Continue with Google Workspace
         </Button>
         <p className="mt-3 text-xs text-muted-foreground">
-          Access is restricted to albertschool.com accounts.
+          Access is restricted to albertschool.com and eugeniaschool.com accounts.
         </p>
         {devLoginEnabled && (
           <Button

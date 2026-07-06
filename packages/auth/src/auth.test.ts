@@ -8,6 +8,7 @@ import { isWorkspaceDomainAllowed, WORKSPACE_ALLOWED_DOMAINS } from "./auth.ts";
 describe("workspace allow-list", () => {
   test("allows a workspace domain on the list", () => {
     expect(isWorkspaceDomainAllowed("albertschool.com")).toBe(true);
+    expect(isWorkspaceDomainAllowed("eugeniaschool.com")).toBe(true);
   });
 
   test("rejects a domain off the list", () => {
@@ -21,6 +22,6 @@ describe("workspace allow-list", () => {
   });
 
   test("the allow-list is the single hardcoded source", () => {
-    expect(WORKSPACE_ALLOWED_DOMAINS).toContain("albertschool.com");
+    expect(WORKSPACE_ALLOWED_DOMAINS).toEqual(["albertschool.com", "eugeniaschool.com"]);
   });
 });
