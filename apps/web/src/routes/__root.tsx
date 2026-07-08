@@ -25,8 +25,10 @@ export const Route = createRootRoute({
 });
 
 function RootDocument() {
+  // suppressHydrationWarning: inline theme script toggles `.dark` on <html>
+  // before React hydrates (FOUC prevention, §9.4).
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <HeadContent />

@@ -248,7 +248,7 @@ function PeerInputPage() {
   const data: PeerPageView = Route.useLoaderData();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [selectedSubjectEmail, setSelectedSubjectEmail] = useState<string | null>(null);
 
   const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
   const pendingForYou = visibleForYou.filter((request) => request.status === "pending");
@@ -277,7 +277,9 @@ function PeerInputPage() {
   const directCases = data.cases.filter((entry) => entry.direct);
   const indirectCases = data.cases.filter((entry) => !entry.direct);
   const selectedCase =
-    data.cases.find((entry) => entry.caseId === selectedCaseId) ?? directCases[0] ?? data.cases[0];
+    data.cases.find((entry) => entry.subjectEmail === selectedSubjectEmail) ??
+    directCases[0] ??
+    data.cases[0];
   const tabs: readonly PeerTab[] = data.isReviewer ? ["mine", "give", "team"] : ["mine", "give"];
 
   return (
@@ -467,7 +469,8 @@ function PeerInputPage() {
           <CardContent className="space-y-4 text-sm">
             {data.cases.length === 0 ? (
               <p className="text-muted-foreground">
-                No open cases from your reports in the self-review or peer-input stages.
+                No reports in the review cycle are ready for peer input — they may have finished
+                peer input, not participate in reviews, or not be in your management scope.
               </p>
             ) : (
               <>
@@ -492,12 +495,12 @@ function PeerInputPage() {
                           const proposals = entry.requests.filter(
                             (request) => request.status === "proposed",
                           ).length;
-                          const active = entry.caseId === selectedCase?.caseId;
+                          const active = entry.subjectEmail === selectedCase?.subjectEmail;
                           return (
                             <button
-                              key={entry.caseId}
+                              key={entry.subjectEmail}
                               type="button"
-                              onClick={() => setSelectedCaseId(entry.caseId)}
+                              onClick={() => setSelectedSubjectEmail(entry.subjectEmail)}
                               className={
                                 active
                                   ? "flex items-center gap-2 rounded-full border border-foreground bg-foreground py-1 pl-1 pr-3.5 text-xs font-semibold text-background"
@@ -536,6 +539,12 @@ function PeerInputPage() {
                       <p className="rounded-[10px] bg-[var(--color-blush)] px-3 py-2 text-xs text-[var(--color-accent-tint-text)]">
                         Indirect report — you can act here, but their direct manager normally owns
                         the reviewer list.
+                      </p>
+                    )}
+                    {selectedCase.caseId === undefined && (
+                      <p className="rounded-[10px] bg-[var(--color-warning-surface)] px-3 py-2 text-xs text-[var(--color-warning)]">
+                        No review case yet — requesting the first peer reviewer opens their case
+                        automatically.
                       </p>
                     )}
                     <div className="rounded-[14px] bg-cream px-4 py-3.5">
@@ -628,10 +637,14 @@ function PeerInputPage() {
                         actionLabel="Request"
                         busy={busy}
                         onAdd={(email, kind) => {
-                          const caseId = selectedCase.caseId;
                           void run(() =>
                             peerRequestCreateFn({
-                              data: { caseId, requests: [{ email, kind }] },
+                              data: {
+                                ...(selectedCase.caseId !== undefined
+                                  ? { caseId: selectedCase.caseId }
+                                  : { subjectEmail: selectedCase.subjectEmail }),
+                                requests: [{ email, kind }],
+                              },
                             }),
                           );
                         }}

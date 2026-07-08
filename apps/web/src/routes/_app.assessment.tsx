@@ -15,6 +15,24 @@ export const Route = createFileRoute("/_app/assessment")({
   component: AssessmentPage,
 });
 
+function assessmentWaitMessage(row: AssessReportRow): string {
+  if (row.caseId === undefined) {
+    return "review case not opened yet";
+  }
+  const parts: string[] = [];
+  if (!row.selfSubmitted) {
+    parts.push("waiting for self-review");
+  }
+  if (row.peersPending > 0) {
+    parts.push(
+      row.peersPending === 1
+        ? "waiting for peer reviews"
+        : `waiting for peer reviews (${row.peersPending} pending)`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" · ") : "evidence collection in progress";
+}
+
 function AssessmentPage() {
   const reports: readonly AssessReportRow[] = Route.useLoaderData();
   const direct = reports.filter((row) => row.direct);
@@ -26,6 +44,15 @@ function AssessmentPage() {
         Review cycle
       </p>
       <h1 className="mt-2 font-display text-3xl font-medium tracking-tight">Assessment</h1>
+
+      <div className="mt-4 rounded-[14px] border border-border bg-cream px-4 py-3.5 text-sm">
+        <p className="font-semibold">Assessment opens after input is in</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Self-review and peer input are the evidence you build on — not optional context. You can
+          start an assessment once the employee has submitted their self-review and every peer
+          request is answered.
+        </p>
+      </div>
 
       {(
         [
@@ -88,26 +115,21 @@ function AssessmentPage() {
                           {row.peersPending > 0 && ` ${row.peersPending} open`}
                         </span>
                       </span>
-                      {row.caseId === undefined ? (
-                        <span className="text-xs text-muted-foreground">no case yet</span>
-                      ) : row.assessmentSubmitted ? (
+                      {row.assessmentSubmitted && row.caseId !== undefined ? (
                         <Link to="/assessment/$caseId" params={{ caseId: row.caseId }}>
                           <Button type="button" size="sm" variant="secondary">
                             View assessment
                           </Button>
                         </Link>
-                      ) : row.ready ? (
+                      ) : row.ready && row.caseId !== undefined ? (
                         <Link to="/assessment/$caseId" params={{ caseId: row.caseId }}>
                           <Button type="button" size="sm">
                             Start assessment
                           </Button>
                         </Link>
                       ) : (
-                        <span
-                          className="text-xs text-muted-foreground"
-                          title="Ready once the self-review is submitted and no peer request is still open"
-                        >
-                          evidence collection in progress
+                        <span className="text-xs text-muted-foreground">
+                          {assessmentWaitMessage(row)}
                         </span>
                       )}
                     </>

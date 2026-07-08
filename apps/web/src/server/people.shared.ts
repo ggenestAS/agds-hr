@@ -739,13 +739,18 @@ export type SelfReviewView = {
 // Peer input (design M5): named input, never anonymous, never shown to the
 // person being reviewed. Reviewers request; requestees submit or decline
 // (declines logged with a reason).
-export const peerRequestCreateSchema = z.object({
-  caseId: z.string().min(1),
-  requests: z
-    .array(z.object({ email: z.string().email(), kind: z.enum(PEER_KINDS) }))
-    .min(1)
-    .max(20),
-});
+export const peerRequestCreateSchema = z
+  .object({
+    caseId: z.string().min(1).optional(),
+    subjectEmail: z.string().email().optional(),
+    requests: z
+      .array(z.object({ email: z.string().email(), kind: z.enum(PEER_KINDS) }))
+      .min(1)
+      .max(20),
+  })
+  .refine((data) => data.caseId !== undefined || data.subjectEmail !== undefined, {
+    message: "caseId_or_subjectEmail_required",
+  });
 export type PeerRequestCreateInput = z.infer<typeof peerRequestCreateSchema>;
 
 export const peerSubmitSchema = z.object({
@@ -795,10 +800,10 @@ export type PeerRequestView = {
 };
 
 export type PeerCaseView = {
-  readonly caseId: string;
+  readonly caseId: string | undefined;
   readonly subjectEmail: string;
   readonly subjectName: string | undefined;
-  readonly state: ReviewState;
+  readonly state: ReviewState | undefined;
   readonly quota: Readonly<Partial<Record<PeerKind, number>>>;
   readonly quotaMet: boolean;
   readonly requests: readonly PeerRequestView[];

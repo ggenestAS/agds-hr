@@ -926,17 +926,48 @@ export async function peerPageHandler(): Promise<PeerPageView> {
 
   let cases: PeerCaseView[] = [];
   if (isReviewer) {
-    const allCases = await listCasesForCycle(adminDb, REVIEW_CURRENT_CYCLE);
-    // Manager-graph scoping (improve-ux plan): a manager works their own
-    // reports' cases; leadership sees every case (never their own).
-    const inScope = allCases.filter(
-      (entry) =>
-        !entry.decided &&
-        (entry.state === "self_review" || entry.state === "peer_input") &&
-        entry.subjectEmail.toLowerCase() !== effectiveEmail &&
-        (leadership || managed.all.has(entry.subjectEmail.toLowerCase())),
-    );
-    const caseIds = inScope.map((entry) => entry.caseId);
+    // Mirror /assessment: list the viewer's reports in the review cycle, not
+    // only cases already in self_review/peer_input — managers assign peers even
+    // before a report opens their case or proposes reviewers.
+    let scope = [...managed.all].filter((email) => email !== effectiveEmail);
+    let directSet: ReadonlySet<string> = managed.direct;
+    if (scope.length === 0 && leadership) {
+      scope = admins
+        .filter((admin) => admin.active)
+        .map((admin) => admin.email.toLowerCase())
+        .filter((email) => email !== effectiveEmail);
+      directSet = new Set<string>();
+    }
+
+    const eligible = (
+      await Promise.all(
+        scope.map(async (email) => {
+          const [attrs, reviewCase] = await Promise.all([
+            getEmployeeByEmail(adminDb, email),
+            getCaseBySubject(adminDb, email, REVIEW_CURRENT_CYCLE),
+          ]);
+          const employmentType = attrs?.employmentType ?? "employee";
+          if (!participatesInReview(employmentType, attrs?.reviewParticipationOverride ?? null)) {
+            return undefined;
+          }
+          if (reviewCase?.decidedAt !== undefined) {
+            return undefined;
+          }
+          if (
+            reviewCase !== undefined &&
+            reviewCase.state !== "self_review" &&
+            reviewCase.state !== "peer_input"
+          ) {
+            return undefined;
+          }
+          return { email, reviewCase, direct: directSet.has(email) };
+        }),
+      )
+    ).filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+
+    const caseIds = eligible
+      .map((entry) => entry.reviewCase?.id)
+      .filter((caseId): caseId is string => caseId !== undefined);
     const allRequests = await listPeerRequestsForCases(adminDb, caseIds);
     const requestsByCase = new Map<string, (typeof allRequests)[number][]>();
     for (const request of allRequests) {
@@ -948,14 +979,15 @@ export async function peerPageHandler(): Promise<PeerPageView> {
       }
     }
 
-    cases = inScope.map((entry) => {
-      const requests = requestsByCase.get(entry.caseId) ?? [];
-      const quota = resolvePeerInputQuota(entry.subjectEmail, orgNodes, userIdByEmail);
+    cases = eligible.map((entry) => {
+      const requests =
+        entry.reviewCase === undefined ? [] : (requestsByCase.get(entry.reviewCase.id) ?? []);
+      const quota = resolvePeerInputQuota(entry.email, orgNodes, userIdByEmail);
       return {
-        caseId: entry.caseId,
-        subjectEmail: entry.subjectEmail,
-        subjectName: nameByEmail.get(entry.subjectEmail.toLowerCase()),
-        state: entry.state,
+        caseId: entry.reviewCase?.id,
+        subjectEmail: entry.email,
+        subjectName: nameByEmail.get(entry.email),
+        state: entry.reviewCase?.state,
         quota,
         quotaMet: isPeerQuotaMet(requests, quota),
         requests: requests.map((request) => ({
@@ -968,8 +1000,8 @@ export async function peerPageHandler(): Promise<PeerPageView> {
           submittedAt: request.submittedAt?.toISOString(),
           input: request.input,
         })),
-        teamEmails: localTeamEmails(entry.subjectEmail, orgNodes, userIdByEmail, emailByUserId),
-        direct: managed.direct.has(entry.subjectEmail.toLowerCase()),
+        teamEmails: localTeamEmails(entry.email, orgNodes, userIdByEmail, emailByUserId),
+        direct: entry.direct,
       };
     });
   }
@@ -1100,16 +1132,18 @@ export async function peerRequestCreateHandler(
 ): Promise<{ ok: true }> {
   const session = await requireSession("people.peer.request");
   const adminDb = getDbAs("admin");
-  const reviewCase = await assertManagesCaseSubject(
-    adminDb,
-    session,
-    input.caseId,
-    "people.peer.request",
-  );
+  const reviewCase =
+    input.caseId !== undefined
+      ? await assertManagesCaseSubject(adminDb, session, input.caseId, "people.peer.request")
+      : await (async () => {
+          const subjectEmail = input.subjectEmail!.toLowerCase();
+          await assertManagesReviewSubject(adminDb, session, subjectEmail, "people.peer.request");
+          return openCase(adminDb, subjectEmail, REVIEW_CURRENT_CYCLE, auditContext(session));
+        })();
   const subjectEmail = reviewCase.subjectEmail.toLowerCase();
   await createPeerRequests(
     adminDb,
-    input.caseId,
+    reviewCase.id,
     session.actor.id,
     input.requests.filter((request) => request.email.toLowerCase() !== subjectEmail),
     auditContext(session),
