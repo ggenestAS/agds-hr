@@ -3,12 +3,14 @@ type: policy
 title: "Performance Evaluation and Compensation Policy"
 topics: [hr]
 owner: CEO and COO
-last_reviewed: 2026-07-02
+last_reviewed: 2026-07-09
 status: draft
 sources:
   - raw/documents/albert-performance-evaluation-and-compensation-policy.md
   - tier1/institution/what-albert-is.md
   - raw/prompts/2026-07-02T17-01-12-069Z-in-the-compensation-policy-add-12.md
+  - raw/prompts/2026-07-09T15-58-51-918Z-type-policy-title-performance-eva.md
+  - raw/prompts/2026-07-09T16-59-24-867Z-open-ceo-coo-decision-required-does.md
 supersedes: none
 superseded_by: none
 ---
@@ -73,6 +75,16 @@ variables and bonuses, distributed through calibration according to the
 principles above. This is not a guaranteed individual entitlement — it flows
 through performance and scope — but the envelope is real and scales with
 Albert's growth. If Albert does well, the people who drove that should feel it.
+
+**Envelope funding basis.** The annual shared-success envelope equals 12% of
+Albert's net result for the fiscal year ending June 30 immediately preceding
+the September cycle. It is computed on the CEO (acting as interim CFO)-certified management closing
+available at calibration; if finalized statutory accounts differ materially,
+the envelope is trued up and documented. The envelope is floored at zero: a
+negative net result funds no envelope. Bonuses and variables are paid on
+realized results, never on budgeted or forecast figures.
+
+The envelope resets each fiscal year — floored at zero, no carryforward. Accumulated losses from prior years do not offset future profits before the envelope funds. The 12% is a profit-sharing mechanism, not an equity account.
 
 Transparency is an objective, but it must be _earned_ by the quality of the
 underlying system. Publishing uncalibrated salary bands would create the
@@ -202,6 +214,24 @@ January 2027 mid-year check-in is the milestone at which bands must be
 ready to confirm that band-dependent mechanics can activate for the 2027
 cycle.
 
+**Envelope mechanics — September 2026 transition.** Envelope mechanics
+(12% of realized net result, FY ending June 30) are active from this cycle.
+The shared-success envelope for September 2026 is funded by the FY2025–26
+net result (fiscal year ending June 30, 2026), computed on the
+CEO (acting as interim CFO)-certified management closing available at calibration. Albert has not
+yet been profitable; accordingly, the FY2025–26 net result is expected to
+be negative, which means the envelope is expected to be zero for this cycle.
+No discretionary bonus pool will exist for September 2026.
+
+Variable compensation plans in force for 2026 were established before this
+policy's ex-ante sizing requirement and were not sized against an envelope.
+These plans are documented as a transition exception: they pay out per their
+approved terms regardless of envelope size, consistent with the rule that
+contractual variable plans are honored independently of the envelope. The
+ex-ante sizing requirement (variable plan targets sized against the projected
+envelope before the review cycle opens) applies from the June 2027
+variable-plan review onward.
+
 ### Country coefficients
 
 Because Albert operates across countries, bands may be adjusted by country
@@ -229,6 +259,13 @@ band, or above band — influences future increases.
 
 ### Performance evaluation cycle
 
+- **Annual variable-plan review (June, before reviews open).** CEO and COO
+  approve all variable compensation plan structures, targets, and quality
+  safeguards for the coming year, sized so that expected variable payouts fit
+  within the projected shared-success envelope. This step must be completed
+  before the annual review period opens. From the June 2027 review onward
+  this sizing requirement applies in full; see the September 2026 transition
+  section for the current-cycle exception.
 - **One annual performance review** in July or August; salary increases,
   bonuses, and promotion decisions become effective in **September** where
   applicable.
@@ -365,9 +402,12 @@ next level.
 dimensions, role-specific objectives, evidence from the year, feedback from
 relevant stakeholders, the self-review, and comparison with level
 expectations. The manager proposes a performance rating, development
-priorities, promotion readiness (if relevant), and a compensation
-recommendation (if relevant). Assessments must be evidence-based; vague
-impressions are not sufficient.
+priorities, promotion readiness (if relevant), and — where applicable — a
+compensation recommendation comprising: (a) proposed base salary increase,
+(b) variable payout for the cycle per the approved plan, and (c) proposed
+variable target for the next year. These are proposals going into
+calibration; no compensation decision is made before calibration.
+Assessments must be evidence-based; vague impressions are not sufficient.
 
 **Calibration.** Leadership calibration ensures fairness and consistency
 across teams. The group includes the CEO, COO, relevant leadership team
@@ -378,7 +418,12 @@ and reduce bias linked to visibility, personality, negotiation style,
 gender, age, tenure, or proximity to leadership. Calibration asks: _compared
 with others at the same level and similar scope, did this person create
 more, equal, or less value?_ Final compensation and promotion decisions are
-made through calibration, with **final sign-off by CEO and COO**.
+made through calibration, with **final sign-off by CEO and COO**. The
+calibration sequence for compensation is: manager proposals (rating, base
+increase, variable payout per approved plan, next-year variable target, bonus
+recommendation) → calibration decides all of these, including bonus
+allocation from the discretionary pool → CEO/COO sign-off, effective
+September. Nothing is decided before calibration; managers propose.
 
 ### Evaluation of leadership team members
 
@@ -438,6 +483,14 @@ appropriate because the contribution was exceptional but not recurring; or a
 high-in-band person deserves recognition for exceptional performance.
 Bonuses are documented and calibrated.
 
+**Discretionary bonus pool.** The discretionary bonus pool available in any
+cycle equals the shared-success envelope (see Compensation philosophy) minus
+variable payouts for that cycle, floored at zero. If variable payouts exhaust
+the envelope, no discretionary bonuses are paid that year. Contractual
+variable plans are honored per their terms independently of the envelope; the
+envelope constrains only the discretionary bonus pool, not contractual
+variable obligations.
+
 **Variable compensation** may apply to roles such as admissions, sales,
 corporate partnerships, or business development, but in an education company
 it must be designed carefully: it must never reward volume at the expense of
@@ -445,7 +498,10 @@ quality, student fit, academic standards, or long-term reputation, and every
 plan must include quality safeguards — e.g. student quality; retention;
 conversion quality; company satisfaction; payment reliability; compliance
 with admissions standards; no aggressive or misleading sales behaviour.
-Variable plans must be approved by CEO and COO.
+Variable plans must be approved by CEO and COO before the annual variable-plan
+review step (see Performance evaluation cycle). From the June 2027 review
+onward, variable plan targets must be sized against the projected envelope
+before the review cycle opens.
 
 ### Promotions
 
@@ -478,8 +534,13 @@ level change, or exit.
 
 All compensation decisions must be documented, including: current role and
 level; current compensation; relevant salary band; performance rating;
-raise or bonus decision; promotion decision (if any); rationale; and any
-exception to policy. Exceptions must be explicit — e.g. above-band salary;
+raise or bonus decision; variable payout per plan; promotion decision (if
+any); rationale; and any exception to policy. Additionally, the following
+must be documented each cycle: the envelope calculation (fiscal year covered,
+CEO (acting as interim CFO)-certified net result figure, computed envelope amount, and any true-up
+from finalized accounts); any variable plan structure or target changes
+approved at the annual variable-plan review; and the discretionary bonus pool
+derivation (envelope minus variable payouts). Exceptions must be explicit — e.g. above-band salary;
 off-cycle raise; retention adjustment; market adjustment; promotion outside
 the annual cycle; unusual bonus; title-level mismatch. LT member reviews —
 including the CEO and COO mutual review — are documented in the same record
@@ -518,12 +579,16 @@ negative signal in future reviews.
 ### Responsibilities
 
 - **CEO and COO:** own the policy; ensure fairness across the organisation;
-  approve salary bands; lead calibration; validate promotions, raises,
-  bonuses, and exceptions; conduct the mutual CEO/COO review using the same
-  peer- and team-input mechanism applied to all LT members; handle appeal
-  requests escalated above the manager level; confirm at the January 2027
-  check-in that salary bands are ready to activate band-dependent mechanics
-  for the 2027 cycle; update the policy as the organisation grows.
+  approve salary bands; conduct the annual variable-plan review each June
+  (approve all variable plan structures, targets, and quality safeguards,
+  sized against the projected envelope); lead calibration; validate
+  promotions, raises, bonuses, variable payouts, and exceptions; sign off on
+  the envelope calculation and discretionary bonus pool each cycle; conduct
+  the mutual CEO/COO review using the same peer- and team-input mechanism
+  applied to all LT members; handle appeal requests escalated above the
+  manager level; confirm at the January 2027 check-in that salary bands are
+  ready to activate band-dependent mechanics for the 2027 cycle; update the
+  policy as the organisation grows.
 - **Managers:** set clear expectations; give regular feedback; prepare
   evidence-based reviews; address underperformance; propose fair
   compensation decisions; avoid promises that have not been approved.
