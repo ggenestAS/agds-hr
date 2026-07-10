@@ -227,6 +227,13 @@ export const peerReopenFn = createServerFn({ method: "POST" })
     return peerReopenHandler(data);
   });
 
+export const peerCancelFn = createServerFn({ method: "POST" })
+  .validator(peerRequestIdSchema)
+  .handler(async ({ data }) => {
+    const { peerCancelHandler } = await import("./people.impl.server.ts");
+    return peerCancelHandler(data);
+  });
+
 export const peerAnswerFn = createServerFn({ method: "GET" })
   .validator((requestId: string) => requestId)
   .handler(async ({ data }) => {

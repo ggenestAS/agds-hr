@@ -46,6 +46,7 @@ import {
   getPeerRequestById,
   getSelfReviewByCase,
   approvePeerRequest,
+  cancelPeerRequest,
   isPeerQuotaMet,
   proposePeerRequests,
   rejectPeerRequest,
@@ -1097,6 +1098,19 @@ export async function peerReopenHandler(input: {
   const adminDb = getDbAs("admin");
   await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
   await reopenPeerRequest(adminDb, input.requestId, auditContext(session));
+  return { ok: true };
+}
+
+// Cancelling a pending request is the SUBJECT'S manager's call, like
+// approve/reject/reopen — it stops an unanswered request from blocking the
+// assessment when the reviewer cannot answer (absence, departure).
+export async function peerCancelHandler(input: {
+  readonly requestId: string;
+}): Promise<{ ok: true }> {
+  const session = await requireSession("people.peer.request");
+  const adminDb = getDbAs("admin");
+  await assertManagesRequestSubject(adminDb, session, input.requestId, "people.peer.request");
+  await cancelPeerRequest(adminDb, input.requestId, auditContext(session));
   return { ok: true };
 }
 

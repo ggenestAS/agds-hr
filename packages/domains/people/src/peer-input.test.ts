@@ -1,11 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
+import { auditEvents } from "@agds-hr/audit/db/schema";
 import { getDbAs } from "@agds-hr/db";
 import { outbox } from "@agds-hr/notifications/db/schema";
-import { RequestId, UserId } from "@agds-hr/shared";
+import { ConflictError, RequestId, UserId } from "@agds-hr/shared";
 
-import { approvePeerRequest, createPeerRequests, proposePeerRequests } from "./peer-input.ts";
+import {
+  approvePeerRequest,
+  cancelPeerRequest,
+  createPeerRequests,
+  proposePeerRequests,
+  submitPeerInput,
+} from "./peer-input.ts";
 import { peerRequest } from "./db/schema.ts";
 import { openCase } from "./review.ts";
 
@@ -84,5 +91,92 @@ describe.skipIf(!sentinelSet)("[integration] peer request notifications", () => 
       .where(eq(outbox.recipientEmail, requestee));
     expect(after).toHaveLength(1);
     expect(after[0]?.kind).toBe("peer_request.created");
+  });
+});
+
+describe.skipIf(!sentinelSet)("[integration] peer request cancellation", () => {
+  test("cancelling a pending request deletes it, audits it, and frees the slot", async () => {
+    const db = getDbAs("admin");
+    const subject = `pc-subj-${crypto.randomUUID()}@albertschool.com`;
+    const requestee = `pc-req-${crypto.randomUUID()}@albertschool.com`;
+    const context = ctx();
+
+    const opened = await openCase(db, subject, "2026", context);
+    await createPeerRequests(
+      db,
+      opened.id,
+      context.actorUserId,
+      [{ email: requestee, kind: "cross" }],
+      context,
+    );
+    const [created] = await db
+      .select({ id: peerRequest.id })
+      .from(peerRequest)
+      .where(eq(peerRequest.requesteeEmail, requestee));
+
+    await cancelPeerRequest(db, created!.id, context);
+
+    const remaining = await db
+      .select({ id: peerRequest.id })
+      .from(peerRequest)
+      .where(eq(peerRequest.requesteeEmail, requestee));
+    expect(remaining).toHaveLength(0);
+
+    const events = await db
+      .select({ payload: auditEvents.payload })
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.eventType, "people.peer.cancelled"),
+          eq(auditEvents.resourceId, created!.id),
+        ),
+      );
+    expect(events).toHaveLength(1);
+    expect((events[0]!.payload as Record<string, unknown>).requestee).toBe(requestee);
+
+    // The (case, requestee) unique slot is free again — re-requesting works.
+    await createPeerRequests(
+      db,
+      opened.id,
+      context.actorUserId,
+      [{ email: requestee, kind: "cross" }],
+      context,
+    );
+    const recreated = await db
+      .select({ status: peerRequest.status })
+      .from(peerRequest)
+      .where(eq(peerRequest.requesteeEmail, requestee));
+    expect(recreated).toHaveLength(1);
+    expect(recreated[0]?.status).toBe("pending");
+  });
+
+  test("an answered request cannot be cancelled", async () => {
+    const db = getDbAs("admin");
+    const subject = `pc2-subj-${crypto.randomUUID()}@albertschool.com`;
+    const requestee = `pc2-req-${crypto.randomUUID()}@albertschool.com`;
+    const context = ctx();
+
+    const opened = await openCase(db, subject, "2026", context);
+    await createPeerRequests(
+      db,
+      opened.id,
+      context.actorUserId,
+      [{ email: requestee, kind: "cross" }],
+      context,
+    );
+    const [created] = await db
+      .select({ id: peerRequest.id })
+      .from(peerRequest)
+      .where(eq(peerRequest.requesteeEmail, requestee));
+    await submitPeerInput(db, created!.id, requestee, { p_keep: "solid work" }, context);
+
+    expect(cancelPeerRequest(db, created!.id, context)).rejects.toThrow(ConflictError);
+
+    const rows = await db
+      .select({ status: peerRequest.status })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, created!.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.status).toBe("submitted");
   });
 });

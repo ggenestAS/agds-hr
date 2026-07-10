@@ -9,6 +9,7 @@ import type { PeerCaseView, PeerPageView, PeerApproverKind } from "../server/peo
 import { peerTabBadges } from "../server/people.shared.ts";
 import {
   peerApproveFn,
+  peerCancelFn,
   peerPageFn,
   peerProposeFn,
   peerRejectFn,
@@ -20,7 +21,8 @@ import {
 // on its own focused page), and propose your own reviewers while your manager
 // hasn't set the list. Managers: work each report's case — approve/reject
 // proposals, add reviewers (Own team vs Cross-team auto-classified from the
-// org graph), watch the quota fill, reopen submitted input.
+// org graph), watch the quota fill, reopen submitted input, cancel unanswered
+// requests that would otherwise block the assessment.
 export const Route = createFileRoute("/_app/peer-input")({
   loader: () => peerPageFn(),
   pendingComponent: () => <StackedRoutePending width="4xl" />,
@@ -616,6 +618,22 @@ function PeerInputPage() {
                                     }}
                                   >
                                     Reopen
+                                  </Button>
+                                )}
+                                {request.status === "pending" && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="secondary"
+                                    disabled={busy}
+                                    title="Withdraw this request — it stops blocking the assessment and the person can be re-requested later"
+                                    onClick={() => {
+                                      void run(() =>
+                                        peerCancelFn({ data: { requestId: request.id } }),
+                                      );
+                                    }}
+                                  >
+                                    Cancel
                                   </Button>
                                 )}
                               </span>

@@ -98,6 +98,7 @@ export {
 export type { PeerRequestForRequestee } from "./peer-input.ts";
 export {
   approvePeerRequest,
+  cancelPeerRequest,
   createPeerRequests,
   declinePeerRequest,
   getPeerRequestById,

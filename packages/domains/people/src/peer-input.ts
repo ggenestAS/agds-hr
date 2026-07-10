@@ -279,6 +279,45 @@ export async function rejectPeerRequest(
   });
 }
 
+// Cancelling removes an UNANSWERED live request — the manager decided not to
+// wait for this reviewer (e.g. absence), so the request must stop counting as
+// pending and blocking the assessment. Deletion (not a status) mirrors
+// rejectPeerRequest and frees the (case, requestee) slot for re-requesting;
+// the cancellation is audited with the requestee. Submitted or declined
+// requests carry an answer and cannot be cancelled.
+export async function cancelPeerRequest(
+  db: DrizzleDb,
+  requestId: string,
+  context: AuditContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select({ status: peerRequest.status, requesteeEmail: peerRequest.requesteeEmail })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, requestId))
+      .limit(1);
+    if (current === undefined) {
+      throw new NotFoundError("peer request", requestId);
+    }
+    if (current.status !== "pending") {
+      throw new ConflictError("peer_request_not_pending");
+    }
+    await tx
+      .delete(peerRequest)
+      .where(and(eq(peerRequest.id, requestId), eq(peerRequest.status, "pending")));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.peer.cancelled",
+      resourceId: requestId,
+      payload: { requestee: current.requesteeEmail },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
+}
+
 // A submitted peer review is locked for its author; the SUBJECT'S manager may
 // reopen it (submitted -> pending, input kept for editing). The manager-of
 // check lives at the handler layer next to the org graph.
