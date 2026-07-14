@@ -50,7 +50,7 @@ export type {
   Band,
   BandThird,
   CompRecommendation,
-  EmployeeCompSnapshot,
+  CompRecord,
   Appeal,
   AppealCategory,
   AppealStatus,
@@ -58,20 +58,20 @@ export type {
 export type {
   CampusCoefficient,
   DecisionSummary,
+  RecordCompensationInput,
   UpsertBandInput,
   UpsertCompInput,
-  UpsertEmployeeCompInput,
 } from "./compensation.ts";
 export {
   getBand,
   getCompRecommendation,
-  getEmployeeCompSnapshot,
+  getCurrentCompRecord,
   listBands,
   listCampusCoefficients,
   listDecisionSummaries,
+  recordCompensation,
   upsertBand,
   upsertCompRecommendation,
-  upsertEmployeeCompensation,
 } from "./compensation.ts";
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
 export {

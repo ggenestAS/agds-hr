@@ -45,3 +45,5 @@ for (const email of LT_MEMBER_EMAILS) {
 }
 
 console.log(JSON.stringify({ ok: true, granted, skipped }, null, 2));
+// The admin pool keeps the process alive after the work is done — exit explicitly.
+process.exit(0);

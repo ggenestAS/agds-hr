@@ -256,9 +256,11 @@ export type CompRecommendation = {
   readonly rationale: string | undefined;
 };
 
-// Master employee compensation for a fiscal period (spreadsheet source of
-// truth), distinct from per-cycle comp_recommendation decisions.
-export type EmployeeCompSnapshot = {
+// A versioned master-compensation fact: what the person earns from
+// effective_date (ISO date). Distinct from per-cycle comp_recommendation
+// proposals; `compPeriod` is a display label ("2025-26"), not the temporal key.
+export type CompRecord = {
+  readonly effectiveDate: string;
   readonly compPeriod: string;
   readonly baseSalaryEur: number;
   readonly variableTargetEur: number;

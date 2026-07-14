@@ -1,17 +1,18 @@
-import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { ConflictError } from "@agds-hr/shared";
 
-import { band, campusCoefficient, compRecommendation, employee, reviewCase } from "./db/schema.ts";
-import type {
-  Band,
-  CareerLevel,
-  CompRecommendation,
-  EmployeeCompSnapshot,
-  ReviewRating,
-} from "./types.ts";
+import {
+  band,
+  campusCoefficient,
+  compRecommendation,
+  compRecord,
+  employee,
+  reviewCase,
+} from "./db/schema.ts";
+import type { Band, CareerLevel, CompRecommendation, CompRecord, ReviewRating } from "./types.ts";
 import { isReviewRating } from "./types.ts";
 
 // Band reference lookup — internal config, not a person's comp, so a normal read.
@@ -112,13 +113,14 @@ export async function listCampusCoefficients(
     .orderBy(asc(campusCoefficient.campus));
 }
 
-// Master compensation on the employee record (FY spreadsheet). Audited read —
-// same fail-closed pattern as getCompRecommendation.
-export async function getEmployeeCompSnapshot(
+// Current master compensation: the latest comp_record in effect today for the
+// employee reconciled by email. Audited read — same fail-closed pattern as
+// getCompRecommendation (audit row first, same transaction).
+export async function getCurrentCompRecord(
   db: DrizzleDb,
   email: string,
   context: AuditContext,
-): Promise<EmployeeCompSnapshot | undefined> {
+): Promise<CompRecord | undefined> {
   return db.transaction(async (tx) => {
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
@@ -126,47 +128,53 @@ export async function getEmployeeCompSnapshot(
       domain: "people",
       eventType: "people.comp.viewed",
       resourceId: email.toLowerCase(),
-      payload: { surface: "employee_snapshot" },
+      payload: { surface: "comp_record" },
       requestId: context.requestId,
       ...(context.ip ? { ip: context.ip } : {}),
     });
+    // ISO dates compare lexicographically, so text ordering is date ordering.
+    const today = new Date().toISOString().slice(0, 10);
     const [row] = await tx
       .select({
-        compPeriod: employee.compPeriod,
-        baseSalaryEur: employee.baseSalaryEur,
-        variableTargetEur: employee.variableTargetEur,
+        effectiveDate: compRecord.effectiveDate,
+        compPeriod: compRecord.compPeriod,
+        baseSalaryEur: compRecord.baseSalaryEur,
+        variableTargetEur: compRecord.variableTargetEur,
       })
-      .from(employee)
-      .where(and(eq(employee.email, email.toLowerCase()), isNull(employee.deletedAt)))
+      .from(compRecord)
+      .innerJoin(employee, eq(compRecord.employeeId, employee.id))
+      .where(
+        and(
+          eq(employee.email, email.toLowerCase()),
+          isNull(employee.deletedAt),
+          lte(compRecord.effectiveDate, today),
+        ),
+      )
+      .orderBy(desc(compRecord.effectiveDate))
       .limit(1);
-    if (
-      row === undefined ||
-      row.compPeriod === null ||
-      row.baseSalaryEur === null ||
-      row.variableTargetEur === null
-    ) {
-      return undefined;
-    }
-    return {
-      compPeriod: row.compPeriod,
-      baseSalaryEur: row.baseSalaryEur,
-      variableTargetEur: row.variableTargetEur,
-    };
+    return row === undefined ? undefined : row;
   });
 }
 
-export type UpsertEmployeeCompInput = {
+export type RecordCompensationInput = {
+  readonly effectiveDate: string;
   readonly compPeriod: string;
   readonly baseSalaryEur: number;
   readonly variableTargetEur: number;
 };
 
-export async function upsertEmployeeCompensation(
+// Compensation changes are new versioned rows, never in-place updates of the
+// current package (the upsert keyed on [employee, effective_date] only makes
+// re-running a load idempotent). History stays queryable by date.
+export async function recordCompensation(
   db: DrizzleDb,
   email: string,
-  input: UpsertEmployeeCompInput,
+  input: RecordCompensationInput,
   context: AuditContext,
 ): Promise<void> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) {
+    throw new ConflictError("effective_date_not_iso");
+  }
   await db.transaction(async (tx) => {
     const [existing] = await tx
       .select({ id: employee.id })
@@ -177,20 +185,30 @@ export async function upsertEmployeeCompensation(
       throw new ConflictError("employee_not_found");
     }
     await tx
-      .update(employee)
-      .set({
+      .insert(compRecord)
+      .values({
+        employeeId: existing.id,
+        effectiveDate: input.effectiveDate,
         compPeriod: input.compPeriod,
         baseSalaryEur: input.baseSalaryEur,
         variableTargetEur: input.variableTargetEur,
       })
-      .where(eq(employee.id, existing.id));
+      .onConflictDoUpdate({
+        target: [compRecord.employeeId, compRecord.effectiveDate],
+        set: {
+          compPeriod: input.compPeriod,
+          baseSalaryEur: input.baseSalaryEur,
+          variableTargetEur: input.variableTargetEur,
+        },
+      });
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
       subjectUserId: context.subjectUserId,
       domain: "people",
-      eventType: "people.comp.master_updated",
+      eventType: "people.comp.recorded",
       resourceId: email.toLowerCase(),
       payload: {
+        effectiveDate: input.effectiveDate,
         compPeriod: input.compPeriod,
         baseSalaryEur: input.baseSalaryEur,
         variableTargetEur: input.variableTargetEur,

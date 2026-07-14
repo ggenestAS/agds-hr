@@ -43,7 +43,7 @@ import {
   listDecisionSummaries,
   listEmployeeAttrs,
   getAssessmentByCase,
-  getEmployeeCompSnapshot,
+  getCurrentCompRecord,
   getPeerRequestById,
   getSelfReviewByCase,
   approvePeerRequest,
@@ -513,7 +513,7 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
   const canViewComp = canViewManagedComp(session, subjectEmail, managed, isSubjectPerson);
   const compPackage =
     canViewComp && attrs !== undefined
-      ? await getEmployeeCompSnapshot(adminDb, subjectEmail, auditContext(session))
+      ? await getCurrentCompRecord(adminDb, subjectEmail, auditContext(session))
       : undefined;
   const isLtMember = hasLtMemberRole(subjectRoles);
 

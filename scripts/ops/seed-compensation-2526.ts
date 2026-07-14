@@ -6,11 +6,13 @@
 //   bun --env-file=.env scripts/ops/seed-compensation-2526.ts
 import { getDbAs } from "@agds-hr/db";
 import { ensureUserByEmail } from "@agds-hr/identity";
-import { getEmployeeByEmail, upsertEmployeeCompensation } from "@agds-hr/people";
+import { getEmployeeByEmail, recordCompensation } from "@agds-hr/people";
 import { RequestId } from "@agds-hr/shared";
 
 const ACTOR_EMAIL = "ggenest@albertschool.com";
 const COMP_PERIOD = "2025-26";
+// The FY 2025-26 packages take effect at the school-year start.
+const EFFECTIVE_DATE = "2025-09-01";
 
 // Spreadsheet source (Jul 2026). `baseK` / `variableK` are thousands of EUR.
 const ROWS = [
@@ -49,10 +51,11 @@ for (const row of ROWS) {
     skipped.push({ email, reason: "no_employee_row" });
     continue;
   }
-  await upsertEmployeeCompensation(
+  await recordCompensation(
     adminDb,
     email,
     {
+      effectiveDate: EFFECTIVE_DATE,
       compPeriod: COMP_PERIOD,
       baseSalaryEur: row.baseK * 1000,
       variableTargetEur: row.variableK * 1000,
@@ -79,3 +82,5 @@ console.log(
     2,
   ),
 );
+// The admin pool keeps the process alive after the work is done — exit explicitly.
+process.exit(0);

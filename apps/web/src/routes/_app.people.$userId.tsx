@@ -937,6 +937,9 @@ function PersonDetailPage() {
                         </dd>
                       </div>
                     </dl>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Effective {person.compPackage.effectiveDate}
+                    </p>
                   </div>
                 )}
                 {reviewCase === undefined ? (

@@ -64,12 +64,6 @@ export const employee = peopleSchema.table(
     // nullable here for the agds-hr-native path.
     country: text("country"),
     roleFamily: text("role_family"),
-    // Master compensation record for the active fiscal period (whole EUR).
-    // Distinct from review-case comp_recommendation (cycle decisions). Nullable
-    // until HR loads the master spreadsheet; reads are audited separately.
-    compPeriod: text("comp_period"),
-    baseSalaryEur: integer("base_salary_eur"),
-    variableTargetEur: integer("variable_target_eur"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
@@ -91,6 +85,33 @@ export const employee = peopleSchema.table(
       .on(table.userId)
       .where(sql`${table.deletedAt} is null`),
   ],
+);
+
+// Master compensation as versioned facts, not mutable attributes: one row per
+// package with the date it takes effect. "Current comp" is the latest row with
+// effective_date <= today; history is the ordered set. Distinct from
+// comp_recommendation (a cycle's proposed CHANGE) — delivering a decision or an
+// off-cycle exception inserts a new record here rather than updating in place.
+// `comp_period` is a display/reconciliation label ("2025-26"), never the
+// temporal key. ISO-date text like comp_recommendation.effective_date.
+export const compRecord = peopleSchema.table(
+  "comp_record",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employee.id, { onDelete: "cascade" }),
+    effectiveDate: text("effective_date").notNull(),
+    compPeriod: text("comp_period").notNull(),
+    baseSalaryEur: integer("base_salary_eur").notNull(),
+    variableTargetEur: integer("variable_target_eur").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [unique("comp_record_employee_effective").on(table.employeeId, table.effectiveDate)],
 );
 
 // Reference tables — unseeded in slice 1, real config entered later. Integer
