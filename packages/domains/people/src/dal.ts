@@ -2,6 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
+import { ConflictError } from "@agds-hr/shared";
 
 import { employee } from "./db/schema.ts";
 import type {
@@ -100,5 +101,47 @@ export async function upsertEmployeeByEmail(
       requestId: context.requestId,
       ...(context.ip ? { ip: context.ip } : {}),
     });
+  });
+}
+
+// Soft-delete the employee row on departure. Comp records and review cases stay
+// attached — history is the product. Idempotent: an already-offboarded row is a
+// no-op (no second audit row).
+export async function offboardEmployee(
+  db: DrizzleDb,
+  email: string,
+  lastDay: string,
+  context: AuditContext,
+): Promise<"offboarded" | "already_offboarded"> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lastDay)) {
+    throw new ConflictError("last_day_not_iso");
+  }
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ id: employee.id, deletedAt: employee.deletedAt })
+      .from(employee)
+      .where(eq(employee.email, email.toLowerCase()))
+      .limit(1);
+    if (row === undefined) {
+      throw new ConflictError("employee_not_found");
+    }
+    if (row.deletedAt !== null) {
+      return "already_offboarded";
+    }
+    await tx
+      .update(employee)
+      .set({ deletedAt: sql`now()`, deletedBy: context.actorUserId })
+      .where(eq(employee.id, row.id));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.employee.offboarded",
+      resourceId: email.toLowerCase(),
+      payload: { lastDay },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+    return "offboarded";
   });
 }

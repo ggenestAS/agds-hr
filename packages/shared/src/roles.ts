@@ -24,11 +24,11 @@ export const hasLtMemberRole = (roles: readonly UserRole[]): boolean => roles.in
 // Canonical LT roster (Jul 2026). Grants are stored in identity.user_role;
 // this tuple is the ops seed source of truth until a self-serve LT registry
 // ships. Founders also carry `founder`; most LT managers also carry `manager`.
+// Departed members are removed — offboard via scripts/ops/offboard-employee.ts.
 export const LT_MEMBER_EMAILS = [
   "aantinoro@albertschool.com",
   "alopezestela@albertschool.com",
   "awalus@albertschool.com",
-  "eneuville@albertschool.com",
   "ggenest@albertschool.com",
   "lwillems@albertschool.com",
   "mschimpl@albertschool.com",

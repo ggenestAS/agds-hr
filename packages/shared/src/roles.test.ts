@@ -21,7 +21,8 @@ describe("role tuples", () => {
     expect(hasLtMemberRole(["manager"])).toBe(false);
   });
 
-  test("the canonical LT roster has twelve distinct emails", () => {
-    expect(new Set(LT_MEMBER_EMAILS).size).toBe(12);
+  test("the canonical LT roster lists active members only (distinct emails)", () => {
+    expect(new Set(LT_MEMBER_EMAILS).size).toBe(LT_MEMBER_EMAILS.length);
+    expect(LT_MEMBER_EMAILS).not.toContain("eneuville@albertschool.com");
   });
 });

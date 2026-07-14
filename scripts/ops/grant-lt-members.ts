@@ -1,6 +1,6 @@
 // Grant the canonical LT roster the `lt_member` product role. Idempotent —
 // skips emails that already carry the grant. Provisions auth.user rows via
-// ensureUserByEmail when needed (eneuville may not be in Inside's active roster).
+// ensureUserByEmail when needed. Skips deactivated users (departed).
 //
 //   bun --env-file=.env scripts/ops/grant-lt-members.ts
 import { getDbAs } from "@agds-hr/db";
@@ -23,15 +23,20 @@ const nameByEmail = new Map(
   admins.map((admin) => [admin.email.toLowerCase(), `${admin.firstName} ${admin.lastName}`.trim()]),
 );
 
-const existing = await listUsers(adminDb, { limit: 500 });
-const rolesByEmail = new Map(existing.map((user) => [user.email.toLowerCase(), user.roles]));
+const existing = await listUsers(adminDb, { includeDeactivated: true, limit: 500 });
+const rolesByEmail = new Map(existing.map((user) => [user.email.toLowerCase(), user]));
 
 const granted: string[] = [];
 const skipped: string[] = [];
 
 for (const email of LT_MEMBER_EMAILS) {
   const normalized = email.toLowerCase();
-  if (rolesByEmail.get(normalized)?.includes("lt_member")) {
+  const directoryUser = rolesByEmail.get(normalized);
+  if (directoryUser?.deactivatedAt !== undefined) {
+    skipped.push(normalized);
+    continue;
+  }
+  if (directoryUser?.roles.includes("lt_member")) {
     skipped.push(normalized);
     continue;
   }
