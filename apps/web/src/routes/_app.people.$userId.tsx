@@ -942,6 +942,31 @@ function PersonDetailPage() {
                     </p>
                   </div>
                 )}
+                {person.compHistory.length > 1 && (
+                  <div className="rounded-[10px] border border-border px-3 py-3">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                      History
+                    </p>
+                    <ul className="space-y-1 tabular-nums">
+                      {person.compHistory
+                        .filter((record) => record !== person.compPackage)
+                        .map((record) => (
+                          <li
+                            key={record.effectiveDate}
+                            className="flex items-baseline justify-between gap-4 text-xs"
+                          >
+                            <span className="text-muted-foreground">
+                              {record.effectiveDate} · FY {record.compPeriod}
+                            </span>
+                            <span>
+                              €{record.baseSalaryEur.toLocaleString()} + €
+                              {record.variableTargetEur.toLocaleString()} var
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
                 {reviewCase === undefined ? (
                   <span className="text-muted-foreground">
                     Compensation is recorded against the review case — none for this cycle yet.

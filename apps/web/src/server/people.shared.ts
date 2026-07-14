@@ -227,9 +227,11 @@ export type PersonDetail = {
   readonly canSign: boolean;
   readonly canViewComp: boolean;
   readonly canManageComp: boolean;
-  // Current master package — the latest comp_record in effect, populated only
-  // when the viewer may read comp (audited at load time).
+  // Current master package (latest comp_record in effect) and the full
+  // versioned history, populated only when the viewer may read comp — one
+  // audited read at load time covers both.
   readonly compPackage: CompRecord | undefined;
+  readonly compHistory: readonly CompRecord[];
   readonly isLtMember: boolean;
   readonly canImpersonate: boolean;
   readonly appeal: AppealView | undefined;

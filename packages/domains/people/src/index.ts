@@ -63,11 +63,12 @@ export type {
   UpsertCompInput,
 } from "./compensation.ts";
 export {
+  currentCompRecord,
   getBand,
   getCompRecommendation,
-  getCurrentCompRecord,
   listBands,
   listCampusCoefficients,
+  listCompRecords,
   listDecisionSummaries,
   recordCompensation,
   upsertBand,

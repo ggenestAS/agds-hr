@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
@@ -113,14 +113,15 @@ export async function listCampusCoefficients(
     .orderBy(asc(campusCoefficient.campus));
 }
 
-// Current master compensation: the latest comp_record in effect today for the
-// employee reconciled by email. Audited read — same fail-closed pattern as
-// getCompRecommendation (audit row first, same transaction).
-export async function getCurrentCompRecord(
+// The full versioned comp history for the employee reconciled by email, newest
+// first. ONE audited read for the set — same fail-closed pattern as
+// getCompRecommendation (audit row first, same transaction). "Current" is the
+// first row with effective_date <= today (currentCompRecord below).
+export async function listCompRecords(
   db: DrizzleDb,
   email: string,
   context: AuditContext,
-): Promise<CompRecord | undefined> {
+): Promise<readonly CompRecord[]> {
   return db.transaction(async (tx) => {
     await recordEvent(tx, {
       actorUserId: context.actorUserId,
@@ -128,13 +129,11 @@ export async function getCurrentCompRecord(
       domain: "people",
       eventType: "people.comp.viewed",
       resourceId: email.toLowerCase(),
-      payload: { surface: "comp_record" },
+      payload: { surface: "comp_record_history" },
       requestId: context.requestId,
       ...(context.ip ? { ip: context.ip } : {}),
     });
-    // ISO dates compare lexicographically, so text ordering is date ordering.
-    const today = new Date().toISOString().slice(0, 10);
-    const [row] = await tx
+    return tx
       .select({
         effectiveDate: compRecord.effectiveDate,
         compPeriod: compRecord.compPeriod,
@@ -143,17 +142,17 @@ export async function getCurrentCompRecord(
       })
       .from(compRecord)
       .innerJoin(employee, eq(compRecord.employeeId, employee.id))
-      .where(
-        and(
-          eq(employee.email, email.toLowerCase()),
-          isNull(employee.deletedAt),
-          lte(compRecord.effectiveDate, today),
-        ),
-      )
-      .orderBy(desc(compRecord.effectiveDate))
-      .limit(1);
-    return row === undefined ? undefined : row;
+      .where(and(eq(employee.email, email.toLowerCase()), isNull(employee.deletedAt)))
+      .orderBy(desc(compRecord.effectiveDate));
   });
+}
+
+// ISO dates compare lexicographically, so text ordering is date ordering.
+export function currentCompRecord(
+  records: readonly CompRecord[],
+  todayIso: string = new Date().toISOString().slice(0, 10),
+): CompRecord | undefined {
+  return records.find((record) => record.effectiveDate <= todayIso);
 }
 
 export type RecordCompensationInput = {

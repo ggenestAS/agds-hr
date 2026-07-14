@@ -43,7 +43,8 @@ import {
   listDecisionSummaries,
   listEmployeeAttrs,
   getAssessmentByCase,
-  getCurrentCompRecord,
+  currentCompRecord,
+  listCompRecords,
   getPeerRequestById,
   getSelfReviewByCase,
   approvePeerRequest,
@@ -250,9 +251,11 @@ async function rolesForEmail(
 
 // Master/case comp on a person profile: managers see direct and indirect
 // reports only — not org-wide LT/founder visibility. Leadership comp reads
-// (sign-off, documentation) stay on people.comp.read.
+// (sign-off, documentation) stay on people.comp.read. The reporting graph is
+// the source of truth for manager-ness — no `manager` role check on top, which
+// would drift from the graph (founders manage reports without the role).
 function canViewManagedComp(
-  session: Awaited<ReturnType<typeof requireSession>>,
+  _session: Awaited<ReturnType<typeof requireSession>>,
   subjectEmail: string,
   managed: { readonly all: ReadonlySet<string> },
   isSubjectPerson: boolean,
@@ -260,10 +263,7 @@ function canViewManagedComp(
   if (isSubjectPerson) {
     return false;
   }
-  if (!managed.all.has(subjectEmail.toLowerCase())) {
-    return false;
-  }
-  return session.subject.roles.includes("manager");
+  return managed.all.has(subjectEmail.toLowerCase());
 }
 
 async function assertManagedCompAccess(
@@ -511,10 +511,11 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     }).allow;
 
   const canViewComp = canViewManagedComp(session, subjectEmail, managed, isSubjectPerson);
-  const compPackage =
+  const compHistory =
     canViewComp && attrs !== undefined
-      ? await getCurrentCompRecord(adminDb, subjectEmail, auditContext(session))
-      : undefined;
+      ? await listCompRecords(adminDb, subjectEmail, auditContext(session))
+      : [];
+  const compPackage = currentCompRecord(compHistory);
   const isLtMember = hasLtMemberRole(subjectRoles);
 
   return {
@@ -559,6 +560,7 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     canViewComp,
     canManageComp: can(session.subject, "people.comp.manage").allow,
     compPackage,
+    compHistory,
     isLtMember,
     canImpersonate,
     appeal:
