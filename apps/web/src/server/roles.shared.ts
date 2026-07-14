@@ -9,7 +9,7 @@ import { z } from "zod";
 // until first touch, so grant provisions it (ensureUserByEmail) same as
 // impersonation does. Kept as its own literal tuple (not derived from
 // USER_ROLES) so z.enum sees a proper non-empty literal array.
-export const ASSIGNABLE_ROLES = ["developer", "manager", "founder", "admin"] as const;
+export const ASSIGNABLE_ROLES = ["developer", "manager", "founder", "admin", "lt_member"] as const;
 
 export const grantRoleSchema = z.object({
   email: z.string().email(),

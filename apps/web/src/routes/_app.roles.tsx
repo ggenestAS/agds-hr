@@ -26,6 +26,7 @@ const ROLE_LABEL: Record<(typeof ASSIGNABLE_ROLES)[number], string> = {
   founder: "Founder",
   admin: "Admin",
   developer: "Developer",
+  lt_member: "LT member",
 };
 
 const ROLE_HINT: Record<(typeof ASSIGNABLE_ROLES)[number], string> = {
@@ -33,6 +34,7 @@ const ROLE_HINT: Record<(typeof ASSIGNABLE_ROLES)[number], string> = {
   founder: "leadership — calibration, dual sign-off, compensation, bands",
   admin: "HR admin — employee attributes, appeals queue",
   developer: "platform superuser — break-glass for every gate, including this page",
+  lt_member: "leadership team — mandatory peer-input path, calibration, and tracking",
 };
 
 // "staff" can appear on a role row (dev-login grants it explicitly) but is
@@ -45,9 +47,11 @@ const roleChipCls = (role: UserRole): string =>
     ? "bg-foreground text-background"
     : role === "founder"
       ? "bg-[var(--color-accent)] text-white"
-      : role === "admin"
-        ? "bg-[var(--color-info)] text-[var(--color-info-surface)]"
-        : "bg-bone text-foreground";
+      : role === "lt_member"
+        ? "bg-[var(--color-warning)] text-[var(--color-warning-surface)]"
+        : role === "admin"
+          ? "bg-[var(--color-info)] text-[var(--color-info-surface)]"
+          : "bg-bone text-foreground";
 
 function Roles() {
   const data: RolesPageView = Route.useLoaderData();

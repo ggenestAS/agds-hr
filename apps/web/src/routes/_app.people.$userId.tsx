@@ -320,6 +320,11 @@ function PersonDetailPage() {
               {person.name}
             </h1>
             {ratingChip(reviewCase?.rating, true)}
+            {person.isLtMember && (
+              <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+                Leadership team
+              </span>
+            )}
             {!person.active && (
               <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white/70">
                 Inactive
@@ -912,6 +917,27 @@ function PersonDetailPage() {
                     Outside salary bands — {EMPLOYMENT_TYPE_LABELS[person.employmentType]} contracts
                     are not band-governed.
                   </p>
+                )}
+                {person.compPackage !== undefined && (
+                  <div className="rounded-[10px] border border-border bg-cream/60 px-3 py-3">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                      Master record · FY {person.compPackage.compPeriod}
+                    </p>
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums sm:grid-cols-2">
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Fixed gross</dt>
+                        <dd className="font-semibold">
+                          €{person.compPackage.baseSalaryEur.toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">Variable target</dt>
+                        <dd className="font-semibold">
+                          €{person.compPackage.variableTargetEur.toLocaleString()}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
                 )}
                 {reviewCase === undefined ? (
                   <span className="text-muted-foreground">

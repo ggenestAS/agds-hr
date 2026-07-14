@@ -49,9 +49,11 @@ export function canSignDecision(user: User): PolicyDecision {
   return hasAny(user, ["founder", "developer"]) ? ALLOW : DENY("founder_required");
 }
 
-// An individual's compensation (recommendation amounts) is leadership-only.
-// Reading it is itself audited (the DAL records the read); admins set the
-// amounts at sign-off (design).
+// An individual's compensation (recommendation amounts) is leadership-only on
+// governance surfaces (sign-off, documentation, bands). Per-person master/case
+// comp on /people/{id} is manager-graph-scoped in the handler — see
+// canViewManagedComp there. Reading comp is itself audited (the DAL records
+// the read); admins set amounts at sign-off (design).
 export function canViewComp(user: User): PolicyDecision {
   return hasAny(user, ["admin", "founder", "developer"]) ? ALLOW : DENY("comp_view_required");
 }
@@ -61,13 +63,13 @@ export function canViewComp(user: User): PolicyDecision {
 // recommendation needs this guidance, unlike canViewComp (a person's actual
 // numbers) or the band figures (still leadership-only to read).
 export function canViewCompPrinciples(user: User): PolicyDecision {
-  return hasAny(user, ["admin", "founder", "developer", "manager"])
+  return hasAny(user, ["admin", "founder", "developer", "manager", "lt_member"])
     ? ALLOW
     : DENY("comp_principles_view_required");
 }
 
 export function canManageComp(user: User): PolicyDecision {
-  return hasAny(user, ["admin", "developer"]) ? ALLOW : DENY("comp_admin_required");
+  return hasAny(user, ["admin", "founder", "developer"]) ? ALLOW : DENY("comp_admin_required");
 }
 
 // Anyone may appeal their OWN decision within the window; the handler enforces
@@ -124,7 +126,7 @@ export function canManageBands(user: User): PolicyDecision {
 // leadership everyone — row scope is enforced in the handler like /assessment;
 // this predicate gates the surface (docs/plans/notifications.md).
 export function canViewTracking(user: User): PolicyDecision {
-  return hasAny(user, ["manager", "founder", "admin", "developer"])
+  return hasAny(user, ["manager", "founder", "admin", "developer", "lt_member"])
     ? ALLOW
     : DENY("manager_required");
 }

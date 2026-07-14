@@ -16,6 +16,7 @@ import type {
   CareerLevel,
   CareerPath,
   CheckInStatus,
+  EmployeeCompSnapshot,
   EmploymentType,
   EvaluationDimension,
   PeerInputKey,
@@ -226,6 +227,10 @@ export type PersonDetail = {
   readonly canSign: boolean;
   readonly canViewComp: boolean;
   readonly canManageComp: boolean;
+  // Master FY package — populated only when the viewer may read comp and the
+  // employee row carries a loaded snapshot (audited at load time).
+  readonly compPackage: EmployeeCompSnapshot | undefined;
+  readonly isLtMember: boolean;
   readonly canImpersonate: boolean;
   readonly appeal: AppealView | undefined;
   readonly canAppeal: boolean;

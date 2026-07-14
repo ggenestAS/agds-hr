@@ -7,4 +7,4 @@ export { ForbiddenError, NotFoundError, ConflictError, UniqueViolationError } fr
 export type { PolicyDecision } from "./policy.ts";
 export { ALLOW, DENY } from "./policy.ts";
 export type { UserRole } from "./roles.ts";
-export { USER_ROLES, isUserRole } from "./roles.ts";
+export { LT_MEMBER_EMAILS, USER_ROLES, hasLtMemberRole, isUserRole } from "./roles.ts";

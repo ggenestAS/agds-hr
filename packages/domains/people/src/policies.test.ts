@@ -8,6 +8,7 @@ import {
   canFileAppeal,
   canManageAppeals,
   canManageBands,
+  canManageComp,
   canManageEmployee,
   canOpenReview,
   canRateReview,
@@ -71,6 +72,7 @@ describe("people policies", () => {
   test("compensation is leadership-only to view", () => {
     expect(canViewComp(userWith(["admin"])).allow).toBe(true);
     expect(canViewComp(userWith(["founder"])).allow).toBe(true);
+    expect(canViewComp(userWith(["lt_member"])).allow).toBe(false);
     expect(canViewComp(userWith(["manager"])).allow).toBe(false);
     expect(canViewComp(userWith(["staff"]))).toEqual({
       allow: false,
@@ -106,6 +108,7 @@ describe("people policies", () => {
   test("the tracking board is reviewer-facing (managers + leadership), never staff", () => {
     expect(canViewTracking(userWith(["manager"])).allow).toBe(true);
     expect(canViewTracking(userWith(["founder"])).allow).toBe(true);
+    expect(canViewTracking(userWith(["lt_member"])).allow).toBe(true);
     expect(canViewTracking(userWith(["admin"])).allow).toBe(true);
     expect(canViewTracking(userWith(["developer"])).allow).toBe(true);
     expect(canViewTracking(userWith(["staff"]))).toEqual({
@@ -133,5 +136,11 @@ describe("people policies", () => {
       allow: false,
       reason: "appeals_admin_required",
     });
+  });
+
+  test("master compensation edits are founder/admin/developer", () => {
+    expect(canManageComp(userWith(["founder"])).allow).toBe(true);
+    expect(canManageComp(userWith(["admin"])).allow).toBe(true);
+    expect(canManageComp(userWith(["manager"])).allow).toBe(false);
   });
 });

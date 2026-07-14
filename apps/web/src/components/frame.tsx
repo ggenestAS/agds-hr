@@ -14,11 +14,12 @@ import type { NavHints } from "../server/people.shared.ts";
 // (enforced by check:nav). The body never scrolls — the content pane does.
 
 // Which product roles see which nav item, mirroring the design's role views
-// (leadership = admin/founder/developer; managers add the review-flow surfaces;
-// everyone gets the cycle basics).
+// (leadership = admin/founder/developer/lt_member; managers add review-flow
+// surfaces; lt_member adds calibration/tracking without salary visibility).
 const LEADERSHIP = ["admin", "founder", "developer"] as const;
+const LT_CALIBRATION = ["lt_member", "manager", ...LEADERSHIP] as const;
 const REVIEWERS = ["manager", ...LEADERSHIP] as const;
-const EVERYONE = ["staff", ...REVIEWERS] as const;
+const EVERYONE = ["staff", "manager", "lt_member", ...LEADERSHIP] as const;
 const DEVELOPER = ["developer"] as const;
 
 type NavEntry = {
@@ -53,8 +54,8 @@ const NAV_GROUPS: readonly { readonly header: string; readonly items: readonly N
       { to: "/self-review", label: "Self-review", roles: EVERYONE },
       { to: "/peer-input", label: "Peer input", roles: EVERYONE },
       { to: "/assessment", label: "Assessment", roles: REVIEWERS },
-      { to: "/calibration", label: "Calibration", roles: REVIEWERS },
-      { to: "/tracking", label: "Tracking", roles: REVIEWERS },
+      { to: "/calibration", label: "Calibration", roles: LT_CALIBRATION },
+      { to: "/tracking", label: "Tracking", roles: LT_CALIBRATION },
       { to: "/sign-off", label: "Decision & sign-off", roles: LEADERSHIP },
     ],
   },

@@ -1,0 +1,1 @@
+ALTER TYPE "identity"."role" ADD VALUE 'lt_member';

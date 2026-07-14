@@ -175,8 +175,7 @@ All 13 views of the imported design are implemented, wired to real data:
 Remaining: seed band figures and canonical ladder names if they differ from the
 design's; surface band-position and merit suggestion once people have
 role_family and bands (helpers exist — gate the math on
-`isSalaryBandApplicable`, ADR); wire the `lt_member` role (deferred) into
-calibration authority if the design calls for it.
+`isSalaryBandApplicable`, ADR).
 
 ## Open questions
 

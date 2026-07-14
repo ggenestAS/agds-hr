@@ -1,11 +1,17 @@
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull } from "drizzle-orm";
 
 import { recordEvent, type AuditContext } from "@agds-hr/audit";
 import type { DrizzleDb, DrizzleExecutor } from "@agds-hr/db";
 import { ConflictError } from "@agds-hr/shared";
 
-import { band, campusCoefficient, compRecommendation, reviewCase } from "./db/schema.ts";
-import type { Band, CareerLevel, CompRecommendation, ReviewRating } from "./types.ts";
+import { band, campusCoefficient, compRecommendation, employee, reviewCase } from "./db/schema.ts";
+import type {
+  Band,
+  CareerLevel,
+  CompRecommendation,
+  EmployeeCompSnapshot,
+  ReviewRating,
+} from "./types.ts";
 import { isReviewRating } from "./types.ts";
 
 // Band reference lookup — internal config, not a person's comp, so a normal read.
@@ -104,6 +110,95 @@ export async function listCampusCoefficients(
     })
     .from(campusCoefficient)
     .orderBy(asc(campusCoefficient.campus));
+}
+
+// Master compensation on the employee record (FY spreadsheet). Audited read —
+// same fail-closed pattern as getCompRecommendation.
+export async function getEmployeeCompSnapshot(
+  db: DrizzleDb,
+  email: string,
+  context: AuditContext,
+): Promise<EmployeeCompSnapshot | undefined> {
+  return db.transaction(async (tx) => {
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.comp.viewed",
+      resourceId: email.toLowerCase(),
+      payload: { surface: "employee_snapshot" },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+    const [row] = await tx
+      .select({
+        compPeriod: employee.compPeriod,
+        baseSalaryEur: employee.baseSalaryEur,
+        variableTargetEur: employee.variableTargetEur,
+      })
+      .from(employee)
+      .where(and(eq(employee.email, email.toLowerCase()), isNull(employee.deletedAt)))
+      .limit(1);
+    if (
+      row === undefined ||
+      row.compPeriod === null ||
+      row.baseSalaryEur === null ||
+      row.variableTargetEur === null
+    ) {
+      return undefined;
+    }
+    return {
+      compPeriod: row.compPeriod,
+      baseSalaryEur: row.baseSalaryEur,
+      variableTargetEur: row.variableTargetEur,
+    };
+  });
+}
+
+export type UpsertEmployeeCompInput = {
+  readonly compPeriod: string;
+  readonly baseSalaryEur: number;
+  readonly variableTargetEur: number;
+};
+
+export async function upsertEmployeeCompensation(
+  db: DrizzleDb,
+  email: string,
+  input: UpsertEmployeeCompInput,
+  context: AuditContext,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: employee.id })
+      .from(employee)
+      .where(and(eq(employee.email, email.toLowerCase()), isNull(employee.deletedAt)))
+      .limit(1);
+    if (existing === undefined) {
+      throw new ConflictError("employee_not_found");
+    }
+    await tx
+      .update(employee)
+      .set({
+        compPeriod: input.compPeriod,
+        baseSalaryEur: input.baseSalaryEur,
+        variableTargetEur: input.variableTargetEur,
+      })
+      .where(eq(employee.id, existing.id));
+    await recordEvent(tx, {
+      actorUserId: context.actorUserId,
+      subjectUserId: context.subjectUserId,
+      domain: "people",
+      eventType: "people.comp.master_updated",
+      resourceId: email.toLowerCase(),
+      payload: {
+        compPeriod: input.compPeriod,
+        baseSalaryEur: input.baseSalaryEur,
+        variableTargetEur: input.variableTargetEur,
+      },
+      requestId: context.requestId,
+      ...(context.ip ? { ip: context.ip } : {}),
+    });
+  });
 }
 
 // Reading a person's compensation is itself recorded as an audit event — "the

@@ -31,6 +31,7 @@ export {
   APPEAL_CATEGORIES,
   APPEAL_STATUSES,
   canTransition,
+  reviewNextStates,
   canFileAppealNow,
   canSeeAppeal,
   isDecisionComplete,
@@ -49,6 +50,7 @@ export type {
   Band,
   BandThird,
   CompRecommendation,
+  EmployeeCompSnapshot,
   Appeal,
   AppealCategory,
   AppealStatus,
@@ -58,15 +60,18 @@ export type {
   DecisionSummary,
   UpsertBandInput,
   UpsertCompInput,
+  UpsertEmployeeCompInput,
 } from "./compensation.ts";
 export {
   getBand,
   getCompRecommendation,
+  getEmployeeCompSnapshot,
   listBands,
   listCampusCoefficients,
   listDecisionSummaries,
   upsertBand,
   upsertCompRecommendation,
+  upsertEmployeeCompensation,
 } from "./compensation.ts";
 export { fileAppeal, getAppealForCase, listAppeals, resolveAppeal } from "./appeals.ts";
 export {

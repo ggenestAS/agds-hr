@@ -1,4 +1,5 @@
 import type { UserRole } from "@agds-hr/shared";
+import { hasLtMemberRole } from "@agds-hr/shared";
 
 // Bounded job-architecture sets follow the closed-enum pipeline (§5.4): one
 // `as const` tuple drives the TS union, the pg enum, and Zod. Level names are
@@ -106,6 +107,19 @@ export function canTransition(from: ReviewState, to: ReviewState): boolean {
   return REVIEW_TRANSITIONS[from].includes(to);
 }
 
+// LT subjects must enter peer_input — non-LT managers may skip straight to
+// manager_assessment from self_review (process handbook step 2b).
+export function reviewNextStates(
+  state: ReviewState,
+  subjectRoles: readonly UserRole[],
+): readonly ReviewState[] {
+  const transitions = REVIEW_TRANSITIONS[state];
+  if (state === "self_review" && hasLtMemberRole(subjectRoles)) {
+    return transitions.filter((next) => next !== "manager_assessment");
+  }
+  return transitions;
+}
+
 // Roles allowed to advance a case INTO each state (mapped to the design:
 // managers run the assessment and submit to calibration; founders (CEO/COO) own
 // calibration sign-off and the decision; admins handle appeals/closure).
@@ -130,6 +144,7 @@ export const REVIEW_AUTHORITY_ROLES: readonly UserRole[] = [
   "founder",
   "admin",
   "developer",
+  "lt_member",
 ];
 export const REVIEW_RATING_ROLES: readonly UserRole[] = ["manager", "founder", "developer"];
 
@@ -239,6 +254,14 @@ export type CompRecommendation = {
   readonly newBaseEur: number;
   readonly effectiveDate: string | undefined;
   readonly rationale: string | undefined;
+};
+
+// Master employee compensation for a fiscal period (spreadsheet source of
+// truth), distinct from per-cycle comp_recommendation decisions.
+export type EmployeeCompSnapshot = {
+  readonly compPeriod: string;
+  readonly baseSalaryEur: number;
+  readonly variableTargetEur: number;
 };
 
 // --- Review inputs (self-review, peer input, assessment) --------------------

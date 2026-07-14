@@ -29,6 +29,7 @@ import {
   ownTeamPeerQuota,
   participatesInReview,
   peerInputQuota,
+  reviewNextStates,
 } from "./types.ts";
 
 describe("job architecture tuples", () => {
@@ -82,6 +83,15 @@ describe("review state machine", () => {
     expect(canTransition("calibration", "decision")).toBe(true);
     expect(canTransition("decision", "appeal")).toBe(true);
     expect(canTransition("decision", "closed")).toBe(true);
+  });
+
+  test("LT subjects cannot skip peer input from self_review", () => {
+    expect(reviewNextStates("self_review", ["lt_member"])).toEqual(["peer_input"]);
+    expect(reviewNextStates("self_review", ["manager"])).toEqual([
+      "peer_input",
+      "manager_assessment",
+    ]);
+    expect(reviewNextStates("peer_input", ["lt_member"])).toEqual(["manager_assessment"]);
   });
 
   test("illegal transitions are rejected (no skipping, no going back)", () => {

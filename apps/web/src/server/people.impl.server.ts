@@ -43,6 +43,7 @@ import {
   listDecisionSummaries,
   listEmployeeAttrs,
   getAssessmentByCase,
+  getEmployeeCompSnapshot,
   getPeerRequestById,
   getSelfReviewByCase,
   approvePeerRequest,
@@ -57,6 +58,7 @@ import {
   openCase,
   participatesInReview,
   reopenSelfReview,
+  reviewNextStates,
   saveAssessment,
   submitAssessment,
   submitPeerInput,
@@ -64,7 +66,6 @@ import {
   saveSelfReview,
   submitSelfReview,
   REVIEW_CURRENT_CYCLE,
-  REVIEW_TRANSITIONS,
   setCaseRating,
   signDecision,
   upsertBand,
@@ -76,7 +77,14 @@ import { CAREER_LEVELS, peerInputSubmitIssues } from "@agds-hr/people/types";
 import type { AppealCategory, ReviewRating, ReviewState } from "@agds-hr/people/types";
 import { REVIEW_CYCLE_PERIOD_LABEL } from "@agds-hr/people/types";
 import type { EnqueueNotificationInput } from "@agds-hr/notifications";
-import { ConflictError, ForbiddenError, NotFoundError, UserId } from "@agds-hr/shared";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UserId,
+  hasLtMemberRole,
+  type UserRole,
+} from "@agds-hr/shared";
 
 import {
   formatSelfReviewRole,
@@ -227,9 +235,48 @@ async function managedEmailSets(
   return { direct: toEmails(sets.direct), all: toEmails(sets.all) };
 }
 
-const LEADERSHIP_ROLES = ["founder", "admin", "developer"] as const;
+const LEADERSHIP_ROLES = ["founder", "admin", "developer", "lt_member"] as const;
 const isLeadership = (roles: readonly string[]): boolean =>
   LEADERSHIP_ROLES.some((role) => roles.includes(role));
+
+async function rolesForEmail(
+  adminDb: ReturnType<typeof getDbAs>,
+  email: string,
+): Promise<readonly UserRole[]> {
+  const users = await listUsers(adminDb, { limit: 500 });
+  const match = users.find((user) => user.email.toLowerCase() === email.toLowerCase());
+  return match?.roles ?? [];
+}
+
+// Master/case comp on a person profile: managers see direct and indirect
+// reports only — not org-wide LT/founder visibility. Leadership comp reads
+// (sign-off, documentation) stay on people.comp.read.
+function canViewManagedComp(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  subjectEmail: string,
+  managed: { readonly all: ReadonlySet<string> },
+  isSubjectPerson: boolean,
+): boolean {
+  if (isSubjectPerson) {
+    return false;
+  }
+  if (!managed.all.has(subjectEmail.toLowerCase())) {
+    return false;
+  }
+  return session.subject.roles.includes("manager");
+}
+
+async function assertManagedCompAccess(
+  adminDb: ReturnType<typeof getDbAs>,
+  session: Awaited<ReturnType<typeof requireSession>>,
+  subjectEmail: string,
+  action: string,
+): Promise<void> {
+  const managed = await managedEmailSets(adminDb, session.subject.id);
+  if (!canViewManagedComp(session, subjectEmail, managed, false)) {
+    throw new ForbiddenError(action, "not_subjects_manager");
+  }
+}
 
 // Manager-graph gate for review mutations: leadership is org-wide; line managers
 // only act on their reports (either reporting line, any depth). Blocks acting on
@@ -306,10 +353,11 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
     ]),
   );
 
-  const [attrs, reviewCase, managed] = await Promise.all([
+  const [attrs, reviewCase, managed, subjectRoles] = await Promise.all([
     getEmployeeByEmail(adminDb, subjectEmail),
     getCaseBySubject(adminDb, subjectEmail, REVIEW_CURRENT_CYCLE),
     managedEmailSets(adminDb, session.subject.id),
+    rolesForEmail(adminDb, subjectEmail),
   ]);
 
   // Both reporting lines: the functional chain (existing) + direct local manager.
@@ -462,6 +510,13 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
       targetUserId: UserId("00000000-0000-4000-8000-00000000ffff"),
     }).allow;
 
+  const canViewComp = canViewManagedComp(session, subjectEmail, managed, isSubjectPerson);
+  const compPackage =
+    canViewComp && attrs !== undefined
+      ? await getEmployeeCompSnapshot(adminDb, subjectEmail, auditContext(session))
+      : undefined;
+  const isLtMember = hasLtMemberRole(subjectRoles);
+
   return {
     userId: admin.userId,
     name: `${admin.firstName} ${admin.lastName}`.trim(),
@@ -489,7 +544,7 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
               managesSubject || (isSubjectPerson && reviewCase.decidedAt !== undefined)
                 ? reviewCase.rating
                 : undefined,
-            nextStates: REVIEW_TRANSITIONS[reviewCase.state],
+            nextStates: reviewNextStates(reviewCase.state, subjectRoles),
             signoffCount: signoffs.length,
             decidedAt: reviewCase.decidedAt?.toISOString(),
             appealUntil: reviewCase.appealUntil?.toISOString(),
@@ -501,8 +556,10 @@ export async function personDetailHandler(userId: string): Promise<PersonDetail>
       can(session.subject, "people.review.open").allow &&
       (leadership || managed.all.has(subjectEmail)),
     canSign: can(session.subject, "people.decision.sign").allow,
-    canViewComp: can(session.subject, "people.comp.read").allow,
+    canViewComp,
     canManageComp: can(session.subject, "people.comp.manage").allow,
+    compPackage,
+    isLtMember,
     canImpersonate,
     appeal:
       appeal === undefined
@@ -565,6 +622,13 @@ export async function advanceReviewHandler(input: {
   // Entering manager_assessment notifies the subject's managers (enqueued in
   // the SAME transaction as the transition — docs/plans/notifications.md).
   const notifications: EnqueueNotificationInput[] = [];
+  // LT subjects must collect peer input — they cannot skip straight to assessment.
+  if (input.toState === "manager_assessment" && reviewCase.state === "self_review") {
+    const subjectRoles = await rolesForEmail(adminDb, reviewCase.subjectEmail);
+    if (hasLtMemberRole(subjectRoles)) {
+      throw new ForbiddenError("people.review.advance", "lt_peer_input_required");
+    }
+  }
   // The peer-input gate (design M5): a case in peer_input cannot advance to the
   // manager assessment until cross-team + own-team quotas are met.
   if (input.toState === "manager_assessment") {
@@ -615,12 +679,17 @@ export async function signDecisionHandler(input: {
 // audit trail is the product. Band position / merit suggestion light up once the
 // person's role family and bands are configured (both unseeded today).
 export async function compHandler(input: { readonly caseId: string }): Promise<CompView> {
-  const session = await requireSession("people.comp.read");
-  const recommendation = await getCompRecommendation(
-    getDbAs("admin"),
-    input.caseId,
-    auditContext(session),
-  );
+  const session = await requireSession("people.review.open");
+  const adminDb = getDbAs("admin");
+  const reviewCase = await getCaseById(adminDb, input.caseId);
+  if (reviewCase === undefined) {
+    throw new NotFoundError("review_case", input.caseId);
+  }
+  const leadershipComp = can(session.subject, "people.comp.read").allow;
+  if (!leadershipComp) {
+    await assertManagedCompAccess(adminDb, session, reviewCase.subjectEmail, "people.comp.read");
+  }
+  const recommendation = await getCompRecommendation(adminDb, input.caseId, auditContext(session));
   return {
     recommendation: recommendation ?? undefined,
     bandPositionPct: undefined,

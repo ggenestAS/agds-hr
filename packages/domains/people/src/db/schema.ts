@@ -64,6 +64,12 @@ export const employee = peopleSchema.table(
     // nullable here for the agds-hr-native path.
     country: text("country"),
     roleFamily: text("role_family"),
+    // Master compensation record for the active fiscal period (whole EUR).
+    // Distinct from review-case comp_recommendation (cycle decisions). Nullable
+    // until HR loads the master spreadsheet; reads are audited separately.
+    compPeriod: text("comp_period"),
+    baseSalaryEur: integer("base_salary_eur"),
+    variableTargetEur: integer("variable_target_eur"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
