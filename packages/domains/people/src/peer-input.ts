@@ -279,12 +279,25 @@ export async function rejectPeerRequest(
   });
 }
 
+// True when jsonb input still holds reviewer text — used to block cancel after
+// reopen (submitted answers stay on the pending row; deleting them is the
+// manager "undo reopen" trap). Blank / empty objects are unanswered.
+export function peerRequestHasAnswerText(input: unknown): boolean {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return false;
+  }
+  return Object.values(input as Record<string, unknown>).some(
+    (value) => typeof value === "string" && value.trim().length > 0,
+  );
+}
+
 // Cancelling removes an UNANSWERED live request — the manager decided not to
 // wait for this reviewer (e.g. absence), so the request must stop counting as
 // pending and blocking the assessment. Deletion (not a status) mirrors
 // rejectPeerRequest and frees the (case, requestee) slot for re-requesting;
 // the cancellation is audited with the requestee. Submitted or declined
-// requests carry an answer and cannot be cancelled.
+// requests carry an answer and cannot be cancelled. Pending rows that still
+// hold answer text (reopened) also cannot be cancelled.
 export async function cancelPeerRequest(
   db: DrizzleDb,
   requestId: string,
@@ -292,7 +305,11 @@ export async function cancelPeerRequest(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const [current] = await tx
-      .select({ status: peerRequest.status, requesteeEmail: peerRequest.requesteeEmail })
+      .select({
+        status: peerRequest.status,
+        requesteeEmail: peerRequest.requesteeEmail,
+        input: peerRequest.input,
+      })
       .from(peerRequest)
       .where(eq(peerRequest.id, requestId))
       .limit(1);
@@ -301,6 +318,9 @@ export async function cancelPeerRequest(
     }
     if (current.status !== "pending") {
       throw new ConflictError("peer_request_not_pending");
+    }
+    if (peerRequestHasAnswerText(current.input)) {
+      throw new ConflictError("peer_request_has_input");
     }
     await tx
       .delete(peerRequest)

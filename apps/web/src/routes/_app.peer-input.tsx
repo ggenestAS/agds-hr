@@ -21,8 +21,9 @@ import {
 // on its own focused page), and propose your own reviewers while your manager
 // hasn't set the list. Managers: work each report's case — approve/reject
 // proposals, add reviewers (Own team vs Cross-team auto-classified from the
-// org graph), watch the quota fill, reopen submitted input, cancel unanswered
-// requests that would otherwise block the assessment.
+// org graph), watch the quota fill, reopen submitted input, withdraw never-
+// answered pending requests that would otherwise block the assessment.
+// Withdraw is refused when a pending row still holds answer text (reopen).
 export const Route = createFileRoute("/_app/peer-input")({
   loader: () => peerPageFn(),
   pendingComponent: () => <StackedRoutePending width="4xl" />,
@@ -250,6 +251,7 @@ function PeerInputPage() {
   const data: PeerPageView = Route.useLoaderData();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [selectedSubjectEmail, setSelectedSubjectEmail] = useState<string | null>(null);
 
   const visibleForYou = data.requestsForYou.filter((request) => request.status !== "proposed");
@@ -266,9 +268,17 @@ function PeerInputPage() {
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
+    setActionError(null);
     try {
       await action();
       await router.invalidate();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setActionError(
+        message.includes("peer_request_has_input")
+          ? "This request still has the reviewer's answers (usually after Reopen). Withdraw isn't available — leave it pending so they can edit and resubmit."
+          : message,
+      );
     } finally {
       setBusy(false);
     }
@@ -295,6 +305,14 @@ function PeerInputPage() {
         it describes. You can suggest who reviews you; {approverPhrase(data.myCase.approverKind)}{" "}
         makes the final call.
       </p>
+      {actionError !== null && (
+        <p
+          role="alert"
+          className="mt-4 rounded-[14px] border border-[var(--color-accent)] bg-[var(--color-blush)] px-4 py-3 text-sm text-[var(--color-accent-tint-text)]"
+        >
+          {actionError}
+        </p>
+      )}
 
       {/* tabs */}
       <div className="mb-6 mt-5 flex gap-6 border-b border-border">
@@ -626,14 +644,20 @@ function PeerInputPage() {
                                     size="sm"
                                     variant="secondary"
                                     disabled={busy}
-                                    title="Withdraw this request — it stops blocking the assessment and the person can be re-requested later"
+                                    title="Withdraw an unanswered request — stops blocking the assessment; person can be re-requested. Not available if answers remain after Reopen."
                                     onClick={() => {
+                                      const ok = window.confirm(
+                                        "Withdraw this peer request? It will be removed and stop blocking the assessment. The person can be re-requested later. Requests that still hold answers (after Reopen) cannot be withdrawn.",
+                                      );
+                                      if (!ok) {
+                                        return;
+                                      }
                                       void run(() =>
                                         peerCancelFn({ data: { requestId: request.id } }),
                                       );
                                     }}
                                   >
-                                    Cancel
+                                    Withdraw request
                                   </Button>
                                 )}
                               </span>

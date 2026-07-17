@@ -10,7 +10,9 @@ import {
   approvePeerRequest,
   cancelPeerRequest,
   createPeerRequests,
+  peerRequestHasAnswerText,
   proposePeerRequests,
+  reopenPeerRequest,
   submitPeerInput,
 } from "./peer-input.ts";
 import { peerRequest } from "./db/schema.ts";
@@ -24,6 +26,20 @@ const ctx = () => {
   const actor = UserId(crypto.randomUUID());
   return { actorUserId: actor, subjectUserId: actor, requestId: RequestId(crypto.randomUUID()) };
 };
+
+describe("peerRequestHasAnswerText", () => {
+  test("empty and blank payloads are unanswered", () => {
+    expect(peerRequestHasAnswerText(undefined)).toBe(false);
+    expect(peerRequestHasAnswerText(null)).toBe(false);
+    expect(peerRequestHasAnswerText({})).toBe(false);
+    expect(peerRequestHasAnswerText({ p_keep: "", p_improve: "  " })).toBe(false);
+  });
+
+  test("any trimmed non-empty string counts as retained input", () => {
+    expect(peerRequestHasAnswerText({ p_keep: "solid work" })).toBe(true);
+    expect(peerRequestHasAnswerText({ p_keep: "", p_context: " x " })).toBe(true);
+  });
+});
 
 describe.skipIf(!sentinelSet)("[integration] peer request notifications", () => {
   test("creating a live request enqueues ONE outbox row per requestee, idempotently", async () => {
@@ -178,5 +194,41 @@ describe.skipIf(!sentinelSet)("[integration] peer request cancellation", () => {
       .where(eq(peerRequest.id, created!.id));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.status).toBe("submitted");
+  });
+
+  // Reopen leaves answers on a pending row — cancel must not wipe them
+  // (manager "undo reopen" trap on /peer-input).
+  test("a reopened request with retained input cannot be cancelled", async () => {
+    const db = getDbAs("admin");
+    const subject = `pc3-subj-${crypto.randomUUID()}@albertschool.com`;
+    const requestee = `pc3-req-${crypto.randomUUID()}@albertschool.com`;
+    const context = ctx();
+
+    const opened = await openCase(db, subject, "2026", context);
+    await createPeerRequests(
+      db,
+      opened.id,
+      context.actorUserId,
+      [{ email: requestee, kind: "cross" }],
+      context,
+    );
+    const [created] = await db
+      .select({ id: peerRequest.id })
+      .from(peerRequest)
+      .where(eq(peerRequest.requesteeEmail, requestee));
+    await submitPeerInput(db, created!.id, requestee, { p_keep: "solid work" }, context);
+    await reopenPeerRequest(db, created!.id, context);
+
+    await expect(cancelPeerRequest(db, created!.id, context)).rejects.toThrow(
+      /conflict: peer_request_has_input/,
+    );
+
+    const rows = await db
+      .select({ status: peerRequest.status, input: peerRequest.input })
+      .from(peerRequest)
+      .where(eq(peerRequest.id, created!.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.status).toBe("pending");
+    expect((rows[0]?.input as Record<string, string>).p_keep).toBe("solid work");
   });
 });
